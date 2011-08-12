@@ -110,11 +110,11 @@ class wormgas(SingleServerIRCBot):
 
         if topic == "all":
             rs.append("Use \x02!help [<topic>]\x0f with one of these topics: "
-                "8ball, flip")
+                "8ball, flip, id, key")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
-                rs.append("Level 2 administration topics: stop")
+                rs.append("Level 2 administration topics: config, stop")
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x0f to ask a question of the magic 8ball")
         elif topic == "config":
@@ -129,6 +129,17 @@ class wormgas(SingleServerIRCBot):
                 rs.append("You are not permitted to use this command")
         elif topic == "flip":
             rs.append("Use \x02!flip\x0f to flip a coin")
+        elif topic == "id":
+            rs.append("Look up your Rainwave user id at "
+                "http://rainwave.cc/auth/ and use \x02!id add <id>\x0f to tell "
+                "me about it")
+            rs.append("Use \x02!id drop\x0f to delete your user id and \x02!id "
+                "show\x0f to see it")
+        elif topic == "key":
+            rs.append("Get an API key from http://rainwave.cc/auth/ and use "
+                "\x02!key add <key>\x0f to tell me about it")
+            rs.append("Use \x02!key drop\x0f to delete your key and \x02!key "
+                "show\x0f to see it")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x0f to shut down the bot")
@@ -136,6 +147,101 @@ class wormgas(SingleServerIRCBot):
                 rs.append("You are not permitted to use this command")
         else:
             rs.append("I cannot help you with '%s'" % topic)
+
+        return(rs)
+
+    def handle_id(self, nick, mode, id):
+        """Manage correlation between an IRC nick and Rainwave User ID
+
+        Arguments:
+            nick: string, IRC nick of person to manage id for
+            mode: string, one of "help", "add", "drop", "show"
+            id: numeric, the person's Rainwave User ID
+
+        Returns: a list of strings"""
+
+        rs = []
+
+        # Make sure this nick is in the user_keys table
+
+        stored_nick = None
+        sql = "select distinct user_nick from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_nick = r[0]
+        if not stored_nick:
+            sql = "insert into user_keys (user_nick) values (?)"
+            self.ccur.execute(sql, (nick,))
+
+        if mode == "help":
+            priv = self.get_config("privlevel:%s" % nick)
+            rs = self.handle_help(priv, "id")
+        elif mode == "add":
+            sql = "update user_keys set user_id = ? where user_nick = ?"
+            self.ccur.execute(sql, (id, nick))
+            rs.append("I assigned the user id %s to nick '%s'" % (id, nick))
+        elif mode == "drop":
+            sql = "update user_keys set user_id = null where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+            rs.append("I dropped the user id for nick '%s'" % nick)
+        elif mode == "show":
+            stored_id = None
+            sql = "select user_id from user_keys where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+            for r in self.ccur:
+                stored_id = r[0]
+            if stored_id:
+                rs.append("The user id for nick '%s' is %s" % (nick, stored_id))
+            else:
+                rs.append("I do not have a user id for nick '%s'" % nick)
+
+        return(rs)
+
+    def handle_key(self, nick, mode="help", key=None):
+        """Manage API keys
+        
+        Arguments:
+            nick: string, IRC nick of person to manage key for
+            mode: string, one of "help", "add", "drop", "show"
+            key: string, the API key to add
+
+        Returns: a list of strings"""
+
+        rs = []
+
+        # Make sure this nick is in the user_keys table
+
+        stored_nick = None
+        sql = "select distinct user_nick from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_nick = r[0]
+        if not stored_nick:
+            sql = "insert into user_keys (user_nick) values (?)"
+            self.ccur.execute(sql, (nick,))
+
+        if mode == "help":
+            priv = self.get_config("privlevel:%s" % nick)
+            rs = self.handle_help(priv, "key")
+        elif mode == "add":
+            sql = "update user_keys set user_key = ? where user_nick = ?"
+            self.ccur.execute(sql, (key, nick))
+            rs.append("I assigned the API key '%s' to nick '%s'" % (key, nick))
+        elif mode == "drop":
+            sql = "update user_keys set user_key = null where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+            rs.append("I dropped the API key for nick '%s'" % nick)
+        elif mode == "show":
+            stored_id = None
+            sql = "select user_key from user_keys where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+            for r in self.ccur:
+                stored_id = r[0]
+            if stored_id:
+                rs.append("The API key for nick '%s' is '%s'" %
+                    (nick, stored_id))
+            else:
+                rs.append("I do not have an API key for nick '%s'" % nick)
 
         return(rs)
 
@@ -188,6 +294,32 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 topic = "all"
             rs = self.handle_help(priv, topic)
+
+        # !id
+
+        elif cmd == "!id":
+            try:
+                mode = cmdtokens[1]
+            except IndexError:
+                mode = "help"
+            try:
+                id = cmdtokens[2]
+            except IndexError:
+                id = None
+            rs = self.handle_id(nick, mode, id)
+
+        # !key
+
+        elif cmd == "!key":
+            try:
+                mode = cmdtokens[1]
+            except IndexError:
+                mode = "help"
+            try:
+                key = cmdtokens[2]
+            except IndexError:
+                key = None
+            rs = self.handle_key(nick, mode, key)
 
         # !stop
 
@@ -270,6 +402,32 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 topic = "all"
             privrs = self.handle_help(priv, topic)
+
+        # !id
+
+        elif cmd == "!id":
+            try:
+                mode = cmdtokens[1]
+            except IndexError:
+                mode = "help"
+            try:
+                id = cmdtokens[2]
+            except IndexError:
+                id = None
+            privrs = self.handle_id(nick, mode, id)
+
+        # !key
+
+        elif cmd == "!key":
+            try:
+                mode = cmdtokens[1]
+            except IndexError:
+                mode = "help"
+            try:
+                key = cmdtokens[2]
+            except IndexError:
+                key = None
+            privrs = self.handle_key(nick, mode, key)
 
         # !stop
 
