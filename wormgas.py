@@ -114,7 +114,7 @@ class wormgas(SingleServerIRCBot):
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
-                rs.append("Level 2 administration topics: stop")
+                rs.append("Level 2 administration topics: config, stop")
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x0f to ask a question of the magic 8ball")
         elif topic == "config":
