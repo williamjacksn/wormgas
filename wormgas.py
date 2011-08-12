@@ -159,7 +159,7 @@ class wormgas(SingleServerIRCBot):
 
         # !8ball
 
-        if cmd == "!8ball":
+        if "!8ball" in msg:
             rs = self.handle_8ball()
 
         # !config
@@ -177,7 +177,7 @@ class wormgas(SingleServerIRCBot):
 
         # !flip
 
-        elif cmd == "!flip":
+        elif "!flip" in msg:
             rs = self.handle_flip()
 
         # !help
@@ -191,7 +191,7 @@ class wormgas(SingleServerIRCBot):
 
         # !stop
 
-        elif priv > 1 and cmd == "!stop":
+        elif priv > 1 and "!stop" in msg:
             self.die()
 
         # Send responses
@@ -222,7 +222,7 @@ class wormgas(SingleServerIRCBot):
 
         # !8ball
 
-        if cmd == "!8ball":
+        if "!8ball" in msg:
             ltb = int(self.get_config("lasttime:8ball"))
             wb = int(self.get_config("wait:8ball"))
             if ltb < time.time() - wb:
@@ -250,7 +250,7 @@ class wormgas(SingleServerIRCBot):
 
         # !flip
 
-        elif cmd == "!flip":
+        elif "!flip" in msg:
             ltf = int(self.get_config("lasttime:flip"))
             wf = int(self.get_config("wait:flip"))
             if ltf < time.time() - wf:
@@ -273,7 +273,7 @@ class wormgas(SingleServerIRCBot):
 
         # !stop
 
-        elif priv > 1 and cmd == "!stop":
+        elif priv > 1 and "!stop" in msg:
             self.die()
 
         # Send responses
