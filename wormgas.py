@@ -3,13 +3,22 @@
 # wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 # https://github.com/subtlecoolness/wormgas
 
+import gzip
+import json
 import os
 import random
 import sqlite3
+import StringIO
 import time
+import urllib2
 from ircbot import SingleServerIRCBot
 
 class wormgas(SingleServerIRCBot):
+
+    station_names = ("All Stations", "Rainwave",  "OCR Radio", "Mixwave",
+        "Bitwave", "Omniwave")
+
+    station_ids = {"rw": 1, "oc": 2, "mw": 3, "bw": 4, "ow": 5}
 
     def __init__(self):
         self.abspath = os.path.abspath(__file__)
@@ -87,6 +96,50 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
+    def handle_election(self, sid, elec_index):
+        """Show the candidates in an election
+
+        Returns: a list of sched_id, response strings"""
+
+        rs = []
+
+        url = "http://rainwave.cc/async/%s/get" % sid
+        data = self.api_call(url)
+        elec_index = int(elec_index)
+        if elec_index == 0:
+            r = "Current election on %s:" % self.station_names[sid]
+        elif elec_index == 1:
+            r = "Future election on %s:" % self.station_names[sid]
+        else:
+            rs.append(0)
+            rs.extend(self.handle_help(topic="election"))
+            return(rs)
+
+        elec = data["sched_next"][elec_index]
+        rs.append(elec["sched_id"])
+
+        for i in (0, 1, 2):
+            song = elec["song_data"][i]
+            album = song["album_name"]
+            title = song["song_title"]
+            arts = song["artists"]
+            art_list = []
+            for art in arts:
+                art_name = art["artist_name"]
+                art_list.append(art_name)
+            art_text = ", ".join(art_list)
+            r = "%s \x02[%s]\x0f %s / %s by %s" % (r, i + 1, album, title,
+                art_text)
+            etype = song["elec_isrequest"]
+            if etype in (3, 4):
+                requestor = song["song_requestor"]
+                r = "%s (requested by %s)" % (r, requestor)
+            elif etype in (0, 1):
+                r = "%s (conflict)" % r
+
+        rs.append(r)
+        return(rs)
+
     def handle_flip(self):
         """Simulate a coin flip
 
@@ -110,7 +163,7 @@ class wormgas(SingleServerIRCBot):
 
         if topic == "all":
             rs.append("Use \x02!help [<topic>]\x0f with one of these topics: "
-                "8ball, flip, id, key")
+                "8ball, election, flip, id, key")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -127,6 +180,15 @@ class wormgas(SingleServerIRCBot):
                     "available config ids")
             else:
                 rs.append("You are not permitted to use this command")
+        elif topic == "election":
+            rs.append("Use \x02!election <stationcode> [<election index>]\x0f "
+                "to see the candidates in an election")
+            rs.append("Short version is \x02!el<stationcode> [<election "
+                "index>]\x0f")
+            rs.append("Election indexes are 0 (current) and 1 (future), "
+                "default is 0")
+            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
+                "\x02bw\x0f, or \x02ow\x0f")
         elif topic == "flip":
             rs.append("Use \x02!flip\x0f to flip a coin")
         elif topic == "id":
@@ -199,7 +261,7 @@ class wormgas(SingleServerIRCBot):
 
     def handle_key(self, nick, mode="help", key=None):
         """Manage API keys
-        
+
         Arguments:
             nick: string, IRC nick of person to manage key for
             mode: string, one of "help", "add", "drop", "show"
@@ -281,6 +343,74 @@ class wormgas(SingleServerIRCBot):
                 value = None
             rs = self.handle_config(id, value)
 
+        # !elbw
+
+        elif cmd == "!elbw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(4, elec_index)
+            rs.pop(0)
+
+        # !election
+
+        elif cmd == "!election":
+            try:
+                station = cmdtokens[1]
+            except IndexError:
+                station = "rw"
+            try:
+                elec_index = cmdtokens[2]
+            except IndexError:
+                elec_index = 0
+            try:
+                sid = self.station_ids[station]
+            except KeyError:
+                sid = 1
+            rs = self.handle_election(sid, elec_index)
+            rs.pop(0)
+
+        # !elmw
+
+        elif cmd == "!elmw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(3, elec_index)
+            rs.pop(0)
+
+        # !eloc
+
+        elif cmd == "!eloc":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(2, elec_index)
+            rs.pop(0)
+
+        # !elow
+
+        elif cmd == "!elow":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(5, elec_index)
+            rs.pop(0)
+
+        # !elrw
+
+        elif cmd == "!elrw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(1, elec_index)
+            rs.pop(0)
+
         # !flip
 
         elif "!flip" in msg:
@@ -329,7 +459,7 @@ class wormgas(SingleServerIRCBot):
         # Send responses
 
         for r in rs:
-            c.privmsg(nick, r)
+            c.privmsg(nick, r.encode("utf8"))
 
     def on_pubmsg(self, c, e):
         """This method is called when a message is sent to the channel the bot
@@ -379,6 +509,152 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.handle_config(id, value)
+
+        # !elbw
+
+        elif cmd == "!elbw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(4, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:4:%s" % elec_index):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:4:%s" % elec_index, sched_id)
+
+        # !election
+
+        elif cmd == "!election":
+            try:
+                station = cmdtokens[1]
+            except IndexError:
+                station = "rw"
+            try:
+                elec_index = cmdtokens[2]
+            except IndexError:
+                elec_index = 0
+            try:
+                sid = self.station_ids[station]
+            except KeyError:
+                sid = 1
+            rs = self.handle_election(sid, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:%s:%s" % (sid, elec_index)):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:%s:%s" % (sid, elec_index), sched_id)
+
+        # !elmw
+
+        elif cmd == "!elmw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(3, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:3:%s" % elec_index):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:3:%s" % elec_index, sched_id)
+
+        # !eloc
+
+        elif cmd == "!eloc":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(2, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:2:%s" % elec_index):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:2:%s" % elec_index, sched_id)
+
+        # !elow
+
+        elif cmd == "!elow":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(5, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:5:%s" % elec_index):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:5:%s" % elec_index, sched_id)
+
+        # !elrw
+
+        elif cmd == "!elrw":
+            try:
+                elec_index = cmdtokens[1]
+            except IndexError:
+                elec_index = 0
+            rs = self.handle_election(1, elec_index)
+
+            sched_id = rs.pop(0)
+            if sched_id == 0:
+                # There was a problem with the elec_index, send help in privmsg
+                privrs.extend(rs)
+                rs = []
+            elif sched_id == self.get_config("el:1:%s" % elec_index):
+                # !election has already been called for this election
+                privrs.extend(rs)
+                rs = []
+                privrs.append("I am cooling down. You can only use !election "
+                    "in %s once per election." % chan)
+            else:
+                self.set_config("el:1:%s" % elec_index, sched_id)
 
         # !flip
 
@@ -437,10 +713,10 @@ class wormgas(SingleServerIRCBot):
         # Send responses
 
         for r in rs:
-            c.privmsg(chan, "%s: %s" % (nick, r))
+            c.privmsg(chan, "%s: %s" % (nick, r.encode("utf8")))
 
         for privr in privrs:
-            c.privmsg(nick, privr)
+            c.privmsg(nick, privr.encode("utf8"))
 
     def on_welcome(self, c, e):
         """This method is called when the bot first connects to the server
@@ -500,6 +776,22 @@ class wormgas(SingleServerIRCBot):
             sql = "update botconfig set config_value = ? where config_id = ?"
             self.ccur.execute(sql, (value, id))
         self.print_to_log("[INFO] set_config: %s = %s" % (id, value))
+
+    def api_call(self, url, args=None):
+        """Make a call to the Rainwave API
+
+        Returns: the API response object"""
+
+        request = urllib2.Request(url)
+        request.add_header("user-agent",
+            "wormgas/0.1 +http://github.com/subtlecoolness/wormgas")
+        request.add_header("accept-encoding", "gzip")
+        opener = urllib2.build_opener()
+        gzipdata = opener.open(request).read()
+        gzipstream = StringIO.StringIO(gzipdata)
+        result = gzip.GzipFile(fileobj=gzipstream).read()
+        data = json.loads(result)
+        return(data)
 
 def main():
     bot = wormgas()
