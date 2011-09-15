@@ -4,7 +4,9 @@
 # https://github.com/subtlecoolness/wormgas
 
 import gzip
+import httplib
 import json
+import math
 import os
 import psycopg2
 import random
@@ -219,6 +221,15 @@ class wormgas(SingleServerIRCBot):
                 "<text>\x0f")
             rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
                 "\x02bw\x0f, or \x02ow\x0f")
+        elif topic == "lstats":
+            rs.append("Use \x02!lstats [<stationcode>]\x0f to see information "
+                "about current listeners, all stations are aggregated if you "
+                "leave off <stationcode>")
+            rs.append("Use \x02!lstats chart [<num>]\x0f to see a chart of "
+                "average hourly listener activity over the last <num> days, "
+                "leave off <num> to use the default of 30")
+            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
+                "\x02bw\x0f, or \x02ow\x0f")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x0f to shut down the bot")
@@ -330,7 +341,9 @@ class wormgas(SingleServerIRCBot):
         Arguments:
             sid: station id of station to search
             mode: "song" or "album"
-            text: text to search for"""
+            text: text to search for
+
+        Returns: a list of strings"""
 
         rs = []
 
@@ -387,6 +400,146 @@ class wormgas(SingleServerIRCBot):
             r = ("%s: Your search returned %s results." %
                 (self.station_names[sid], len(rs)))
             rs.insert(0, r)
+
+        return(rs)
+
+    def handle_lstats(self, sid, mode="text", days=30):
+        """ Reports listener statistics, as numbers or a chart
+
+        Arguments:
+            sid: station id of station to ask about
+            mode: "text" or "chart"
+            days: number of days to include data for chart
+
+        Returns: A list of strings"""
+
+        rs = []
+        st = self.station_names[sid]
+
+        if mode == "text":
+            regd = 0
+            guest = 0
+
+            sql = "select sid, user_id from rw_listeners where list_purge is false"
+            self.rcur.execute(sql)
+            rows = self.rcur.fetchall()
+            for row in rows:
+                if sid in (0, row[0]):
+                    if row[1] > 1:
+                        regd = regd + 1
+                    else:
+                        guest = guest + 1
+
+            r = "%s: %s registered users, %s guests." % (st, regd, guest)
+            rs.append(r)
+        elif mode == "chart":
+
+            # Base url
+            url = "http://chart.apis.google.com/chart"
+
+            # Axis label styles
+            url = "".join((url, "?chxs=0,676767,11.5,-1,l,676767"))
+
+            # Visible axes
+            url = "".join((url, "&chxt=y,x"))
+
+            # Bar width and spacing
+            url = "".join((url, "&chbh=a"))
+
+            # Chart size
+            url = "".join((url, "&chs=600x400"))
+
+            # Chart type
+            url = "".join((url, "&cht=bvs"))
+
+            # Series colors
+            c1 = "&chco=A2C180,3D7930,3399CC,244B95,FFCC33,"
+            c2 = "FF9900,cc80ff,66407f,900000,480000"
+            url = "".join((url, c1, c2))
+
+            # Chart legend text
+            t1 = "&chdl=Rainwave+Guests|Rainwave+Registered|OCR+Radio+Guests|"
+            t2 = "OCR+Radio+Registered|Mixwave+Guests|Mixwave+Registered|"
+            t3 = "Bitwave+Guests|Bitwave+Registered|Omniwave+Guests|"
+            t4 = "Omniwave+Registered"
+            url = "".join((url, t1, t2, t3, t4))
+
+            # Chart title
+            t1 = "&chtt=Rainwave+Average+Hourly+Usage+by+User+Type+and+Station|"
+            t2 = "%s+Day" % days
+            if days > 1:
+                t2 = "".join((t2, "s"))
+            t3 = "+Ending+"
+            t4 = time.strftime("%Y-%m-%d", time.gmtime())
+            url = "".join((url, t1, t2, t3, t4))
+
+            sql = ("select sid, extract(hour from timestamp with time zone "
+                "'epoch' + lstats_time * interval '1 second') as hour, "
+                "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
+                "rw_listenerstats where lstats_time > extract(epoch from "
+                "current_timestamp) - %s group by hour, sid order by sid, hour")
+            seconds = 86400 * days
+            self.rcur.execute(sql, (seconds,))
+            rwg = []
+            rwr = []
+            ocg = []
+            ocr = []
+            mwg = []
+            mwr = []
+            bwg = []
+            bwr = []
+            owg = []
+            owr = []
+            rows = self.rcur.fetchall()
+            for row in rows:
+                if row[0] == 1:
+                    rwg.append(row[2])
+                    rwr.append(row[3])
+                elif row[0] == 2:
+                    ocg.append(row[2])
+                    ocr.append(row[3])
+                elif row[0] == 3:
+                    mwg.append(row[2])
+                    mwr.append(row[3])
+                elif row[0] == 4:
+                    bwg.append(row[2])
+                    bwr.append(row[3])
+                elif row[0] == 5:
+                    owg.append(row[2])
+                    owr.append(row[3])
+
+            lmax = sum((max(rwg), max(rwr), max(ocg), max(ocr), max(mwg),
+                max(mwr), max(bwg), max(bwr), max(owg), max(owr)))
+            lceil = math.ceil(lmax / 50) * 50
+
+            # Chart data
+            url = "".join((url, "&chd=t:"))
+            url = "".join((url, ",".join(["%s" % el for el in rwg]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in rwr]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in ocg]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in ocr]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in mwg]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in mwr]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in bwg]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in bwr]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in owg]), "|"))
+            url = "".join((url, ",".join(["%s" % el for el in owr])))
+
+            # Axis ranges
+            t1 = "&chxr=0,0,%s|1,0,23" % lceil
+            url = "".join((url, t1))
+
+            # Scale for text format with custom range
+            url = "".join((url, "&chds="))
+            t1 = "0,%s" % lceil
+            t2 = []
+            for i in range(10):
+                t2.append(t1)
+            t3 = ",".join(t2)
+            url = "".join((url, t3))
+            rs.append(self.shorten(url))
+        else:
+            rs = self.handle_help(topic="lstats")
 
         return(rs)
 
@@ -545,6 +698,30 @@ class wormgas(SingleServerIRCBot):
                 rs = self.handle_lookup(sid, mode, text)
             except IndexError, KeyError:
                 rs = self.handle_help(topic="lookup")
+
+        # !lstats
+
+        elif cmd == "!lstats":
+            if len(cmdtokens) > 1:
+                mode = cmdtokens[1]
+                if mode == "chart":
+                    if len(cmdtokens) > 2:
+                        try:
+                            days = int(cmdtokens[2])
+                        except ValueError:
+                            days = 30
+                    else:
+                        days = 30
+                    if days < 1:
+                        days = 30
+                    rs = self.handle_lstats(0, "chart", days)
+                elif mode in self.station_ids:
+                    sid = self.station_ids[mode]
+                    rs = self.handle_lstats(sid)
+                else:
+                    rs = self.handle_lstats(0)
+            else:
+                rs = self.handle_lstats(0)
 
         # !lubw
 
@@ -862,6 +1039,42 @@ class wormgas(SingleServerIRCBot):
             except IndexError, KeyError:
                 privrs = self.handle_help(topic="lookup")
 
+        # !lstats
+
+        elif cmd == "!lstats":
+            if len(cmdtokens) > 1:
+                mode = cmdtokens[1]
+                if mode == "chart":
+                    if len(cmdtokens) > 2:
+                        try:
+                            days = int(cmdtokens[2])
+                        except ValueError:
+                            days = 30
+                    else:
+                        days = 30
+                    if days < 1:
+                        days = 30
+                    rs = self.handle_lstats(0, "chart", days)
+                elif mode in self.station_ids:
+                    sid = self.station_ids[mode]
+                    rs = self.handle_lstats(sid)
+                else:
+                    rs = self.handle_lstats(0)
+            else:
+                rs = self.handle_lstats(0)
+
+            ltls = int(self.get_config("lasttime:lstats"))
+            wls = int(self.get_config("wait:lstats"))
+            if ltls < time.time() - wls:
+                self.set_config("lasttime:lstats", time.time())
+            else:
+                if rs:
+                    privrs = rs
+                    rs = []
+                    wait = ltls + wls - int(time.time())
+                    privrs.append("I am cooling down. You cannot use !lstats "
+                        "in %s for another %s seconds." % (chan, wait))
+
         # !lubw
 
         elif cmd == "!lubw":
@@ -999,6 +1212,29 @@ class wormgas(SingleServerIRCBot):
         result = gzip.GzipFile(fileobj=gzipstream).read()
         data = json.loads(result)
         return(data)
+
+    def shorten(self, lurl):
+        """Shorten a URL
+
+        Arguments:
+            lurl: The long url
+
+        Returns: a string, the short url"""
+
+        body = json.dumps({"longUrl": lurl})
+        headers = {}
+        headers["content-type"] = "application/json"
+        ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
+        headers["user-agent"] = ua
+
+        h = httplib.HTTPSConnection("www.googleapis.com")
+        gkey = self.get_config("googleapikey")
+        gurl = "/urlshortener/v1/url?key=%s" % gkey
+        h.request("POST", gurl, body, headers)
+        content = h.getresponse().read()
+
+        result = json.loads(content)
+        return(result["id"])
 
 def main():
     bot = wormgas()
