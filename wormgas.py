@@ -6,6 +6,7 @@
 import gzip
 import json
 import os
+import psycopg2
 import random
 import sqlite3
 import StringIO
@@ -23,9 +24,18 @@ class wormgas(SingleServerIRCBot):
     def __init__(self):
         self.abspath = os.path.abspath(__file__)
         (self.path, self.file) = os.path.split(self.abspath)
+
         self.cdbh = sqlite3.connect("%s/config.sqlite" % self.path,
                                     isolation_level=None)
         self.ccur = self.cdbh.cursor()
+
+        self.rdbh = psycopg2.connect("dbname='%s' user='%s' password='%s'" %
+            (self.get_config("db:name"), self.get_config("db:user"),
+            self.get_config("db:pass")))
+        autocommit = psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        self.rdbh.set_isolation_level(autocommit)
+        self.rcur = self.rdbh.cursor()
+
         server = self.get_config("irc:server")
         nick = self.get_config("irc:nick")
         name = self.get_config("irc:name")
@@ -202,6 +212,13 @@ class wormgas(SingleServerIRCBot):
                 "\x02!key add <key>\x0f to tell me about it")
             rs.append("Use \x02!key drop\x0f to delete your key and \x02!key "
                 "show\x0f to see it")
+        elif topic == "lookup":
+            rs.append("Use \x02!lookup <stationcode> song|album <text>\x0f "
+                "to search for songs or albums with <text> in the title")
+            rs.append("Short version is \x02!lu<stationcode> song|album "
+                "<text>\x0f")
+            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
+                "\x02bw\x0f, or \x02ow\x0f")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x0f to shut down the bot")
@@ -304,6 +321,72 @@ class wormgas(SingleServerIRCBot):
                     (nick, stored_id))
             else:
                 rs.append("I do not have an API key for nick '%s'" % nick)
+
+        return(rs)
+
+    def handle_lookup(self, sid, mode, text):
+        """Look up (search for) a song or album
+
+        Arguments:
+            sid: station id of station to search
+            mode: "song" or "album"
+            text: text to search for"""
+
+        rs = []
+
+        if mode == "song":
+            sql = ("select album_name, song_title, song_id from rw_songs join "
+                "rw_albums using (album_id) where song_verified is true and "
+                "rw_songs.sid = %s and song_title ilike %s order by "
+                "album_name, song_title")
+            self.rcur.execute(sql, (sid, "%%%s%%" % text))
+            rows = self.rcur.fetchall()
+            for row in rows:
+                r = "%s: %s / %s [%s]" % (self.station_names[sid], row[0],
+                    row[1], row[2])
+                rs.append(r)
+        elif mode == "album":
+            sql = ("select album_name, album_id from rw_albums where "
+                "album_verified is true and sid = %s and album_name ilike %s "
+                "order by album_name")
+            self.rcur.execute(sql, (sid, "%%%s%%" % text))
+            rows = self.rcur.fetchall()
+            for row in rows:
+                r = "%s: %s [%s]" % (self.station_names[sid], row[0], row[1])
+                rs.append(r)
+        else:
+            return(self.handle_help(topic="lookup"))
+
+        # I only want 10 results
+
+        unreported_results = 0
+        while len(rs) > 10:
+            rs.pop()
+            unreported_results = unreported_results + 1
+
+        # If I had to trim the results, be honest about it
+
+        if unreported_results > 0:
+            r = "%s: %s more result" % (self.station_names[sid],
+                unreported_results)
+            if unreported_results > 1:
+                r = "%ss" % r
+            r = ("%s. If you do not see what you are looking for, be more "
+                "specific with your search." % r)
+            rs.append(r)
+
+        # If I did not find anything with this search, mention that
+
+        if len(rs) < 1:
+            r = "%s: No results." % self.station_names[sid]
+            rs.append(r)
+        elif unreported_results < 1:
+
+            # I got between 1 and 10 results
+
+            r = ("%s: Your search returned %s results." %
+                (self.station_names[sid], len(rs)))
+            rs.insert(0, r)
 
         return(rs)
 
@@ -450,6 +533,68 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 key = None
             rs = self.handle_key(nick, mode, key)
+
+        # !lookup
+
+        elif cmd == "!lookup":
+            try:
+                station = cmdtokens[1]
+                sid = self.station_ids[station]
+                mode = cmdtokens[2]
+                text = cmdtokens[3]
+                rs = self.handle_lookup(sid, mode, text)
+            except IndexError, KeyError:
+                rs = self.handle_help(topic="lookup")
+
+        # !lubw
+
+        elif cmd == "!lubw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                rs = self.handle_lookup(4, mode, text)
+            except IndexError:
+                rs = self.handle_help(topic="lookup")
+
+        # !lumw
+
+        elif cmd == "!lumw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                rs = self.handle_lookup(3, mode, text)
+            except IndexError:
+                rs = self.handle_help(topic="lookup")
+
+        # !luoc
+
+        elif cmd == "!luoc":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                rs = self.handle_lookup(2, mode, text)
+            except IndexError:
+                rs = self.handle_help(topic="lookup")
+
+        # !luow
+
+        elif cmd == "!luow":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                rs = self.handle_lookup(5, mode, text)
+            except IndexError:
+                rs = self.handle_help(topic="lookup")
+
+        # !lurw
+
+        elif cmd == "!lurw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                rs = self.handle_lookup(1, mode, text)
+            except IndexError:
+                rs = self.handle_help(topic="lookup")
 
         # !stop
 
@@ -704,6 +849,68 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 key = None
             privrs = self.handle_key(nick, mode, key)
+
+        # !lookup
+
+        elif cmd == "!lookup":
+            try:
+                station = cmdtokens[1]
+                sid = self.station_ids[station]
+                mode = cmdtokens[2]
+                text = cmdtokens[3]
+                privrs = self.handle_lookup(sid, mode, text)
+            except IndexError, KeyError:
+                privrs = self.handle_help(topic="lookup")
+
+        # !lubw
+
+        elif cmd == "!lubw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                privrs = self.handle_lookup(4, mode, text)
+            except IndexError:
+                privrs = self.handle_help(topic="lookup")
+
+        # !lumw
+
+        elif cmd == "!lumw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                privrs = self.handle_lookup(3, mode, text)
+            except IndexError:
+                privrs = self.handle_help(topic="lookup")
+
+        # !luoc
+
+        elif cmd == "!luoc":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                privrs = self.handle_lookup(2, mode, text)
+            except IndexError:
+                privrs = self.handle_help(topic="lookup")
+
+        # !luow
+
+        elif cmd == "!luow":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                privrs = self.handle_lookup(5, mode, text)
+            except IndexError:
+                privrs = self.handle_help(topic="lookup")
+
+        # !lurw
+
+        elif cmd == "!lurw":
+            try:
+                mode = cmdtokens[1]
+                text = cmdtokens[2]
+                privrs = self.handle_lookup(1, mode, text)
+            except IndexError:
+                privrs = self.handle_help(topic="lookup")
 
         # !stop
 
