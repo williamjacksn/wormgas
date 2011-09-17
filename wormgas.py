@@ -27,13 +27,17 @@ class wormgas(SingleServerIRCBot):
         self.abspath = os.path.abspath(__file__)
         (self.path, self.file) = os.path.split(self.abspath)
 
-        self.cdbh = sqlite3.connect("%s/config.sqlite" % self.path,
-                                    isolation_level=None)
+        connstr = "%s/config.sqlite" % self.path
+        self.cdbh = sqlite3.connect(connstr, isolation_level=None)
         self.ccur = self.cdbh.cursor()
 
-        self.rdbh = psycopg2.connect("dbname='%s' user='%s' password='%s'" %
-            (self.get_config("db:name"), self.get_config("db:user"),
-            self.get_config("db:pass")))
+        psql_conn_args = []
+        psql_conn_args.append(self.get_config("db:name"))
+        psql_conn_args.append(self.get_config("db:user"))
+        psql_conn_args.append(self.get_config("db:pass"))
+
+        connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
+        self.rdbh = psycopg2.connect(connstr)
         autocommit = psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
         self.rdbh.set_isolation_level(autocommit)
         self.rcur = self.rdbh.cursor()
@@ -139,9 +143,8 @@ class wormgas(SingleServerIRCBot):
             for art in arts:
                 art_name = art["artist_name"]
                 art_list.append(art_name)
-            art_text = ", ".join(art_list)
-            r = "%s \x02[%s]\x0f %s / %s by %s" % (r, i + 1, album, title,
-                art_text)
+            artt = ", ".join(art_list)
+            r = "%s \x02[%s]\x0f %s / %s by %s" % (r, i + 1, album, title, artt)
             etype = song["elec_isrequest"]
             if etype in (3, 4):
                 requestor = song["song_requestor"]
@@ -228,6 +231,12 @@ class wormgas(SingleServerIRCBot):
             rs.append("Use \x02!lstats chart [<num>]\x0f to see a chart of "
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
+            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
+                "\x02bw\x0f, or \x02ow\x0f")
+        elif topic == "nowplaying":
+            rs.append("Use \x02!nowplaying <stationcode>\x0f to show what is "
+                "now playing on the radio")
+            rs.append("Short version is \x02!np<stationcode>\x0f")
             rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
                 "\x02bw\x0f, or \x02ow\x0f")
         elif topic == "stop":
@@ -346,6 +355,7 @@ class wormgas(SingleServerIRCBot):
         Returns: a list of strings"""
 
         rs = []
+        st = self.station_names[sid]
 
         if mode == "song":
             sql = ("select album_name, song_title, song_id from rw_songs join "
@@ -355,8 +365,7 @@ class wormgas(SingleServerIRCBot):
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
             for row in rows:
-                r = "%s: %s / %s [%s]" % (self.station_names[sid], row[0],
-                    row[1], row[2])
+                r = "%s: %s / %s [%s]" % (st, row[0], row[1], row[2])
                 rs.append(r)
         elif mode == "album":
             sql = ("select album_name, album_id from rw_albums where "
@@ -365,7 +374,7 @@ class wormgas(SingleServerIRCBot):
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
             for row in rows:
-                r = "%s: %s [%s]" % (self.station_names[sid], row[0], row[1])
+                r = "%s: %s [%s]" % (st, row[0], row[1])
                 rs.append(r)
         else:
             return(self.handle_help(topic="lookup"))
@@ -380,8 +389,7 @@ class wormgas(SingleServerIRCBot):
         # If I had to trim the results, be honest about it
 
         if unreported_results > 0:
-            r = "%s: %s more result" % (self.station_names[sid],
-                unreported_results)
+            r = "%s: %s more result" % (st, unreported_results)
             if unreported_results > 1:
                 r = "%ss" % r
             r = ("%s. If you do not see what you are looking for, be more "
@@ -391,14 +399,13 @@ class wormgas(SingleServerIRCBot):
         # If I did not find anything with this search, mention that
 
         if len(rs) < 1:
-            r = "%s: No results." % self.station_names[sid]
+            r = "%s: No results." % st
             rs.append(r)
         elif unreported_results < 1:
 
             # I got between 1 and 10 results
 
-            r = ("%s: Your search returned %s results." %
-                (self.station_names[sid], len(rs)))
+            r = ("%s: Your search returned %s results." % (st, len(rs)))
             rs.insert(0, r)
 
         return(rs)
@@ -420,7 +427,8 @@ class wormgas(SingleServerIRCBot):
             regd = 0
             guest = 0
 
-            sql = "select sid, user_id from rw_listeners where list_purge is false"
+            sql = ("select sid, user_id from rw_listeners where list_purge is "
+                "false")
             self.rcur.execute(sql)
             rows = self.rcur.fetchall()
             for row in rows:
@@ -540,6 +548,62 @@ class wormgas(SingleServerIRCBot):
             rs.append(self.shorten(url))
         else:
             rs = self.handle_help(topic="lstats")
+
+        return(rs)
+
+    def handle_nowplaying(self, sid):
+        """Report what is currently playing on the radio
+
+        Arguments:
+            sid: (int) station id of station to check
+
+        Returns: a list of sched_id, strings"""
+
+        rs = []
+        st = self.station_names[sid]
+
+        url = "http://rainwave.cc/async/%s/get" % sid
+        data = self.api_call(url)
+        sched_id = data["sched_current"]["sched_id"]
+        rs.append(sched_id)
+        sched_type = data["sched_current"]["sched_type"]
+        if sched_type in (0, 4):
+            np = data["sched_current"]["song_data"][0]
+            album = np["album_name"]
+            song = np["song_title"]
+            arts = np["artists"]
+            art_list = []
+            for art in arts:
+                art_name = art["artist_name"]
+                art_list.append(art_name)
+            artt = ", ".join(art_list)
+            r = "%s: Now playing: %s / %s by %s" % (st, album, song, artt)
+            url = np["song_url"]
+            if url and "http" in url:
+                r = "%s <%s>" % (r, self.shorten(url))
+
+            votes = np["elec_votes"]
+            ratings = np["song_rating_count"]
+            avg = np["song_rating_avg"]
+
+            r = "%s (%s vote" % (r, votes)
+            if votes <> 1:
+                r = "%ss" % r
+            r = "%s, %s rating" % (r, ratings)
+            if ratings <> 1:
+                r = "%ss" % r
+            r = "%s, rated %s" % (r, avg)
+
+            type = np["elec_isrequest"]
+            if type in (3, 4):
+                r = "%s, requested by %s" % (r, np["song_requestor"])
+            elif type in (0, 1):
+                r = "%s, conflict" % r
+            r = "%s)" % r
+            rs.append(r)
+        else:
+            r = "%s: I have no idea (sched_type = %s)" % (st, sched_type)
+            rs.append(r)
 
         return(rs)
 
@@ -773,6 +837,50 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 rs = self.handle_help(topic="lookup")
 
+        # !nowplaying
+
+        elif cmd == "!nowplaying":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    rs = self.handle_nowplaying(sid)
+                    rs.pop(0)
+                else:
+                    rs = self.handle_help(topic="nowplaying")
+            else:
+                rs = self.handle_help(topic="nowplaying")
+
+        # !npbw
+
+        elif "!npbw" in msg:
+            rs = self.handle_nowplaying(4)
+            rs.pop(0)
+
+        # !npmw
+
+        elif "!npmw" in msg:
+            rs = self.handle_nowplaying(3)
+            rs.pop(0)
+
+        # !npoc
+
+        elif "!npoc" in msg:
+            rs = self.handle_nowplaying(2)
+            rs.pop(0)
+
+        # !npow
+
+        elif "!npow" in msg:
+            rs = self.handle_nowplaying(5)
+            rs.pop(0)
+
+        # !nprw
+
+        elif "!nprw" in msg:
+            rs = self.handle_nowplaying(1)
+            rs.pop(0)
+
         # !stop
 
         elif priv > 1 and "!stop" in msg:
@@ -816,8 +924,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 privrs = self.handle_8ball()
                 wait = ltb + wb - int(time.time())
-                privrs.append("I am cooling down. You cannot use !8ball in %s "
-                    "for another %s seconds." % (chan, wait))
+                cdmsg = "I am cooling down. You cannot use !8ball in"
+                cdmsg = "%s %s for another %s seconds." % (cdmsg, chan, wait)
+                privrs.append(cdmsg)
 
         # !config
 
@@ -850,8 +959,9 @@ class wormgas(SingleServerIRCBot):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
+                cdmsg = "I am cooling down. You can only use !election in"
+                cdmsg = "%s %s once per election." % (cdmsg, chan)
+                privrs.append(cdmsg)
             else:
                 self.set_config("el:4:%s" % elec_index, sched_id)
 
@@ -1124,6 +1234,92 @@ class wormgas(SingleServerIRCBot):
                 privrs = self.handle_lookup(1, mode, text)
             except IndexError:
                 privrs = self.handle_help(topic="lookup")
+
+        # !nowplaying
+
+        elif cmd == "!nowplaying":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    rs = self.handle_nowplaying(sid)
+                    sched_id = rs.pop(0)
+                    if sched_id == int(self.get_config("np:%s" % sid)):
+                        privrs = rs
+                        rs = []
+                        privrs.append("I am cooling down. You can only use "
+                            "!nowplaying in %s once per song." % chan)
+                    else:
+                        self.set_config("np:%s" % sid, sched_id)
+                else:
+                    privrs = self.handle_help(topic="nowplaying")
+            else:
+                privrs = self.handle_help(topic="nowplaying")
+
+        # !npbw
+
+        elif "!npbw" in msg:
+            rs = self.handle_nowplaying(4)
+            sched_id = rs.pop(0)
+            if sched_id == int(self.get_config("np:4")):
+                privrs = rs
+                rs = []
+                privrs.append("I am cooling down. You can only use !nowplaying "
+                    "in %s once per song." % chan)
+            else:
+                self.set_config("np:4", sched_id)
+
+        # !npmw
+
+        elif "!npmw" in msg:
+            rs = self.handle_nowplaying(3)
+            sched_id = rs.pop(0)
+            if sched_id == int(self.get_config("np:3")):
+                privrs = rs
+                rs = []
+                privrs.append("I am cooling down. You can only use !nowplaying "
+                    "in %s once per song." % chan)
+            else:
+                self.set_config("np:3", sched_id)
+
+        # !npoc
+
+        elif "!npoc" in msg:
+            rs = self.handle_nowplaying(2)
+            sched_id = rs.pop(0)
+            if sched_id == int(self.get_config("np:2")):
+                privrs = rs
+                rs = []
+                privrs.append("I am cooling down. You can only use !nowplaying "
+                    "in %s once per song." % chan)
+            else:
+                self.set_config("np:2", sched_id)
+
+        # !npow
+
+        elif "!npow" in msg:
+            rs = self.handle_nowplaying(5)
+            sched_id = rs.pop(0)
+            if sched_id == int(self.get_config("np:5")):
+                privrs = rs
+                rs = []
+                privrs.append("I am cooling down. You can only use !nowplaying "
+                    "in %s once per song." % chan)
+            else:
+                self.set_config("np:5", sched_id)
+
+        # !nprw
+
+        elif "!nprw" in msg:
+            rs = self.handle_nowplaying(1)
+            sched_id = rs.pop(0)
+            if sched_id == int(self.get_config("np:1")):
+                privrs = rs
+                rs = []
+                privrs.append("I am cooling down. You can only use !nowplaying "
+                    "in %s once per song." % chan)
+            else:
+                self.set_config("np:1", sched_id)
 
         # !stop
 
