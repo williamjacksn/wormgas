@@ -144,7 +144,7 @@ class wormgas(SingleServerIRCBot):
                 art_name = art["artist_name"]
                 art_list.append(art_name)
             artt = ", ".join(art_list)
-            r = "%s \x02[%s]\x0f %s / %s by %s" % (r, i + 1, album, title, artt)
+            r = "%s \x02[%s]\x02 %s / %s by %s" % (r, i + 1, album, title, artt)
             etype = song["elec_isrequest"]
             if etype in (3, 4):
                 requestor = song["song_requestor"]
@@ -177,17 +177,17 @@ class wormgas(SingleServerIRCBot):
         rs = []
 
         if topic == "all":
-            rs.append("Use \x02!help [<topic>]\x0f with one of these topics: "
+            rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
                 rs.append("Level 2 administration topics: config, stop")
         elif topic == "8ball":
-            rs.append("Use \x02!8ball\x0f to ask a question of the magic 8ball")
+            rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
         elif topic == "config":
             if priv > 1:
-                rs.append("Use \x02!config [<id>] [<value>]\x0f to display or "
+                rs.append("Use \x02!config [<id>] [<value>]\x02 to display or "
                     "change configuration settings")
                 rs.append("Leave off <value> to see the current setting, or "
                     "use a <value> of -1 to remove a setting")
@@ -196,52 +196,58 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "election":
-            rs.append("Use \x02!election <stationcode> [<election index>]\x0f "
+            rs.append("Use \x02!election <stationcode> [<election index>]\x02 "
                 "to see the candidates in an election")
-            rs.append("Short version is \x02!el<stationcode> [<election "
-                "index>]\x0f")
-            rs.append("Election indexes are 0 (current) and 1 (future), "
-                "default is 0")
-            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
-                "\x02bw\x0f, or \x02ow\x0f")
+            rs.append("Short version is \x02!el<stationcode> [<index>]\x02")
+            rs.append("Index should be 0 (current) or 1 (future), default is 0")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
         elif topic == "flip":
-            rs.append("Use \x02!flip\x0f to flip a coin")
+            rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "id":
             rs.append("Look up your Rainwave user id at "
-                "http://rainwave.cc/auth/ and use \x02!id add <id>\x0f to tell "
+                "http://rainwave.cc/auth/ and use \x02!id add <id>\x02 to tell "
                 "me about it")
-            rs.append("Use \x02!id drop\x0f to delete your user id and \x02!id "
-                "show\x0f to see it")
+            rs.append("Use \x02!id drop\x02 to delete your user id and \x02!id "
+                "show\x02 to see it")
         elif topic == "key":
             rs.append("Get an API key from http://rainwave.cc/auth/ and use "
-                "\x02!key add <key>\x0f to tell me about it")
-            rs.append("Use \x02!key drop\x0f to delete your key and \x02!key "
-                "show\x0f to see it")
+                "\x02!key add <key>\x02 to tell me about it")
+            rs.append("Use \x02!key drop\x02 to delete your key and \x02!key "
+                "show\x02 to see it")
         elif topic == "lookup":
-            rs.append("Use \x02!lookup <stationcode> song|album <text>\x0f "
+            rs.append("Use \x02!lookup <stationcode> song|album <text>\x02 "
                 "to search for songs or albums with <text> in the title")
             rs.append("Short version is \x02!lu<stationcode> song|album "
-                "<text>\x0f")
-            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
-                "\x02bw\x0f, or \x02ow\x0f")
+                "<text>\x02")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
         elif topic == "lstats":
-            rs.append("Use \x02!lstats [<stationcode>]\x0f to see information "
+            rs.append("Use \x02!lstats [<stationcode>]\x02 to see information "
                 "about current listeners, all stations are aggregated if you "
                 "leave off <stationcode>")
-            rs.append("Use \x02!lstats chart [<num>]\x0f to see a chart of "
+            rs.append("Use \x02!lstats chart [<num>]\x02 to see a chart of "
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
-            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
-                "\x02bw\x0f, or \x02ow\x0f")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
         elif topic == "nowplaying":
-            rs.append("Use \x02!nowplaying <stationcode>\x0f to show what is "
+            rs.append("Use \x02!nowplaying <stationcode>\x02 to show what is "
                 "now playing on the radio")
-            rs.append("Short version is \x02!np<stationcode>\x0f")
-            rs.append("Station codes are \x02rw\x0f, \x02oc\x0f, \x02mw\x0f, "
-                "\x02bw\x0f, or \x02ow\x0f")
+            rs.append("Short version is \x02!np<stationcode>\x02")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
+        elif topic == "prevplayed":
+            rs.append("Use \x02!prevplayed <stationcode> [<index>]\x02 to show "
+                "what was previously playing on the radio")
+            rs.append("Short version is \x02!pp<stationcode> [<index>]\x02")
+            rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
+                "numbers are further in the past")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
         elif topic == "stop":
             if priv > 1:
-                rs.append("Use \x02!stop\x0f to shut down the bot")
+                rs.append("Use \x02!stop\x02 to shut down the bot")
             else:
                 rs.append("You are not permitted to use this command")
         else:
@@ -607,6 +613,57 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
+    def handle_prevplayed(self, sid, index=0):
+        """Report what was previously playing on the radio
+
+        Arguments:
+            sid: (int) station id of station to check
+            index: (int) (0, 1, 2) which previously played song, higher number =
+                further in the past
+
+        Returns: a list of sched_id, strings"""
+
+        rs = []
+        st = self.station_names[sid]
+
+        url = "http://rainwave.cc/async/%s/get" % sid
+        data = self.api_call(url)
+        sched_id = data["sched_history"][index]["sched_id"]
+        rs.append(sched_id)
+        sched_type = data["sched_history"][index]["sched_type"]
+        if sched_type in (0, 4):
+            pp = data["sched_history"][index]["song_data"][0]
+            album = pp["album_name"]
+            song = pp["song_title"]
+            arts = pp["artists"]
+            art_list = []
+            for art in arts:
+                art_name = art["artist_name"]
+                art_list.append(art_name)
+            artt = ", ".join(art_list)
+            r = "%s: Previously: %s / %s by %s" % (st, album, song, artt)
+
+            votes = pp["elec_votes"]
+            avg = pp["song_rating_avg"]
+
+            r = "%s (%s vote" % (r, votes)
+            if votes <> 1:
+                r = "%ss" % r
+            r = "%s, rated %s" % (r, avg)
+
+            type = pp["elec_isrequest"]
+            if type in (3, 4):
+                r = "%s, requested by %s" % (r, pp["song_requestor"])
+            elif type in (0, 1):
+                r = "%s, conflict" % r
+            r = "%s)" % r
+            rs.append(r)
+        else:
+            r = "%s: I have no idea (sched_type = %s)" % (st, sched_type)
+            rs.append(r)
+
+        return(rs)
+
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
@@ -880,6 +937,127 @@ class wormgas(SingleServerIRCBot):
         elif "!nprw" in msg:
             rs = self.handle_nowplaying(1)
             rs.pop(0)
+
+        # !ppbw
+
+        elif cmd == "!ppbw":
+            sid = 4
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        rs.pop(0)
+                    else:
+                        rs = self.handle_help(topic="prevplayed")
+                except ValueError:
+                    rs = self.handle_prevplayed(sid)
+                    rs.pop(0)
+            else:
+                rs = self.handle_prevplayed(sid)
+                rs.pop(0)
+
+        # !ppmw
+
+        elif cmd == "!ppmw":
+            sid = 3
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        rs.pop(0)
+                    else:
+                        rs = self.handle_help(topic="prevplayed")
+                except ValueError:
+                    rs = self.handle_prevplayed(sid)
+                    rs.pop(0)
+            else:
+                rs = self.handle_prevplayed(sid)
+                rs.pop(0)
+
+        # !ppoc
+
+        elif cmd == "!ppoc":
+            sid = 2
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        rs.pop(0)
+                    else:
+                        rs = self.handle_help(topic="prevplayed")
+                except ValueError:
+                    rs = self.handle_prevplayed(sid)
+                    rs.pop(0)
+            else:
+                rs = self.handle_prevplayed(sid)
+                rs.pop(0)
+
+        # !ppow
+
+        elif cmd == "!ppow":
+            sid = 5
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        rs.pop(0)
+                    else:
+                        rs = self.handle_help(topic="prevplayed")
+                except ValueError:
+                    rs = self.handle_prevplayed(sid)
+                    rs.pop(0)
+            else:
+                rs = self.handle_prevplayed(sid)
+                rs.pop(0)
+
+        # !pprw
+
+        elif cmd == "!pprw":
+            sid = 1
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        rs.pop(0)
+                    else:
+                        rs = self.handle_help(topic="prevplayed")
+                except ValueError:
+                    rs = self.handle_prevplayed(sid)
+                    rs.pop(0)
+            else:
+                rs = self.handle_prevplayed(sid)
+                rs.pop(0)
+
+        # !prevplayed
+
+        elif cmd == "!prevplayed":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    if len(cmdtokens) > 2:
+                        try:
+                            index = int(cmdtokens[2])
+                            if index in (0, 1, 2):
+                                rs = self.handle_prevplayed(sid, index)
+                                rs.pop(0)
+                            else:
+                                rs = self.handle_help(topic="prevplayed")
+                        except ValueError:
+                            rs = self.handle_prevplayed(sid)
+                            rs.pop(0)
+                    else:
+                        rs = self.handle_prevplayed(sid)
+                        rs.pop(0)
+                else:
+                    rs = self.handle_help(topic="prevplayed")
+            else:
+                rs = self.handle_help(topic="prevplayed")
 
         # !stop
 
@@ -1320,6 +1498,163 @@ class wormgas(SingleServerIRCBot):
                     "in %s once per song." % chan)
             else:
                 self.set_config("np:1", sched_id)
+
+        # !ppbw
+
+        elif cmd == "!ppbw":
+            sid = 4
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                except ValueError:
+                    index = 0
+            else:
+                index = 0
+            if index in (0, 1, 2):
+                rs = self.handle_prevplayed(sid, index)
+                sched_id = rs.pop(0)
+                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                if sched_id == last:
+                    privrs = rs
+                    rs = []
+                    privrs.append("I am cooling down. You can only use "
+                        "!prevplayed in %s once per song." % chan)
+                else:
+                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+            else:
+                privrs = self.handle_help(topic="prevplayed")
+
+        # !ppmw
+
+        elif cmd == "!ppmw":
+            sid = 3
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                except ValueError:
+                    index = 0
+            else:
+                index = 0
+            if index in (0, 1, 2):
+                rs = self.handle_prevplayed(sid, index)
+                sched_id = rs.pop(0)
+                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                if sched_id == last:
+                    privrs = rs
+                    rs = []
+                    privrs.append("I am cooling down. You can only use "
+                        "!prevplayed in %s once per song." % chan)
+                else:
+                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+            else:
+                privrs = self.handle_help(topic="prevplayed")
+
+        # !ppoc
+
+        elif cmd == "!ppoc":
+            sid = 2
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                except ValueError:
+                    index = 0
+            else:
+                index = 0
+            if index in (0, 1, 2):
+                rs = self.handle_prevplayed(sid, index)
+                sched_id = rs.pop(0)
+                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                if sched_id == last:
+                    privrs = rs
+                    rs = []
+                    privrs.append("I am cooling down. You can only use "
+                        "!prevplayed in %s once per song." % chan)
+                else:
+                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+            else:
+                privrs = self.handle_help(topic="prevplayed")
+
+        # !ppow
+
+        elif cmd == "!ppow":
+            sid = 5
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                except ValueError:
+                    index = 0
+            else:
+                index = 0
+            if index in (0, 1, 2):
+                rs = self.handle_prevplayed(sid, index)
+                sched_id = rs.pop(0)
+                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                if sched_id == last:
+                    privrs = rs
+                    rs = []
+                    privrs.append("I am cooling down. You can only use "
+                        "!prevplayed in %s once per song." % chan)
+                else:
+                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+            else:
+                privrs = self.handle_help(topic="prevplayed")
+
+        # !pprw
+
+        elif cmd == "!pprw":
+            sid = 1
+            if len(cmdtokens) > 1:
+                try:
+                    index = int(cmdtokens[1])
+                except ValueError:
+                    index = 0
+            else:
+                index = 0
+            if index in (0, 1, 2):
+                rs = self.handle_prevplayed(sid, index)
+                sched_id = rs.pop(0)
+                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                if sched_id == last:
+                    privrs = rs
+                    rs = []
+                    privrs.append("I am cooling down. You can only use "
+                        "!prevplayed in %s once per song." % chan)
+                else:
+                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+            else:
+                privrs = self.handle_help(topic="prevplayed")
+
+        # !prevplayed
+
+        elif cmd == "!prevplayed":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    if len(cmdtokens) > 2:
+                        try:
+                            index = int(cmdtokens[2])
+                        except ValueError:
+                            index = 0
+                    else:
+                        index = 0
+                    if index in (0, 1, 2):
+                        rs = self.handle_prevplayed(sid, index)
+                        sched_id = rs.pop(0)
+                        last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                        if sched_id == last:
+                            privrs = rs
+                            rs = []
+                            privrs.append("I am cooling down. You can only use "
+                                "!prevplayed in %s once per song." % chan)
+                        else:
+                            self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    else:
+                        privrs = self.handle_help(topic="prevplayed")
+                else:
+                    privrs = self.handle_help(topic="prevplayed")
+            else:
+                privrs = self.handle_help(topic="prevplayed")
 
         # !stop
 
