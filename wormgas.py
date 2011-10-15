@@ -12,8 +12,9 @@ import psycopg2
 import random
 import sqlite3
 import StringIO
+import sys
 import time
-import urllib2
+import urllib, urllib2
 from ircbot import SingleServerIRCBot
 
 class wormgas(SingleServerIRCBot):
@@ -178,7 +179,8 @@ class wormgas(SingleServerIRCBot):
 
         if topic == "all":
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
-                "8ball, election, flip, id, key")
+                "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
+                "prevplayed, rate")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -243,6 +245,12 @@ class wormgas(SingleServerIRCBot):
             rs.append("Short version is \x02!pp<stationcode> [<index>]\x02")
             rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
                 "numbers are further in the past")
+            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
+                "\x02bw\x02, or \x02ow\x02")
+        elif topic == "rate":
+            rs.append("Use \x02!rate <stationcode> <rating>\x02 to rate the "
+                "currently playing song")
+            rs.append("Short version is \x02!rt<stationcode> <rating>\x02")
             rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
                 "\x02bw\x02, or \x02ow\x02")
         elif topic == "stop":
@@ -664,6 +672,73 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
+    def handle_rate(self, nick, sid, rating):
+        """Rate the currently playing song
+
+        Arguments:
+            nick: person who is submitting the rating
+            sid: station id of song to rate
+            rating: the rating
+
+        Returns: a list of strings"""
+
+        rs = []
+
+        # Make sure this nick matches a username
+
+        user_id = None
+        sql = "select user_id from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        rows = self.ccur.fetchall()
+        for r in rows:
+            user_id = r[0]
+        if not user_id:
+            sql = "select user_id from phpbb_users where username = %s"
+            self.rcur.execute(sql, (nick,))
+            rows = self.rcur.fetchall()
+            for r in rows:
+                user_id = r[0]
+        if not user_id:
+            r = ("I cannot find an account for '%s'. Is the username correct?" %
+                nick)
+            rs.append(r)
+            return(rs)
+
+        # Get the key for this user
+
+        key = None
+        sql = "select user_key from user_keys where user_id = ?"
+        self.ccur.execute(sql, (user_id,))
+        rows = self.ccur.fetchall()
+        for r in rows:
+            key = r[0]
+        if not key:
+            r = ("I do not have a key store for you. Visit "
+                "http://rainwave.cc/auth/ to get a key and tell me about it "
+                "with \x02!key add [key]\x02")
+            rs.append(r)
+            return(rs)
+
+        # Get the song_id
+
+        url = "http://rainwave.cc/async/%s/get" % sid
+        data = self.api_call(url)
+        song_id = data["sched_current"]["song_data"][0]["song_id"]
+
+        # Try the rate
+
+        url = "http://rainwave.cc/async/%s/rate" % sid
+        args = {"user_id": user_id, "key": key, "song_id": song_id,
+            "rating": rating}
+        data = self.api_call(url, args)
+
+        if data["rate_result"]:
+            rs.append(data["rate_result"]["text"])
+        else:
+            rs.append(data["error"]["text"])
+
+        return(rs)
+
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
@@ -1058,6 +1133,73 @@ class wormgas(SingleServerIRCBot):
                     rs = self.handle_help(topic="prevplayed")
             else:
                 rs = self.handle_help(topic="prevplayed")
+
+        # !rate
+
+        elif cmd == "!rate":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    if len(cmdtokens) > 2:
+                        rating = cmdtokens[2]
+                        rs = self.handle_rate(nick, sid, rating)
+                    else:
+                        rs = self.handle_help(topic="rate")
+                else:
+                    rs = self.handle_help(topic="rate")
+            else:
+                rs = self.handle_help(topic="rate")
+
+        # !rtbw
+
+        elif cmd == "!rtbw":
+            sid = 4
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                rs = self.handle_rate(nick, sid, rating)
+            else:
+                rs = self.handle_help(topic="rate")
+
+        # !rtmw
+
+        elif cmd == "!rtmw":
+            sid = 3
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                rs = self.handle_rate(nick, sid, rating)
+            else:
+                rs = self.handle_help(topic="rate")
+
+        # !rtoc
+
+        elif cmd == "!rtoc":
+            sid = 2
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                rs = self.handle_rate(nick, sid, rating)
+            else:
+                rs = self.handle_help(topic="rate")
+
+        # !rtow
+
+        elif cmd == "!rtow":
+            sid = 5
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                rs = self.handle_rate(nick, sid, rating)
+            else:
+                rs = self.handle_help(topic="rate")
+
+        # !rtrw
+
+        elif cmd == "!rtrw":
+            sid = 1
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                rs = self.handle_rate(nick, sid, rating)
+            else:
+                rs = self.handle_help(topic="rate")
 
         # !stop
 
@@ -1656,6 +1798,73 @@ class wormgas(SingleServerIRCBot):
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
+        # !rate
+
+        elif cmd == "!rate":
+            if len(cmdtokens) > 1:
+                station = cmdtokens[1]
+                if station in self.station_ids:
+                    sid = self.station_ids[station]
+                    if len(cmdtokens) > 2:
+                        rating = cmdtokens[2]
+                        privrs = self.handle_rate(nick, sid, rating)
+                    else:
+                        privrs = self.handle_help(topic="rate")
+                else:
+                    privrs = self.handle_help(topic="rate")
+            else:
+                privrs = self.handle_help(topic="rate")
+
+        # !rtbw
+
+        elif cmd == "!rtbw":
+            sid = 4
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                privrs = self.handle_rate(nick, sid, rating)
+            else:
+                privrs = self.handle_help(topic="rate")
+
+        # !rtmw
+
+        elif cmd == "!rtmw":
+            sid = 3
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                privrs = self.handle_rate(nick, sid, rating)
+            else:
+                privrs = self.handle_help(topic="rate")
+
+        # !rtoc
+
+        elif cmd == "!rtoc":
+            sid = 2
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                privrs = self.handle_rate(nick, sid, rating)
+            else:
+                privrs = self.handle_help(topic="rate")
+
+        # !rtow
+
+        elif cmd == "!rtow":
+            sid = 5
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                privrs = self.handle_rate(nick, sid, rating)
+            else:
+                privrs = self.handle_help(topic="rate")
+
+        # !rtrw
+
+        elif cmd == "!rtrw":
+            sid = 1
+            if len(cmdtokens) > 1:
+                rating = cmdtokens[1]
+                privrs = self.handle_rate(nick, sid, rating)
+            else:
+                privrs = self.handle_help(topic="rate")
+
         # !stop
 
         elif priv > 1 and "!stop" in msg:
@@ -1731,12 +1940,18 @@ class wormgas(SingleServerIRCBot):
     def api_call(self, url, args=None):
         """Make a call to the Rainwave API
 
+        Arguments:
+            url: the url of the API call
+            args: a dictionary of optional arguments for the API call
+
         Returns: the API response object"""
 
         request = urllib2.Request(url)
         request.add_header("user-agent",
             "wormgas/0.1 +http://github.com/subtlecoolness/wormgas")
         request.add_header("accept-encoding", "gzip")
+        if args:
+            request.add_data(urllib.urlencode(args))
         opener = urllib2.build_opener()
         gzipdata = opener.open(request).read()
         gzipstream = StringIO.StringIO(gzipdata)
@@ -1772,4 +1987,17 @@ def main():
     bot.start()
 
 if __name__ == "__main__":
+    try:
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
+    except OSError:
+        sys.exit(1)
+
+    try:
+        sleeptime = sys.argv[1]
+    except IndexError:
+        sleeptime = 0
+    time.sleep(sleeptime)
+
     main()
