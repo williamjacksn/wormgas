@@ -370,7 +370,8 @@ class wormgas(SingleServerIRCBot):
                 "album_name, song_title")
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
-            for row in rows:
+            unreported_results = len(rows - 10)
+            for row in rows[:10]:
                 r = "%s: %s / %s [%s]" % (st, row[0], row[1], row[2])
                 rs.append(r)
         elif mode == "album":
@@ -379,18 +380,12 @@ class wormgas(SingleServerIRCBot):
                 "order by album_name")
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
-            for row in rows:
+            unreported_results = len(rows - 10)
+            for row in rows[:10]:
                 r = "%s: %s [%s]" % (st, row[0], row[1])
                 rs.append(r)
         else:
             return(self.handle_help(topic="lookup"))
-
-        # I only want 10 results
-
-        unreported_results = 0
-        while len(rs) > 10:
-            rs.pop()
-            unreported_results = unreported_results + 1
 
         # If I had to trim the results, be honest about it
 
