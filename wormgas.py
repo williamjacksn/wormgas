@@ -370,7 +370,7 @@ class wormgas(SingleServerIRCBot):
                 "album_name, song_title")
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
-            unreported_results = len(rows - 10)
+            unreported_results = len(rows) - 10
             for row in rows[:10]:
                 r = "%s: %s / %s [%s]" % (st, row[0], row[1], row[2])
                 rs.append(r)
@@ -380,7 +380,7 @@ class wormgas(SingleServerIRCBot):
                 "order by album_name")
             self.rcur.execute(sql, (sid, "%%%s%%" % text))
             rows = self.rcur.fetchall()
-            unreported_results = len(rows - 10)
+            unreported_results = len(rows) - 10
             for row in rows[:10]:
                 r = "%s: %s [%s]" % (st, row[0], row[1])
                 rs.append(r)
