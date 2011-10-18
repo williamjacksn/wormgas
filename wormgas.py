@@ -2001,9 +2001,9 @@ if __name__ == "__main__":
     except OSError:
         sys.exit(1)
 
-    try:
-        sleeptime = sys.argv[1]
-    except IndexError:
+    if len(sys.argv) > 1:
+        sleeptime = float(sys.argv[1])
+    else:
         sleeptime = 0
     time.sleep(sleeptime)
 
