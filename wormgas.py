@@ -1204,7 +1204,11 @@ class wormgas(SingleServerIRCBot):
         # Send responses
 
         for r in rs:
-            c.privmsg(nick, r.encode("utf8"))
+            if type(r) is unicode:
+                message = r.encode("utf-8")
+            else:
+                message = unicode(r, "utf-8").encode("utf-8")
+            c.privmsg(nick, message)
 
     def on_pubmsg(self, c, e):
         """This method is called when a message is sent to the channel the bot
@@ -1868,10 +1872,18 @@ class wormgas(SingleServerIRCBot):
         # Send responses
 
         for r in rs:
-            c.privmsg(chan, "%s: %s" % (nick, r.encode("utf8")))
+            if type(r) is unicode:
+                message = r.encode("utf-8")
+            else:
+                message = unicode(r, "utf-8").encode("utf-8")
+            c.privmsg(chan, message)
 
         for privr in privrs:
-            c.privmsg(nick, privr.encode("utf8"))
+            if type(privr) is unicode:
+                message = privr.encode("utf-8")
+            else:
+                message = unicode(privr, "utf-8").encode("utf-8")
+            c.privmsg(nick, message)
 
     def on_welcome(self, c, e):
         """This method is called when the bot first connects to the server
