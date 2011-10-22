@@ -618,17 +618,14 @@ class wormgas(SingleServerIRCBot):
         # Make sure this nick matches a username
 
         user_id = self.config.get_id_for_nick(nick)
-        if not user_id and self.rwdb:
-            sql = "select user_id from phpbb_users where username = %s"
-            self.rcur.execute(sql, (nick,))
-            rows = self.rcur.fetchall()
-            for r in rows:
-                user_id = r[0]
         if not user_id:
             if self.rwdb:
-                rs.append("I cannot find an account for '%s'. "
+                if self.rwdb.validate_nick(nick):
+                    user_id = nick
+                else:
+                    rs.append("I cannot find an account for '%s'. "
                         "Is the username correct?" % nick)
-                return(rs)
+                    return(rs)
             else:
                 rs.append("I'll try to rate with account '%s'. If this is not "
                         "your Rainwave account, tell me what account to use "

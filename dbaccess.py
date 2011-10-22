@@ -185,3 +185,13 @@ class RainwaveDatabase(object):
         autocommit = psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
         self.rdbh.set_isolation_level(autocommit)
         self.rcur = self.rdbh.cursor()
+
+    def validate_nick(self, nick):
+        """Return True if this nick is a registered Rainwave account."""
+        user_id = None
+        sql = "select user_id from phpbb_users where username = %s"
+        self.rcur.execute(sql, (nick,))
+        rows = self.rcur.fetchall()
+        for r in rows:
+            user_id = r[0]
+        return user_id is not None
