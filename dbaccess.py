@@ -200,12 +200,13 @@ class RainwaveDatabase(object):
         """Search for songs by title.
 
         Returns:
-            the tuple ([song dicts], unreported results), where a song dict is:
-            {
-                "album_name": string
-                "song_title": string
-                "song_id": string
-            }
+            the tuple ([song dicts], unreported results), where:
+                a song dict is: {
+                    "album_name": string
+                    "song_title": string
+                    "song_id": string
+                }
+                unreported results: int, number of results over the limit.
         """
         sql = ("select album_name, song_title, song_id from rw_songs join "
             "rw_albums using (album_id) where song_verified is true and "
@@ -217,6 +218,28 @@ class RainwaveDatabase(object):
         for row in rows[:limit]:
             results.append({
                 "album_name": row[0], "song_title": row[1], "song_id": row[2]})
+        unreported_results = max(len(rows) - limit, 0)
+        return results, unreported_results
+
+    def search_albums(self, sid, text, limit=10):
+        """Search for albums by title.
+
+        Returns:
+            the tuple ([album dicts], unreported results), where:
+                an album dict is: {
+                    "album_name": string
+                    "album_id": string
+                }
+                unreported results: int, number of results over the limit.
+        """
+        sql = ("select album_name, album_id from rw_albums where "
+            "album_verified is true and sid = %s and album_name ilike %s "
+            "order by album_name")
+        self.rcur.execute(sql, (sid, "%%%s%%" % text))
+        rows = self.rcur.fetchall()
+        results = []
+        for row in rows[:limit]:
+            results.append({"album_name": row[0], "album_id": row[1]})
         unreported_results = max(len(rows) - limit, 0)
         return results, unreported_results
 

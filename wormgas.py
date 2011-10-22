@@ -307,22 +307,18 @@ class wormgas(SingleServerIRCBot):
 
         if mode == "song":
             rows, unreported_results = self.rwdb.search_songs(sid, text)
-            text = "%(station)s: %(album_name)s / %(song_title)s [%(song_id)s]"
-            for row in rows:
-                row["station"] = st
-                rs.append(text % row)
+            out = "%(station)s: %(album_name)s / %(song_title)s [%(song_id)s]"
         elif mode == "album":
-            sql = ("select album_name, album_id from rw_albums where "
-                "album_verified is true and sid = %s and album_name ilike %s "
-                "order by album_name")
-            self.rcur.execute(sql, (sid, "%%%s%%" % text))
-            rows = self.rcur.fetchall()
-            unreported_results = len(rows) - 10
-            for row in rows[:10]:
-                r = "%s: %s [%s]" % (st, row[0], row[1])
-                rs.append(r)
+            rows, unreported_results = self.rwdb.search_albums(sid, text)
+            out = "%(station)s: %(album_name)s [%(album_id)s]"
         else:
             return(self.handle_help(topic="lookup"))
+
+        # If I got results, output them
+
+        for row in rows:
+            row["station"] = st
+            rs.append(out % row)
 
         # If I had to trim the results, be honest about it
 
