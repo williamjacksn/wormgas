@@ -2016,8 +2016,8 @@ if __name__ == "__main__":
         pid = os.fork()
         if pid > 0:
             sys.exit(0)
-    except OSError:
-        sys.exit(1)
+    except (OSError, AttributeError):
+        pass # Non-Unix systems will run wormgas in the foreground.
 
     if len(sys.argv) > 1:
         sleeptime = float(sys.argv[1])
