@@ -21,6 +21,12 @@ def print_to_log(msg):
     with open(_logpath, "a") as logfile:
         logfile.write("%s -- %s\n" % (now, msg))
 
+try:
+    import psycopg2
+except:
+    psycopg2 = None
+    print_to_log("[WARN] psycopg2 unavailable -- RW db access turned off.")
+
 class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
 
@@ -148,3 +154,34 @@ class Config(object):
         for r in self.ccur:
             stored_id = r[0]
         return stored_id
+
+class RainwaveDatabaseUnavailableError(IOError):
+    """Raised if the Rainwave database or PostgreSQL module is missing."""
+
+class RainwaveDatabase(object):
+    """Calls Rainwave DB functions while managing the database handles."""
+
+    def __init__(self, config):
+        """Instantiate a RainwaveDatabase object.
+
+        Args:
+            config: dbaccess.Config, stores required connection params."""
+        self.config = config
+
+    def connect(self):
+        if not psycopg2:
+            raise RainwaveDatabaseUnavailableError("No psycopg2 available.")
+        psql_conn_args = []
+        psql_conn_args.append(self.config.get("db:name"))
+        psql_conn_args.append(self.config.get("db:user"))
+        psql_conn_args.append(self.config.get("db:pass"))
+
+        connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
+        try:
+            self.rdbh = psycopg2.connect(connstr)
+        except psycopg2.OperationalError:
+            raise RainwaveDatabaseUnavailableError("Could not connect to DB.")
+
+        autocommit = psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        self.rdbh.set_isolation_level(autocommit)
+        self.rcur = self.rdbh.cursor()

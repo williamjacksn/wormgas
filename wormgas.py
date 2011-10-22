@@ -9,7 +9,6 @@ import httplib
 import json
 import math
 import os
-import psycopg2
 import random
 import StringIO
 import sys
@@ -34,20 +33,15 @@ class wormgas(SingleServerIRCBot):
         self.config = dbaccess.Config()
         self.config.open(self.path)
 
-        psql_conn_args = []
-        psql_conn_args.append(self.config.get("db:name"))
-        psql_conn_args.append(self.config.get("db:user"))
-        psql_conn_args.append(self.config.get("db:pass"))
+        try:
+            self.rwdb = dbaccess.RainwaveDatabase(self.config)
+            self.rwdb.connect()
+        except dbaccess.RainwaveDatabaseUnavailableError:
+            self.rwdb = None
 
-        connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
-        self.rdbh = psycopg2.connect(connstr)
-        autocommit = psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-        self.rdbh.set_isolation_level(autocommit)
-        self.rcur = self.rdbh.cursor()
-
-        server = self.get("irc:server")
-        nick = self.get("irc:nick")
-        name = self.get("irc:name")
+        server = self.config.get("irc:server")
+        nick = self.config.get("irc:nick")
+        name = self.config.get("irc:name")
         SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
 
     def handle_8ball(self):
