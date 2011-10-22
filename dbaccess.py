@@ -4,11 +4,11 @@ dbaccess -- wrapper around Rainwave and Config DB calls for wormgas
 https://github.com/subtlecoolness/wormgas
 """
 
-import os
 import sqlite3
 import time
+from os import path
 
-_abspath = os.path.abspath(__file__)
+_logpath = "%s.log" % path.splitext(path.abspath(__file__))[0]
 
 def print_to_log(msg):
     """Print to the log file.
@@ -18,9 +18,8 @@ def print_to_log(msg):
              newline are not required)"""
 
     now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-    logfile = open("%s.log" % (_abspath,), "a")
-    logfile.write("%s -- %s\n" % (now, msg))
-    logfile.close()
+    with open(_logpath, "a") as logfile:
+        logfile.write("%s -- %s\n" % (now, msg))
 
 class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
