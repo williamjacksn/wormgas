@@ -306,16 +306,11 @@ class wormgas(SingleServerIRCBot):
         st = self.station_names[sid]
 
         if mode == "song":
-            sql = ("select album_name, song_title, song_id from rw_songs join "
-                "rw_albums using (album_id) where song_verified is true and "
-                "rw_songs.sid = %s and song_title ilike %s order by "
-                "album_name, song_title")
-            self.rcur.execute(sql, (sid, "%%%s%%" % text))
-            rows = self.rcur.fetchall()
-            unreported_results = len(rows) - 10
-            for row in rows[:10]:
-                r = "%s: %s / %s [%s]" % (st, row[0], row[1], row[2])
-                rs.append(r)
+            rows, unreported_results = self.rwdb.search_songs(sid, text)
+            text = "%(station)s: %(album_name)s / %(song_title)s [%(song_id)s]"
+            for row in rows:
+                row["station"] = st
+                rs.append(text % row)
         elif mode == "album":
             sql = ("select album_name, album_id from rw_albums where "
                 "album_verified is true and sid = %s and album_name ilike %s "

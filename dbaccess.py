@@ -195,3 +195,28 @@ class RainwaveDatabase(object):
         for r in rows:
             user_id = r[0]
         return user_id is not None
+
+    def search_songs(self, sid, text, limit=10):
+        """Search for songs by title.
+
+        Returns:
+            the tuple ([song dicts], unreported results), where a song dict is:
+            {
+                "album_name": string
+                "song_title": string
+                "song_id": string
+            }
+        """
+        sql = ("select album_name, song_title, song_id from rw_songs join "
+            "rw_albums using (album_id) where song_verified is true and "
+            "rw_songs.sid = %s and song_title ilike %s order by "
+            "album_name, song_title")
+        self.rcur.execute(sql, (sid, "%%%s%%" % text))
+        rows = self.rcur.fetchall()
+        results = []
+        for row in rows[:limit]:
+            results.append({
+                "album_name": row[0], "song_title": row[1], "song_id": row[2]})
+        unreported_results = max(len(rows) - limit, 0)
+        return results, unreported_results
+
