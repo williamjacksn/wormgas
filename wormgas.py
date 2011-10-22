@@ -19,7 +19,7 @@ from ircbot import SingleServerIRCBot
 
 _abspath = os.path.abspath(__file__)
 
-def print_to_log(self, msg):
+def print_to_log(msg):
     """Print to the log file.
 
     Arguments:
@@ -41,7 +41,7 @@ class Config(object):
 
     def open(self, path):
         """Open local database for reading and writing."""
-        connstr = "%s/config.sqlite" % self.path
+        connstr = "%s/config.sqlite" % path
         self.cdbh = sqlite3.connect(connstr, isolation_level=None)
         self.ccur = self.cdbh.cursor()
 
@@ -173,9 +173,9 @@ class wormgas(SingleServerIRCBot):
         self.config.open(self.path)
 
         psql_conn_args = []
-        psql_conn_args.append(self.get("db:name"))
-        psql_conn_args.append(self.get("db:user"))
-        psql_conn_args.append(self.get("db:pass"))
+        psql_conn_args.append(self.config.get("db:name"))
+        psql_conn_args.append(self.config.get("db:user"))
+        psql_conn_args.append(self.config.get("db:pass"))
 
         connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
         self.rdbh = psycopg2.connect(connstr)
