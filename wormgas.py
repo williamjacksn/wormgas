@@ -10,6 +10,7 @@ import json
 import math
 import os
 import random
+import re
 import StringIO
 import sys
 import time
@@ -20,7 +21,84 @@ from ircbot import SingleServerIRCBot
 
 _abspath = os.path.abspath(__file__)
 
+PRIVMSG = "__privmsg__"
+
+class Output(object):
+    """Dead-simple abstraction for splitting output between public and private.
+
+    When created, specify the default output, either public or private. This
+    way command handlers don't have to care about the output mode unless they
+    need to.
+    """
+    def __init__(self, default):
+        """Create an Output object.
+
+        Args:
+            default: string, either "public" or "private".
+        """
+        self.rs = []
+        self.privrs = []
+        if default == "public":
+            self._default = self.rs
+        elif default == "private":
+            self._default = self.privrs
+        else:
+            raise ValueError("default should be 'public' or 'private'")
+
+    @property
+    def default(self):
+        """The default output list."""
+        return self._default
+
+_commands = set()
+
+def command_handler(command):
+    """Decorate a method to register as a command handler for provided regex."""
+    def decorator(func):
+        # Compile the command into a regex.
+        regex = re.compile(command)
+
+        def wrapped(self, nick, msg, channel, output):
+            """Command with stored regex that will execute if it matches msg."""
+            # If the regex does not match the message, return False.
+            result = regex.search(msg)
+            if not result:
+                return False
+
+            # The msg matches pattern for this command, so run it.
+            return func(self, nick, channel, output, **result.groupdict())
+        # Add the wrapped function to a set, so we can iterate over them later.
+        _commands.add(wrapped)
+
+        # Return the original, undecorated method. It can still be called
+        # directly without worrying about regexes. This also allows registering
+        # one method as a handler for multiple input regexes.
+        return func
+    return decorator
+
 class wormgas(SingleServerIRCBot):
+    answers_8ball = [
+            "As I see it, yes.",
+            "Ask again later.",
+            "Better not tell you now.",
+            "Cannot predict now.",
+            "Concentrate and ask again.",
+            "Don't count on it.",
+            "It is certain.",
+            "It is decidedly so.",
+            "Most likely.",
+            "My reply is no.",
+            "My sources say no.",
+            "Outlook good.",
+            "Outlook not so good.",
+            "Reply hazy, try again.",
+            "Signs point to yes.",
+            "Very doubtful.",
+            "Without a doubt.",
+            "Yes.",
+            "Yes - definitely.",
+            "You may rely on it."]
+
 
     station_names = ("All Stations", "Rainwave",  "OCR Radio", "Mixwave",
         "Bitwave", "Omniwave")
@@ -44,34 +122,29 @@ class wormgas(SingleServerIRCBot):
         name = self.config.get("irc:name")
         SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
 
-    def handle_8ball(self):
-        """Ask a question of the magic 8ball
+    @command_handler("!8ball")
+    def handle_8ball(self, nick, channel, output):
+        """Ask a question of the magic 8ball."""
+        result = random.choice(self.answers_8ball)
+        # Private messages always get the result.
+        if channel == PRIVMSG:
+            output.default.append(result)
+            return True
 
-        Returns: a list of strings"""
-
-        rs = []
-        answers = ("As I see it, yes.",
-                   "Ask again later.",
-                   "Better not tell you now.",
-                   "Cannot predict now.",
-                   "Concentrate and ask again.",
-                   "Don't count on it.",
-                   "It is certain.",
-                   "It is decidedly so.",
-                   "Most likely.",
-                   "My reply is no.",
-                   "My sources say no.",
-                   "Outlook good.",
-                   "Outlook not so good.",
-                   "Reply hazy, try again.",
-                   "Signs point to yes.",
-                   "Very doubtful.",
-                   "Without a doubt.",
-                   "Yes.",
-                   "Yes - definitely.",
-                   "You may rely on it.")
-        rs.append(random.choice(answers))
-        return(rs)
+        # Otherwise, check for the cooldown and respond accordingly.
+        ltb = int(self.config.get("lasttime:8ball"))
+        wb = int(self.config.get("wait:8ball"))
+        if ltb < time.time() - wb:
+            output.default.append(result)
+            if "again" not in rs[0]:
+                self.config.set("lasttime:8ball", time.time())
+        else:
+            output.privrs.append(result)
+            wait = ltb + wb - int(time.time())
+            cdmsg = ("I am cooling down. You cannot use !8ball in "
+                    "%s for another %s seconds." % (channel, wait))
+            output.privrs.append(cdmsg)
+        return True
 
     def handle_election(self, sid, elec_index):
         """Show the candidates in an election
@@ -631,16 +704,41 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
+    @command_handler(r"^!el(?P<station>\w\w)?\s*(?P<index>\d)?")
+    @command_handler(r"^!election\s*(?P<station>\w\w)?\s*(?P<index>\d)?")
+    def on_election(self, nick, channel, output, station=None, index=None):
+        if index is None:
+            index = 0
+        sid = self.station_ids.get(station, 1)
+        result = self.handle_election(sid, index)
+        sched_id = result.pop(0)
+        sched_config = "el:%s:%s" % (sid, index)
+        is_privmsg = channel == PRIVMSG
+        if sched_id == 0:
+            # There was a problem with the index, send help in privmsg
+            output.privrs.extend(result)
+        elif not is_privmsg and sched_id == self.config.get(sched_config):
+            # !election has already been called for this election
+            output.privrs.extend(result)
+            rs = []
+            cdmsg = ("I am cooling down. You can only use !election in "
+                    "%s once per election." % channel)
+            output.privrs.append(cdmsg)
+        else:
+            output.default.extend(result)
+            self.config.set(sched_config, sched_id)
+        return True
+
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
         Arguments:
             c: the Connection object associated with this event
             e: the Event object"""
-
         nick = e.source().split("!")[0]
         priv = self.config.get("privlevel:%s" % nick)
         msg = e.arguments()[0].strip()
+
         cmdtokens = msg.split()
         try:
             cmd = cmdtokens[0]
@@ -649,14 +747,16 @@ class wormgas(SingleServerIRCBot):
 
         rs = []
 
-        # !8ball
-
-        if "!8ball" in msg:
-            rs = self.handle_8ball()
+        # Try all the new command handlers first.
+        output = Output("private")
+        for command in _commands:
+            if command(self, nick, msg, PRIVMSG, output):
+                rs = output.privrs
+                break
 
         # !config
 
-        elif priv > 1 and cmd == "!config":
+        if not rs and priv > 1 and cmd == "!config":
             try:
                 id = cmdtokens[1]
             except IndexError:
@@ -666,74 +766,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             rs = self.config.handle(id, value)
-
-        # !elbw
-
-        elif cmd == "!elbw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(4, elec_index)
-            rs.pop(0)
-
-        # !election
-
-        elif cmd == "!election":
-            try:
-                station = cmdtokens[1]
-            except IndexError:
-                station = "rw"
-            try:
-                elec_index = cmdtokens[2]
-            except IndexError:
-                elec_index = 0
-            try:
-                sid = self.station_ids[station]
-            except KeyError:
-                sid = 1
-            rs = self.handle_election(sid, elec_index)
-            rs.pop(0)
-
-        # !elmw
-
-        elif cmd == "!elmw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(3, elec_index)
-            rs.pop(0)
-
-        # !eloc
-
-        elif cmd == "!eloc":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(2, elec_index)
-            rs.pop(0)
-
-        # !elow
-
-        elif cmd == "!elow":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(5, elec_index)
-            rs.pop(0)
-
-        # !elrw
-
-        elif cmd == "!elrw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(1, elec_index)
-            rs.pop(0)
 
         # !flip
 
@@ -1128,25 +1160,17 @@ class wormgas(SingleServerIRCBot):
         rs = []
         privrs = []
 
-        # !8ball
-
-        if "!8ball" in msg:
-            ltb = int(self.config.get("lasttime:8ball"))
-            wb = int(self.config.get("wait:8ball"))
-            if ltb < time.time() - wb:
-                rs = self.handle_8ball()
-                if "again" not in rs[0]:
-                    self.config.set("lasttime:8ball", time.time())
-            else:
-                privrs = self.handle_8ball()
-                wait = ltb + wb - int(time.time())
-                cdmsg = "I am cooling down. You cannot use !8ball in"
-                cdmsg = "%s %s for another %s seconds." % (cdmsg, chan, wait)
-                privrs.append(cdmsg)
+        # Try all the new command handlers first.
+        output = Output("public")
+        for command in _commands:
+            if command(self, nick, msg, chan, output):
+                rs = output.rs
+                privrs = output.privrs
+                break
 
         # !config
 
-        elif priv > 1 and cmd == "!config":
+        if not rs and priv > 1 and cmd == "!config":
             try:
                 id = cmdtokens[1]
             except IndexError:
@@ -1156,153 +1180,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.config.handle(id, value)
-
-        # !elbw
-
-        elif cmd == "!elbw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(4, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:4:%s" % elec_index):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                cdmsg = "I am cooling down. You can only use !election in"
-                cdmsg = "%s %s once per election." % (cdmsg, chan)
-                privrs.append(cdmsg)
-            else:
-                self.config.set("el:4:%s" % elec_index, sched_id)
-
-        # !election
-
-        elif cmd == "!election":
-            try:
-                station = cmdtokens[1]
-            except IndexError:
-                station = "rw"
-            try:
-                elec_index = cmdtokens[2]
-            except IndexError:
-                elec_index = 0
-            try:
-                sid = self.station_ids[station]
-            except KeyError:
-                sid = 1
-            rs = self.handle_election(sid, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:%s:%s" % (sid, elec_index)):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
-            else:
-                self.config.set("el:%s:%s" % (sid, elec_index), sched_id)
-
-        # !elmw
-
-        elif cmd == "!elmw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(3, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:3:%s" % elec_index):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
-            else:
-                self.config.set("el:3:%s" % elec_index, sched_id)
-
-        # !eloc
-
-        elif cmd == "!eloc":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(2, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:2:%s" % elec_index):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
-            else:
-                self.config.set("el:2:%s" % elec_index, sched_id)
-
-        # !elow
-
-        elif cmd == "!elow":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(5, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:5:%s" % elec_index):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
-            else:
-                self.config.set("el:5:%s" % elec_index, sched_id)
-
-        # !elrw
-
-        elif cmd == "!elrw":
-            try:
-                elec_index = cmdtokens[1]
-            except IndexError:
-                elec_index = 0
-            rs = self.handle_election(1, elec_index)
-
-            sched_id = rs.pop(0)
-            if sched_id == 0:
-                # There was a problem with the elec_index, send help in privmsg
-                privrs.extend(rs)
-                rs = []
-            elif sched_id == self.config.get("el:1:%s" % elec_index):
-                # !election has already been called for this election
-                privrs.extend(rs)
-                rs = []
-                privrs.append("I am cooling down. You can only use !election "
-                    "in %s once per election." % chan)
-            else:
-                self.config.set("el:1:%s" % elec_index, sched_id)
 
         # !flip
 
