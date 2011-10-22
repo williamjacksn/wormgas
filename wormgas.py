@@ -17,6 +17,148 @@ import time
 import urllib, urllib2
 from ircbot import SingleServerIRCBot
 
+_abspath = os.path.abspath(__file__)
+
+def print_to_log(self, msg):
+    """Print to the log file.
+
+    Arguments:
+        msg: string, the message to print to the log file (timestamp and
+             newline are not required)"""
+
+    now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    logfile = open("%s.log" % (_abspath,), "a")
+    logfile.write("%s -- %s\n" % (now, msg))
+    logfile.close()
+
+class Config(object):
+    """Connects to, retrieves from, and sets values in the local sqlite db."""
+
+    def __del__(self):
+        try:
+            self.cdbh.close()
+        except AttributeError: pass # Never opened the db; no handle to close.
+
+    def open(self, path):
+        """Open local database for reading and writing."""
+        connstr = "%s/config.sqlite" % self.path
+        self.cdbh = sqlite3.connect(connstr, isolation_level=None)
+        self.ccur = self.cdbh.cursor()
+
+    def handle(self, id=None, value=None):
+        """View or change config values.
+
+        Arguments:
+            id: the config_id you want to view or change (leave empty to show
+                all available config_ids)
+            value: the value to change config_id to (leave empty to view current
+                value)
+
+        Returns: a list of strings"""
+
+        rs = []
+
+        if id and value:
+            self.set(id, value)
+            rs.append("%s = %s" % (id, value))
+        elif id:
+            rs.append("%s = %s" % (id, self.get(id)))
+        else:
+            cids = []
+            sql = "select distinct config_id from botconfig"
+            self.ccur.execute(sql)
+            for r in self.ccur:
+                cids.append(r[0])
+            mlcl = int(self.get("maxlength:configlist"))
+            while len(cids) > mlcl:
+                clist = cids[:mlcl]
+                cids[0:mlcl] = []
+                rs.append(", ".join(clist))
+            rs.append(", ".join(cids))
+
+        return(rs)
+
+    def get(self, id):
+        """Read a value from the configuration database.
+
+        Arguments:
+            id: the config_id that you want to read
+
+        Returns: the config_value, or -1 if the config_id does not exist"""
+
+        config_value = -1
+        sql = "select config_value from botconfig where config_id = ?"
+        self.ccur.execute(sql, (id,))
+        for r in self.ccur:
+            config_value = r[0]
+        print_to_log("[INFO] get_config(): %s = %s" % (id, config_value))
+        return(config_value)
+
+    def set(self, id, value):
+        """Set a configuration value in the database.
+
+        Arguments:
+            id: the config_id to set
+            value: the value to set it to"""
+
+        cur_config_value = self.get(id)
+        if value in (-1, "-1"):
+            sql = "delete from botconfig where config_id = ?"
+            self.ccur.execute(sql, (id,))
+        elif cur_config_value in (-1, "-1"):
+            sql = ("insert into botconfig (config_id, config_value) values "
+                "(?, ?)")
+            self.ccur.execute(sql, (id, value))
+        else:
+            sql = "update botconfig set config_value = ? where config_id = ?"
+            self.ccur.execute(sql, (value, id))
+        print_to_log("[INFO] set_config: %s = %s" % (id, value))
+
+    def store_nick(self, nick):
+        """Store this nick in user_keys for later use."""
+        stored_nick = None
+        sql = "select distinct user_nick from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_nick = r[0]
+        if not stored_nick:
+            sql = "insert into user_keys (user_nick) values (?)"
+            self.ccur.execute(sql, (nick,))
+
+    def add_id_to_nick(self, id, nick):
+        sql = "update user_keys set user_id = ? where user_nick = ?"
+        self.ccur.execute(sql, (id, nick))
+
+    def drop_id_for_nick(self, nick):
+        sql = "update user_keys set user_id = null where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+
+    def get_id_for_nick(self, nick):
+        """Return stored Rainwave ID for nick, or None if no ID is stored."""
+        stored_id = None
+        sql = "select user_id from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_id = r[0]
+        return stored_id
+
+    def add_key_to_nick(self, key, nick):
+        sql = "update user_keys set user_key = ? where user_nick = ?"
+        self.ccur.execute(sql, (key, nick))
+
+    def drop_key_for_nick(self, nick):
+        sql = "update user_keys set user_key = null where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+
+    def get_key_for_nick(self, nick):
+        """Return stored API key for nick, or None if no key is stored."""
+        stored_id = None
+        sql = "select user_key from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_id = r[0]
+        return stored_id
+
 class wormgas(SingleServerIRCBot):
 
     station_names = ("All Stations", "Rainwave",  "OCR Radio", "Mixwave",
@@ -25,17 +167,15 @@ class wormgas(SingleServerIRCBot):
     station_ids = {"rw": 1, "oc": 2, "mw": 3, "bw": 4, "ow": 5}
 
     def __init__(self):
-        self.abspath = os.path.abspath(__file__)
-        (self.path, self.file) = os.path.split(self.abspath)
+        (self.path, self.file) = os.path.split(_abspath)
 
-        connstr = "%s/config.sqlite" % self.path
-        self.cdbh = sqlite3.connect(connstr, isolation_level=None)
-        self.ccur = self.cdbh.cursor()
+        self.config = Config()
+        self.config.open(self.path)
 
         psql_conn_args = []
-        psql_conn_args.append(self.get_config("db:name"))
-        psql_conn_args.append(self.get_config("db:user"))
-        psql_conn_args.append(self.get_config("db:pass"))
+        psql_conn_args.append(self.get("db:name"))
+        psql_conn_args.append(self.get("db:user"))
+        psql_conn_args.append(self.get("db:pass"))
 
         connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
         self.rdbh = psycopg2.connect(connstr)
@@ -43,13 +183,10 @@ class wormgas(SingleServerIRCBot):
         self.rdbh.set_isolation_level(autocommit)
         self.rcur = self.rdbh.cursor()
 
-        server = self.get_config("irc:server")
-        nick = self.get_config("irc:nick")
-        name = self.get_config("irc:name")
+        server = self.get("irc:server")
+        nick = self.get("irc:nick")
+        name = self.get("irc:name")
         SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
-
-    def __del__(self):
-        self.cdbh.close()
 
     def handle_8ball(self):
         """Ask a question of the magic 8ball
@@ -78,39 +215,6 @@ class wormgas(SingleServerIRCBot):
                    "Yes - definitely.",
                    "You may rely on it.")
         rs.append(random.choice(answers))
-        return(rs)
-
-    def handle_config(self, id=None, value=None):
-        """View or change config values
-
-        Arguments:
-            id: the config_id you want to view or change (leave empty to show
-                all available config_ids)
-            value: the value to change config_id to (leave empty to view current
-                value)
-
-        Returns: a list of strings"""
-
-        rs = []
-
-        if id and value:
-            self.set_config(id, value)
-            rs.append("%s = %s" % (id, value))
-        elif id:
-            rs.append("%s = %s" % (id, self.get_config(id)))
-        else:
-            cids = []
-            sql = "select distinct config_id from botconfig"
-            self.ccur.execute(sql)
-            for r in self.ccur:
-                cids.append(r[0])
-            mlcl = int(self.get_config("maxlength:configlist"))
-            while len(cids) > mlcl:
-                clist = cids[:mlcl]
-                cids[0:mlcl] = []
-                rs.append(", ".join(clist))
-            rs.append(", ".join(cids))
-
         return(rs)
 
     def handle_election(self, sid, elec_index):
@@ -276,33 +380,19 @@ class wormgas(SingleServerIRCBot):
         rs = []
 
         # Make sure this nick is in the user_keys table
-
-        stored_nick = None
-        sql = "select distinct user_nick from user_keys where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        for r in self.ccur:
-            stored_nick = r[0]
-        if not stored_nick:
-            sql = "insert into user_keys (user_nick) values (?)"
-            self.ccur.execute(sql, (nick,))
+        self.config.store_nick(nick)
 
         if mode == "help":
-            priv = self.get_config("privlevel:%s" % nick)
+            priv = self.config.get("privlevel:%s" % nick)
             rs = self.handle_help(priv, "id")
         elif mode == "add":
-            sql = "update user_keys set user_id = ? where user_nick = ?"
-            self.ccur.execute(sql, (id, nick))
+            self.config.add_id_to_nick(id, nick)
             rs.append("I assigned the user id %s to nick '%s'" % (id, nick))
         elif mode == "drop":
-            sql = "update user_keys set user_id = null where user_nick = ?"
-            self.ccur.execute(sql, (nick,))
+            self.config.drop_id_for_nick(nick)
             rs.append("I dropped the user id for nick '%s'" % nick)
         elif mode == "show":
-            stored_id = None
-            sql = "select user_id from user_keys where user_nick = ?"
-            self.ccur.execute(sql, (nick,))
-            for r in self.ccur:
-                stored_id = r[0]
+            stored_id = self.config.get_id_for_nick(nick)
             if stored_id:
                 rs.append("The user id for nick '%s' is %s" % (nick, stored_id))
             else:
@@ -323,33 +413,19 @@ class wormgas(SingleServerIRCBot):
         rs = []
 
         # Make sure this nick is in the user_keys table
-
-        stored_nick = None
-        sql = "select distinct user_nick from user_keys where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        for r in self.ccur:
-            stored_nick = r[0]
-        if not stored_nick:
-            sql = "insert into user_keys (user_nick) values (?)"
-            self.ccur.execute(sql, (nick,))
+        self.config.store_nick(nick)
 
         if mode == "help":
-            priv = self.get_config("privlevel:%s" % nick)
+            priv = self.config.get("privlevel:%s" % nick)
             rs = self.handle_help(priv, "key")
         elif mode == "add":
-            sql = "update user_keys set user_key = ? where user_nick = ?"
-            self.ccur.execute(sql, (key, nick))
+            self.config.add_key_to_nick(key, nick)
             rs.append("I assigned the API key '%s' to nick '%s'" % (key, nick))
         elif mode == "drop":
-            sql = "update user_keys set user_key = null where user_nick = ?"
-            self.ccur.execute(sql, (nick,))
+            self.config.drop_key_for_nick(nick)
             rs.append("I dropped the API key for nick '%s'" % nick)
         elif mode == "show":
-            stored_id = None
-            sql = "select user_key from user_keys where user_nick = ?"
-            self.ccur.execute(sql, (nick,))
-            for r in self.ccur:
-                stored_id = r[0]
+            stored_id = self.config.get_key_for_nick(nick)
             if stored_id:
                 rs.append("The API key for nick '%s' is '%s'" %
                     (nick, stored_id))
@@ -681,12 +757,7 @@ class wormgas(SingleServerIRCBot):
 
         # Make sure this nick matches a username
 
-        user_id = None
-        sql = "select user_id from user_keys where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        rows = self.ccur.fetchall()
-        for r in rows:
-            user_id = r[0]
+        user_id = self.config.get_id_for_nick(nick)
         if not user_id:
             sql = "select user_id from phpbb_users where username = %s"
             self.rcur.execute(sql, (nick,))
@@ -701,12 +772,7 @@ class wormgas(SingleServerIRCBot):
 
         # Get the key for this user
 
-        key = None
-        sql = "select user_key from user_keys where user_id = ?"
-        self.ccur.execute(sql, (user_id,))
-        rows = self.ccur.fetchall()
-        for r in rows:
-            key = r[0]
+        key = self.config.get_key_for_nick(nick)
         if not key:
             r = ("I do not have a key store for you. Visit "
                 "http://rainwave.cc/auth/ to get a key and tell me about it "
@@ -742,7 +808,7 @@ class wormgas(SingleServerIRCBot):
             e: the Event object"""
 
         nick = e.source().split("!")[0]
-        priv = self.get_config("privlevel:%s" % nick)
+        priv = self.config.get("privlevel:%s" % nick)
         msg = e.arguments()[0].strip()
         cmdtokens = msg.split()
         try:
@@ -768,7 +834,7 @@ class wormgas(SingleServerIRCBot):
                 value = cmdtokens[2]
             except IndexError:
                 value = None
-            rs = self.handle_config(id, value)
+            rs = self.config.handle(id, value)
 
         # !elbw
 
@@ -1219,7 +1285,7 @@ class wormgas(SingleServerIRCBot):
             e: the Event object"""
 
         nick = e.source().split("!")[0]
-        priv = self.get_config("privlevel:%s" % nick)
+        priv = self.config.get("privlevel:%s" % nick)
         chan = e.target()
         msg = e.arguments()[0].strip()
         cmdtokens = msg.split()
@@ -1234,12 +1300,12 @@ class wormgas(SingleServerIRCBot):
         # !8ball
 
         if "!8ball" in msg:
-            ltb = int(self.get_config("lasttime:8ball"))
-            wb = int(self.get_config("wait:8ball"))
+            ltb = int(self.config.get("lasttime:8ball"))
+            wb = int(self.config.get("wait:8ball"))
             if ltb < time.time() - wb:
                 rs = self.handle_8ball()
                 if "again" not in rs[0]:
-                    self.set_config("lasttime:8ball", time.time())
+                    self.config.set("lasttime:8ball", time.time())
             else:
                 privrs = self.handle_8ball()
                 wait = ltb + wb - int(time.time())
@@ -1258,7 +1324,7 @@ class wormgas(SingleServerIRCBot):
                 value = cmdtokens[2]
             except IndexError:
                 value = None
-            privrs = self.handle_config(id, value)
+            privrs = self.config.handle(id, value)
 
         # !elbw
 
@@ -1274,7 +1340,7 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:4:%s" % elec_index):
+            elif sched_id == self.config.get("el:4:%s" % elec_index):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
@@ -1282,7 +1348,7 @@ class wormgas(SingleServerIRCBot):
                 cdmsg = "%s %s once per election." % (cdmsg, chan)
                 privrs.append(cdmsg)
             else:
-                self.set_config("el:4:%s" % elec_index, sched_id)
+                self.config.set("el:4:%s" % elec_index, sched_id)
 
         # !election
 
@@ -1306,14 +1372,14 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:%s:%s" % (sid, elec_index)):
+            elif sched_id == self.config.get("el:%s:%s" % (sid, elec_index)):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
                 privrs.append("I am cooling down. You can only use !election "
                     "in %s once per election." % chan)
             else:
-                self.set_config("el:%s:%s" % (sid, elec_index), sched_id)
+                self.config.set("el:%s:%s" % (sid, elec_index), sched_id)
 
         # !elmw
 
@@ -1329,14 +1395,14 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:3:%s" % elec_index):
+            elif sched_id == self.config.get("el:3:%s" % elec_index):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
                 privrs.append("I am cooling down. You can only use !election "
                     "in %s once per election." % chan)
             else:
-                self.set_config("el:3:%s" % elec_index, sched_id)
+                self.config.set("el:3:%s" % elec_index, sched_id)
 
         # !eloc
 
@@ -1352,14 +1418,14 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:2:%s" % elec_index):
+            elif sched_id == self.config.get("el:2:%s" % elec_index):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
                 privrs.append("I am cooling down. You can only use !election "
                     "in %s once per election." % chan)
             else:
-                self.set_config("el:2:%s" % elec_index, sched_id)
+                self.config.set("el:2:%s" % elec_index, sched_id)
 
         # !elow
 
@@ -1375,14 +1441,14 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:5:%s" % elec_index):
+            elif sched_id == self.config.get("el:5:%s" % elec_index):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
                 privrs.append("I am cooling down. You can only use !election "
                     "in %s once per election." % chan)
             else:
-                self.set_config("el:5:%s" % elec_index, sched_id)
+                self.config.set("el:5:%s" % elec_index, sched_id)
 
         # !elrw
 
@@ -1398,22 +1464,22 @@ class wormgas(SingleServerIRCBot):
                 # There was a problem with the elec_index, send help in privmsg
                 privrs.extend(rs)
                 rs = []
-            elif sched_id == self.get_config("el:1:%s" % elec_index):
+            elif sched_id == self.config.get("el:1:%s" % elec_index):
                 # !election has already been called for this election
                 privrs.extend(rs)
                 rs = []
                 privrs.append("I am cooling down. You can only use !election "
                     "in %s once per election." % chan)
             else:
-                self.set_config("el:1:%s" % elec_index, sched_id)
+                self.config.set("el:1:%s" % elec_index, sched_id)
 
         # !flip
 
         elif "!flip" in msg:
-            ltf = int(self.get_config("lasttime:flip"))
-            wf = int(self.get_config("wait:flip"))
+            ltf = int(self.config.get("lasttime:flip"))
+            wf = int(self.config.get("wait:flip"))
             if ltf < time.time() - wf:
-                self.set_config("lasttime:flip", time.time())
+                self.config.set("lasttime:flip", time.time())
                 rs = self.handle_flip()
             else:
                 privrs = self.handle_flip()
@@ -1492,10 +1558,10 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_lstats(0)
 
-            ltls = int(self.get_config("lasttime:lstats"))
-            wls = int(self.get_config("wait:lstats"))
+            ltls = int(self.config.get("lasttime:lstats"))
+            wls = int(self.config.get("wait:lstats"))
             if ltls < time.time() - wls:
-                self.set_config("lasttime:lstats", time.time())
+                self.config.set("lasttime:lstats", time.time())
             else:
                 if rs:
                     privrs = rs
@@ -1563,13 +1629,13 @@ class wormgas(SingleServerIRCBot):
                     sid = self.station_ids[station]
                     rs = self.handle_nowplaying(sid)
                     sched_id = rs.pop(0)
-                    if sched_id == int(self.get_config("np:%s" % sid)):
+                    if sched_id == int(self.config.get("np:%s" % sid)):
                         privrs = rs
                         rs = []
                         privrs.append("I am cooling down. You can only use "
                             "!nowplaying in %s once per song." % chan)
                     else:
-                        self.set_config("np:%s" % sid, sched_id)
+                        self.config.set("np:%s" % sid, sched_id)
                 else:
                     privrs = self.handle_help(topic="nowplaying")
             else:
@@ -1580,65 +1646,65 @@ class wormgas(SingleServerIRCBot):
         elif "!npbw" in msg:
             rs = self.handle_nowplaying(4)
             sched_id = rs.pop(0)
-            if sched_id == int(self.get_config("np:4")):
+            if sched_id == int(self.config.get("np:4")):
                 privrs = rs
                 rs = []
                 privrs.append("I am cooling down. You can only use !nowplaying "
                     "in %s once per song." % chan)
             else:
-                self.set_config("np:4", sched_id)
+                self.config.set("np:4", sched_id)
 
         # !npmw
 
         elif "!npmw" in msg:
             rs = self.handle_nowplaying(3)
             sched_id = rs.pop(0)
-            if sched_id == int(self.get_config("np:3")):
+            if sched_id == int(self.config.get("np:3")):
                 privrs = rs
                 rs = []
                 privrs.append("I am cooling down. You can only use !nowplaying "
                     "in %s once per song." % chan)
             else:
-                self.set_config("np:3", sched_id)
+                self.config.set("np:3", sched_id)
 
         # !npoc
 
         elif "!npoc" in msg:
             rs = self.handle_nowplaying(2)
             sched_id = rs.pop(0)
-            if sched_id == int(self.get_config("np:2")):
+            if sched_id == int(self.config.get("np:2")):
                 privrs = rs
                 rs = []
                 privrs.append("I am cooling down. You can only use !nowplaying "
                     "in %s once per song." % chan)
             else:
-                self.set_config("np:2", sched_id)
+                self.config.set("np:2", sched_id)
 
         # !npow
 
         elif "!npow" in msg:
             rs = self.handle_nowplaying(5)
             sched_id = rs.pop(0)
-            if sched_id == int(self.get_config("np:5")):
+            if sched_id == int(self.config.get("np:5")):
                 privrs = rs
                 rs = []
                 privrs.append("I am cooling down. You can only use !nowplaying "
                     "in %s once per song." % chan)
             else:
-                self.set_config("np:5", sched_id)
+                self.config.set("np:5", sched_id)
 
         # !nprw
 
         elif "!nprw" in msg:
             rs = self.handle_nowplaying(1)
             sched_id = rs.pop(0)
-            if sched_id == int(self.get_config("np:1")):
+            if sched_id == int(self.config.get("np:1")):
                 privrs = rs
                 rs = []
                 privrs.append("I am cooling down. You can only use !nowplaying "
                     "in %s once per song." % chan)
             else:
-                self.set_config("np:1", sched_id)
+                self.config.set("np:1", sched_id)
 
         # !ppbw
 
@@ -1654,14 +1720,14 @@ class wormgas(SingleServerIRCBot):
             if index in (0, 1, 2):
                 rs = self.handle_prevplayed(sid, index)
                 sched_id = rs.pop(0)
-                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                last = int(self.config.get("pp:%s:%s" % (sid, index)))
                 if sched_id == last:
                     privrs = rs
                     rs = []
                     privrs.append("I am cooling down. You can only use "
                         "!prevplayed in %s once per song." % chan)
                 else:
-                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
@@ -1679,14 +1745,14 @@ class wormgas(SingleServerIRCBot):
             if index in (0, 1, 2):
                 rs = self.handle_prevplayed(sid, index)
                 sched_id = rs.pop(0)
-                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                last = int(self.config.get("pp:%s:%s" % (sid, index)))
                 if sched_id == last:
                     privrs = rs
                     rs = []
                     privrs.append("I am cooling down. You can only use "
                         "!prevplayed in %s once per song." % chan)
                 else:
-                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
@@ -1704,14 +1770,14 @@ class wormgas(SingleServerIRCBot):
             if index in (0, 1, 2):
                 rs = self.handle_prevplayed(sid, index)
                 sched_id = rs.pop(0)
-                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                last = int(self.config.get("pp:%s:%s" % (sid, index)))
                 if sched_id == last:
                     privrs = rs
                     rs = []
                     privrs.append("I am cooling down. You can only use "
                         "!prevplayed in %s once per song." % chan)
                 else:
-                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
@@ -1729,14 +1795,14 @@ class wormgas(SingleServerIRCBot):
             if index in (0, 1, 2):
                 rs = self.handle_prevplayed(sid, index)
                 sched_id = rs.pop(0)
-                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                last = int(self.config.get("pp:%s:%s" % (sid, index)))
                 if sched_id == last:
                     privrs = rs
                     rs = []
                     privrs.append("I am cooling down. You can only use "
                         "!prevplayed in %s once per song." % chan)
                 else:
-                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
@@ -1754,14 +1820,14 @@ class wormgas(SingleServerIRCBot):
             if index in (0, 1, 2):
                 rs = self.handle_prevplayed(sid, index)
                 sched_id = rs.pop(0)
-                last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                last = int(self.config.get("pp:%s:%s" % (sid, index)))
                 if sched_id == last:
                     privrs = rs
                     rs = []
                     privrs.append("I am cooling down. You can only use "
                         "!prevplayed in %s once per song." % chan)
                 else:
-                    self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
             else:
                 privrs = self.handle_help(topic="prevplayed")
 
@@ -1782,14 +1848,14 @@ class wormgas(SingleServerIRCBot):
                     if index in (0, 1, 2):
                         rs = self.handle_prevplayed(sid, index)
                         sched_id = rs.pop(0)
-                        last = int(self.get_config("pp:%s:%s" % (sid, index)))
+                        last = int(self.config.get("pp:%s:%s" % (sid, index)))
                         if sched_id == last:
                             privrs = rs
                             rs = []
                             privrs.append("I am cooling down. You can only use "
                                 "!prevplayed in %s once per song." % chan)
                         else:
-                            self.set_config("pp:%s:%s" % (sid, index), sched_id)
+                            self.config.set("pp:%s:%s" % (sid, index), sched_id)
                     else:
                         privrs = self.handle_help(topic="prevplayed")
                 else:
@@ -1892,57 +1958,9 @@ class wormgas(SingleServerIRCBot):
             c: the Connection object associated with this event
             e: the Event object"""
 
-        passwd = self.get_config("irc:nickservpass")
+        passwd = self.config.get("irc:nickservpass")
         c.privmsg("nickserv", "identify %s" % passwd)
-        c.join(self.get_config("irc:channel"))
-
-    def print_to_log(self, msg):
-        """Print to the log file
-
-        Arguments:
-            msg: string, the message to print to the log file (timestamp and
-                 newline are not required)"""
-
-        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        logfile = open("%s.log" % (self.abspath,), "a")
-        logfile.write("%s -- %s\n" % (now, msg))
-        logfile.close()
-
-    def get_config(self, id):
-        """Read a value from the configuration database
-
-        Arguments:
-            id: the config_id that you want to read
-
-        Returns: the config_value, or -1 if the config_id does not exist"""
-
-        config_value = -1
-        sql = "select config_value from botconfig where config_id = ?"
-        self.ccur.execute(sql, (id,))
-        for r in self.ccur:
-            config_value = r[0]
-        self.print_to_log("[INFO] get_config(): %s = %s" % (id, config_value))
-        return(config_value)
-
-    def set_config(self, id, value):
-        """Set a configuration value in the database
-
-        Arguments:
-            id: the config_id to set
-            value: the value to set it to"""
-
-        cur_config_value = self.get_config(id)
-        if value in (-1, "-1"):
-            sql = "delete from botconfig where config_id = ?"
-            self.ccur.execute(sql, (id,))
-        elif cur_config_value in (-1, "-1"):
-            sql = ("insert into botconfig (config_id, config_value) values "
-                "(?, ?)")
-            self.ccur.execute(sql, (id, value))
-        else:
-            sql = "update botconfig set config_value = ? where config_id = ?"
-            self.ccur.execute(sql, (value, id))
-        self.print_to_log("[INFO] set_config: %s = %s" % (id, value))
+        c.join(self.config.get("irc:channel"))
 
     def api_call(self, url, args=None):
         """Make a call to the Rainwave API
@@ -1981,7 +1999,7 @@ class wormgas(SingleServerIRCBot):
         headers["user-agent"] = ua
 
         h = httplib.HTTPSConnection("www.googleapis.com")
-        gkey = self.get_config("googleapikey")
+        gkey = self.config.get("googleapikey")
         gurl = "/urlshortener/v1/url?key=%s" % gkey
         h.request("POST", gurl, body, headers)
         content = h.getresponse().read()
