@@ -403,13 +403,6 @@ class wormgas(SingleServerIRCBot):
             t4 = time.strftime("%Y-%m-%d", time.gmtime())
             url = "".join((url, t1, t2, t3, t4))
 
-            sql = ("select sid, extract(hour from timestamp with time zone "
-                "'epoch' + lstats_time * interval '1 second') as hour, "
-                "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
-                "rw_listenerstats where lstats_time > extract(epoch from "
-                "current_timestamp) - %s group by hour, sid order by sid, hour")
-            seconds = 86400 * days
-            self.rcur.execute(sql, (seconds,))
             rwg = []
             rwr = []
             ocg = []
@@ -420,23 +413,22 @@ class wormgas(SingleServerIRCBot):
             bwr = []
             owg = []
             owr = []
-            rows = self.rcur.fetchall()
-            for row in rows:
-                if row[0] == 1:
-                    rwg.append(row[2])
-                    rwr.append(row[3])
-                elif row[0] == 2:
-                    ocg.append(row[2])
-                    ocr.append(row[3])
-                elif row[0] == 3:
-                    mwg.append(row[2])
-                    mwr.append(row[3])
-                elif row[0] == 4:
-                    bwg.append(row[2])
-                    bwr.append(row[3])
-                elif row[0] == 5:
-                    owg.append(row[2])
-                    owr.append(row[3])
+            for sid, guests, users in self.rwdb.get_listener_chart_data():
+                if sid == 1:
+                    rwg.append(guests)
+                    rwr.append(users)
+                elif sid == 2:
+                    ocg.append(guests)
+                    ocr.append(users)
+                elif sid == 3:
+                    mwg.append(guests)
+                    mwr.append(users)
+                elif sid == 4:
+                    bwg.append(guests)
+                    bwr.append(users)
+                elif sid == 5:
+                    owg.append(guests)
+                    owr.append(users)
 
             lmax = sum((max(rwg), max(rwr), max(ocg), max(ocr), max(mwg),
                 max(mwr), max(bwg), max(bwr), max(owg), max(owr)))

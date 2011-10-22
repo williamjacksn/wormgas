@@ -258,3 +258,16 @@ class RainwaveDatabase(object):
                 else:
                     guest = guest + 1
         return regd, guest
+
+    def get_listener_chart_data(self, days):
+        """Yields (sid, guest_count, registered_count) tuples over the range."""
+        sql = ("select sid, extract(hour from timestamp with time zone "
+            "'epoch' + lstats_time * interval '1 second') as hour, "
+            "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
+            "rw_listenerstats where lstats_time > extract(epoch from "
+            "current_timestamp) - %s group by hour, sid order by sid, hour")
+        seconds = 86400 * days
+        self.rcur.execute(sql, (seconds,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            yield row[0], row[2], row[3]
