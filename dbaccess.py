@@ -243,3 +243,18 @@ class RainwaveDatabase(object):
         unreported_results = max(len(rows) - limit, 0)
         return results, unreported_results
 
+    def get_listener_stats(self, sid):
+        """Return (registered user count, guest count) for the station."""
+        regd = 0
+        guest = 0
+
+        sql = "select sid, user_id from rw_listeners where list_purge is false"
+        self.rcur.execute(sql)
+        rows = self.rcur.fetchall()
+        for row in rows:
+            if sid in (0, row[0]):
+                if row[1] > 1:
+                    regd = regd + 1
+                else:
+                    guest = guest + 1
+        return regd, guest

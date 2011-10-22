@@ -360,22 +360,8 @@ class wormgas(SingleServerIRCBot):
         st = self.station_names[sid]
 
         if mode == "text":
-            regd = 0
-            guest = 0
-
-            sql = ("select sid, user_id from rw_listeners where list_purge is "
-                "false")
-            self.rcur.execute(sql)
-            rows = self.rcur.fetchall()
-            for row in rows:
-                if sid in (0, row[0]):
-                    if row[1] > 1:
-                        regd = regd + 1
-                    else:
-                        guest = guest + 1
-
-            r = "%s: %s registered users, %s guests." % (st, regd, guest)
-            rs.append(r)
+            regd, guest = self.rwdb.get_listener_stats(sid)
+            rs.append("%s: %s registered users, %s guests." % (st, regd, guest))
         elif mode == "chart":
 
             # Base url
