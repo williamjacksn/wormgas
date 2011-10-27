@@ -146,48 +146,67 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
-    def handle_election(self, sid, elec_index):
+    @command_handler(r"^!el(?P<station>\w\w)?\s*(?P<index>\d)?")
+    @command_handler(r"^!election\s*(?P<station>\w\w)?\s*(?P<index>\d)?")
+    def handle_election(self, nick, channel, output, station=None, index=None):
         """Show the candidates in an election
 
-        Returns: a list of sched_id, response strings"""
+        Returns: a list of sched_id, response strings
+        """
+        # Make sure the index is valid.
+        try:
+            index = int(index)
+        except TypeError:
+            index = 0
+        if index not in [0, 1]:
+            # Not a valid index, return the help text.
+            output.privrs.extend(self.handle_help(topic="election"))
+            return True
 
-        rs = []
+        sid = self.station_ids.get(station, 1)
+        sched_config = "el:%s:%s" % (sid, index)
+        sched_id, text = self._fetch_election(index, sid)
 
-        url = "http://rainwave.cc/async/%s/get" % sid
-        data = self.api_call(url)
-        elec_index = int(elec_index)
-        if elec_index == 0:
-            r = "Current election on %s:" % self.station_names[sid]
-        elif elec_index == 1:
-            r = "Future election on %s:" % self.station_names[sid]
+        # Prepend the message description to the output string.
+        time = ["Current", "Future"][index]
+        result = "%s election on %s: %s" % (time, self.station_names[sid], text)
+
+        if channel == PRIVMSG:
+            output.privrs.append(result)
+        elif sched_id == self.config.get(sched_config):
+            # !election has already been called for this election
+            output.privrs.append(result)
+            output.privrs.append(
+                    "I am cooling down. You can only use "
+                    "!election in %s once per election." % channel)
         else:
-            rs.append(0)
-            rs.extend(self.handle_help(topic="election"))
-            return(rs)
+            output.default.append(result)
+            self.config.set(sched_config, sched_id)
+        return True
 
-        elec = data["sched_next"][elec_index]
-        rs.append(elec["sched_id"])
+    def _fetch_election(self, index, sid):
+        """Return (sched_id, election string) for given index and sid.
 
-        for i in (0, 1, 2):
-            song = elec["song_data"][i]
+        A sched_id is a unique ID given to every scheduled event, including
+        elections. The results of this call can therefore be cached locally
+        using the sched_id as the cache key.
+        """
+        data = self.api_call("http://rainwave.cc/async/%s/get" % sid)
+        elec = data["sched_next"][index]
+        text = ""
+
+        for i, song in enumerate(elec["song_data"], start=1):
             album = song["album_name"]
             title = song["song_title"]
-            arts = song["artists"]
-            art_list = []
-            for art in arts:
-                art_name = art["artist_name"]
-                art_list.append(art_name)
-            artt = ", ".join(art_list)
-            r = "%s \x02[%s]\x02 %s / %s by %s" % (r, i + 1, album, title, artt)
+            artt = ", ".join(art["artist_name"] for art in song["artists"])
+            text += " \x02[%s]\x02 %s / %s by %s" % (i, album, title, artt)
             etype = song["elec_isrequest"]
             if etype in (3, 4):
                 requestor = song["song_requestor"]
-                r = "%s (requested by %s)" % (r, requestor)
+                text += " (requested by %s)" % requestor
             elif etype in (0, 1):
-                r = "%s (conflict)" % r
-
-        rs.append(r)
-        return(rs)
+                text += " (conflict)"
+        return elec["sched_id"], text
 
     def handle_flip(self):
         """Simulate a coin flip
@@ -703,31 +722,6 @@ class wormgas(SingleServerIRCBot):
             rs.append(data["error"]["text"])
 
         return(rs)
-
-    @command_handler(r"^!el(?P<station>\w\w)?\s*(?P<index>\d)?")
-    @command_handler(r"^!election\s*(?P<station>\w\w)?\s*(?P<index>\d)?")
-    def on_election(self, nick, channel, output, station=None, index=None):
-        if index is None:
-            index = 0
-        sid = self.station_ids.get(station, 1)
-        result = self.handle_election(sid, index)
-        sched_id = result.pop(0)
-        sched_config = "el:%s:%s" % (sid, index)
-        is_privmsg = channel == PRIVMSG
-        if sched_id == 0:
-            # There was a problem with the index, send help in privmsg
-            output.privrs.extend(result)
-        elif not is_privmsg and sched_id == self.config.get(sched_config):
-            # !election has already been called for this election
-            output.privrs.extend(result)
-            rs = []
-            cdmsg = ("I am cooling down. You can only use !election in "
-                    "%s once per election." % channel)
-            output.privrs.append(cdmsg)
-        else:
-            output.default.extend(result)
-            self.config.set(sched_config, sched_id)
-        return True
 
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
