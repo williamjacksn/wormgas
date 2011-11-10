@@ -100,10 +100,10 @@ class wormgas(SingleServerIRCBot):
             "You may rely on it."]
 
 
-    station_names = ("All Stations", "Rainwave",  "OCR Radio", "Mixwave",
-        "Bitwave", "Omniwave")
+    station_names = ("Rainwave Network", "Game channel",  "OCR channel",
+        "Covers channel", "Chiptune channel", "All channel")
 
-    station_ids = {"rw": 1, "oc": 2, "mw": 3, "bw": 4, "ow": 5}
+    station_ids = {"game": 1, "ocr": 2, "cover": 3, "chip": 4, "all": 5}
 
     def __init__(self):
         (self.path, self.file) = os.path.split(_abspath)
@@ -157,12 +157,12 @@ class wormgas(SingleServerIRCBot):
         data = self.api_call(url)
         elec_index = int(elec_index)
         if elec_index == 0:
-            r = "Current election on %s:" % self.station_names[sid]
+            r = "Current election on the %s:" % self.station_names[sid]
         elif elec_index == 1:
-            r = "Future election on %s:" % self.station_names[sid]
+            r = "Future election on the %s:" % self.station_names[sid]
         else:
             rs.append(0)
-            rs.extend(self.handle_help(topic="election"))
+            rs.extend(self.handle_help("bogus", channel, output, topic="election"))
             return(rs)
 
         elec = data["sched_next"][elec_index]
@@ -189,28 +189,37 @@ class wormgas(SingleServerIRCBot):
         rs.append(r)
         return(rs)
 
-    def handle_flip(self):
-        """Simulate a coin flip
+    @command_handler("!flip")
+    def handle_flip(self, nick, channel, output):
+        """Simulate a coin flip"""
 
-        Returns: a list of strings"""
-
-        rs = []
         answers = ("Heads!", "Tails!")
-        rs.append(random.choice(answers))
-        return(rs)
+        result = random.choice(answers)
+        if channel == PRIVMSG:
+            output.default.append(result)
+            return True
 
-    def handle_help(self, priv=0, topic="all"):
-        """Look up help about a topic
+        ltf = int(self.config.get("lasttime:flip"))
+        wf = int(self.config.get("wait:flip"))
+        if ltf < time.time() - wf:
+            output.default.append(result)
+            self.config.set("lasttime:flip", time.time())
+        else:
+            output.privrs.append(result)
+            wait = ltf + wf - int(time.time())
+            cdmsg = ("I am cooling down. You cannot use !flip in %s for "
+                "another %s seconds." % (channel, wait))
+            output.privrs.append(cdmsg)
+        return True
 
-        Arguments:
-            priv: integer, the privilege level of the person asking for help
-            topic: string, the topic the person wants help about
+    @command_handler(r"^!help(\s(?P<topic>\w+))?")
+    def handle_help(self, nick, channel, output, topic=None):
+        """Look up help about a topic"""
 
-        Returns: a list of strings"""
-
+        priv = self.config.get("privlevel:%s" % nick)
         rs = []
 
-        if topic == "all":
+        if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
                 "prevplayed, rate")
@@ -235,8 +244,8 @@ class wormgas(SingleServerIRCBot):
                 "to see the candidates in an election")
             rs.append("Short version is \x02!el<stationcode> [<index>]\x02")
             rs.append("Index should be 0 (current) or 1 (future), default is 0")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "id":
@@ -255,8 +264,8 @@ class wormgas(SingleServerIRCBot):
                 "to search for songs or albums with <text> in the title")
             rs.append("Short version is \x02!lu<stationcode> song|album "
                 "<text>\x02")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "lstats":
             rs.append("Use \x02!lstats [<stationcode>]\x02 to see information "
                 "about current listeners, all stations are aggregated if you "
@@ -264,28 +273,28 @@ class wormgas(SingleServerIRCBot):
             rs.append("Use \x02!lstats chart [<num>]\x02 to see a chart of "
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "nowplaying":
             rs.append("Use \x02!nowplaying <stationcode>\x02 to show what is "
                 "now playing on the radio")
             rs.append("Short version is \x02!np<stationcode>\x02")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "prevplayed":
             rs.append("Use \x02!prevplayed <stationcode> [<index>]\x02 to show "
                 "what was previously playing on the radio")
             rs.append("Short version is \x02!pp<stationcode> [<index>]\x02")
             rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
                 "numbers are further in the past")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "rate":
             rs.append("Use \x02!rate <stationcode> <rating>\x02 to rate the "
                 "currently playing song")
             rs.append("Short version is \x02!rt<stationcode> <rating>\x02")
-            rs.append("Station codes are \x02rw\x02, \x02oc\x02, \x02mw\x02, "
-                "\x02bw\x02, or \x02ow\x02")
+            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
+                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
@@ -294,7 +303,8 @@ class wormgas(SingleServerIRCBot):
         else:
             rs.append("I cannot help you with '%s'" % topic)
 
-        return(rs)
+        output.privrs.extend(rs)
+        return True
 
     def handle_id(self, nick, mode, id):
         """Manage correlation between an IRC nick and Rainwave User ID
@@ -538,21 +548,21 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
-    def handle_nowplaying(self, sid):
-        """Report what is currently playing on the radio
-
-        Arguments:
-            sid: (int) station id of station to check
-
-        Returns: a list of sched_id, strings"""
+    @command_handler(r"!nowplaying\s(?P<station>\w+)")
+    @command_handler(r"!np(?P<station>\w+)")
+    def handle_nowplaying(self, nick, channel, output, station=None):
+        """Report what is currently playing on the radio"""
 
         rs = []
+        if station in self.station_ids:
+            sid = self.station_ids[station]
+        else:
+            sid = 5
         st = self.station_names[sid]
 
         url = "http://rainwave.cc/async/%s/get" % sid
         data = self.api_call(url)
         sched_id = data["sched_current"]["sched_id"]
-        rs.append(sched_id)
         sched_type = data["sched_current"]["sched_type"]
         if sched_type in (0, 4):
             np = data["sched_current"]["song_data"][0]
@@ -592,7 +602,19 @@ class wormgas(SingleServerIRCBot):
             r = "%s: I have no idea (sched_type = %s)" % (st, sched_type)
             rs.append(r)
 
-        return(rs)
+        if channel == PRIVMSG:
+            output.default.extend(rs)
+            return True
+
+        if sched_id == int(self.config.get("np:%s" % sid)):
+            output.privrs.extend(rs)
+            output.privrs.append("I am cooling down. You can only use "
+                "!nowplaying in %s once per song." % channel)
+        else:
+            output.default.extend(rs)
+            self.config.set("np:%s" % sid, sched_id)
+
+        return True
 
     def handle_prevplayed(self, sid, index=0):
         """Report what was previously playing on the radio
@@ -704,12 +726,12 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
-    @command_handler(r"^!el(?P<station>\w\w)?\s*(?P<index>\d)?")
-    @command_handler(r"^!election\s*(?P<station>\w\w)?\s*(?P<index>\d)?")
+    @command_handler(r"^!el(?P<station>\w+)(\s(?P<index>\d))?")
+    @command_handler(r"^!election\s(?P<station>\w+)(\s(?P<index>\d))?")
     def on_election(self, nick, channel, output, station=None, index=None):
         if index is None:
             index = 0
-        sid = self.station_ids.get(station, 1)
+        sid = self.station_ids.get(station, 5)
         result = self.handle_election(sid, index)
         sched_id = result.pop(0)
         sched_config = "el:%s:%s" % (sid, index)
@@ -766,20 +788,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             rs = self.config.handle(id, value)
-
-        # !flip
-
-        elif "!flip" in msg:
-            rs = self.handle_flip()
-
-        # !help
-
-        elif cmd == "!help":
-            try:
-                topic = cmdtokens[1]
-            except IndexError:
-                topic = "all"
-            rs = self.handle_help(priv, topic)
 
         # !id
 
@@ -843,9 +851,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_lstats(0)
 
-        # !lubw
+        # !luchip
 
-        elif cmd == "!lubw":
+        elif cmd == "!luchip":
             try:
                 mode = cmdtokens[1]
                 text = cmdtokens[2]
@@ -855,7 +863,7 @@ class wormgas(SingleServerIRCBot):
 
         # !lumw
 
-        elif cmd == "!lumw":
+        elif cmd == "!lucover":
             try:
                 mode = cmdtokens[1]
                 text = cmdtokens[2]
@@ -865,7 +873,7 @@ class wormgas(SingleServerIRCBot):
 
         # !luoc
 
-        elif cmd == "!luoc":
+        elif cmd == "!luocr":
             try:
                 mode = cmdtokens[1]
                 text = cmdtokens[2]
@@ -875,7 +883,7 @@ class wormgas(SingleServerIRCBot):
 
         # !luow
 
-        elif cmd == "!luow":
+        elif cmd == "!luall":
             try:
                 mode = cmdtokens[1]
                 text = cmdtokens[2]
@@ -885,7 +893,7 @@ class wormgas(SingleServerIRCBot):
 
         # !lurw
 
-        elif cmd == "!lurw":
+        elif cmd == "!lugame":
             try:
                 mode = cmdtokens[1]
                 text = cmdtokens[2]
@@ -893,53 +901,9 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 rs = self.handle_help(topic="lookup")
 
-        # !nowplaying
-
-        elif cmd == "!nowplaying":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    rs = self.handle_nowplaying(sid)
-                    rs.pop(0)
-                else:
-                    rs = self.handle_help(topic="nowplaying")
-            else:
-                rs = self.handle_help(topic="nowplaying")
-
-        # !npbw
-
-        elif "!npbw" in msg:
-            rs = self.handle_nowplaying(4)
-            rs.pop(0)
-
-        # !npmw
-
-        elif "!npmw" in msg:
-            rs = self.handle_nowplaying(3)
-            rs.pop(0)
-
-        # !npoc
-
-        elif "!npoc" in msg:
-            rs = self.handle_nowplaying(2)
-            rs.pop(0)
-
-        # !npow
-
-        elif "!npow" in msg:
-            rs = self.handle_nowplaying(5)
-            rs.pop(0)
-
-        # !nprw
-
-        elif "!nprw" in msg:
-            rs = self.handle_nowplaying(1)
-            rs.pop(0)
-
         # !ppbw
 
-        elif cmd == "!ppbw":
+        elif cmd == "!ppchip":
             sid = 4
             if len(cmdtokens) > 1:
                 try:
@@ -958,7 +922,7 @@ class wormgas(SingleServerIRCBot):
 
         # !ppmw
 
-        elif cmd == "!ppmw":
+        elif cmd == "!ppcover":
             sid = 3
             if len(cmdtokens) > 1:
                 try:
@@ -977,7 +941,7 @@ class wormgas(SingleServerIRCBot):
 
         # !ppoc
 
-        elif cmd == "!ppoc":
+        elif cmd == "!ppocr":
             sid = 2
             if len(cmdtokens) > 1:
                 try:
@@ -996,7 +960,7 @@ class wormgas(SingleServerIRCBot):
 
         # !ppow
 
-        elif cmd == "!ppow":
+        elif cmd == "!ppall":
             sid = 5
             if len(cmdtokens) > 1:
                 try:
@@ -1015,7 +979,7 @@ class wormgas(SingleServerIRCBot):
 
         # !pprw
 
-        elif cmd == "!pprw":
+        elif cmd == "!ppgame":
             sid = 1
             if len(cmdtokens) > 1:
                 try:
@@ -1075,9 +1039,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_help(topic="rate")
 
-        # !rtbw
+        # !rtchip
 
-        elif cmd == "!rtbw":
+        elif cmd == "!rtchip":
             sid = 4
             if len(cmdtokens) > 1:
                 rating = cmdtokens[1]
@@ -1085,9 +1049,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_help(topic="rate")
 
-        # !rtmw
+        # !rtcover
 
-        elif cmd == "!rtmw":
+        elif cmd == "!rtcover":
             sid = 3
             if len(cmdtokens) > 1:
                 rating = cmdtokens[1]
@@ -1095,9 +1059,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_help(topic="rate")
 
-        # !rtoc
+        # !rtocr
 
-        elif cmd == "!rtoc":
+        elif cmd == "!rtocr":
             sid = 2
             if len(cmdtokens) > 1:
                 rating = cmdtokens[1]
@@ -1105,9 +1069,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_help(topic="rate")
 
-        # !rtow
+        # !rtall
 
-        elif cmd == "!rtow":
+        elif cmd == "!rtall":
             sid = 5
             if len(cmdtokens) > 1:
                 rating = cmdtokens[1]
@@ -1115,9 +1079,9 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs = self.handle_help(topic="rate")
 
-        # !rtrw
+        # !rtgame
 
-        elif cmd == "!rtrw":
+        elif cmd == "!rtgame":
             sid = 1
             if len(cmdtokens) > 1:
                 rating = cmdtokens[1]
@@ -1180,29 +1144,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.config.handle(id, value)
-
-        # !flip
-
-        elif "!flip" in msg:
-            ltf = int(self.config.get("lasttime:flip"))
-            wf = int(self.config.get("wait:flip"))
-            if ltf < time.time() - wf:
-                self.config.set("lasttime:flip", time.time())
-                rs = self.handle_flip()
-            else:
-                privrs = self.handle_flip()
-                wait = ltf + wf - int(time.time())
-                privrs.append("I am cooling down. You cannot use !flip in %s "
-                    "for another %s seconds." % (chan, wait))
-
-        # !help
-
-        elif cmd == "!help":
-            try:
-                topic = cmdtokens[1]
-            except IndexError:
-                topic = "all"
-            privrs = self.handle_help(priv, topic)
 
         # !id
 
@@ -1327,92 +1268,6 @@ class wormgas(SingleServerIRCBot):
                 privrs = self.handle_lookup(1, mode, text)
             except IndexError:
                 privrs = self.handle_help(topic="lookup")
-
-        # !nowplaying
-
-        elif cmd == "!nowplaying":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    rs = self.handle_nowplaying(sid)
-                    sched_id = rs.pop(0)
-                    if sched_id == int(self.config.get("np:%s" % sid)):
-                        privrs = rs
-                        rs = []
-                        privrs.append("I am cooling down. You can only use "
-                            "!nowplaying in %s once per song." % chan)
-                    else:
-                        self.config.set("np:%s" % sid, sched_id)
-                else:
-                    privrs = self.handle_help(topic="nowplaying")
-            else:
-                privrs = self.handle_help(topic="nowplaying")
-
-        # !npbw
-
-        elif "!npbw" in msg:
-            rs = self.handle_nowplaying(4)
-            sched_id = rs.pop(0)
-            if sched_id == int(self.config.get("np:4")):
-                privrs = rs
-                rs = []
-                privrs.append("I am cooling down. You can only use !nowplaying "
-                    "in %s once per song." % chan)
-            else:
-                self.config.set("np:4", sched_id)
-
-        # !npmw
-
-        elif "!npmw" in msg:
-            rs = self.handle_nowplaying(3)
-            sched_id = rs.pop(0)
-            if sched_id == int(self.config.get("np:3")):
-                privrs = rs
-                rs = []
-                privrs.append("I am cooling down. You can only use !nowplaying "
-                    "in %s once per song." % chan)
-            else:
-                self.config.set("np:3", sched_id)
-
-        # !npoc
-
-        elif "!npoc" in msg:
-            rs = self.handle_nowplaying(2)
-            sched_id = rs.pop(0)
-            if sched_id == int(self.config.get("np:2")):
-                privrs = rs
-                rs = []
-                privrs.append("I am cooling down. You can only use !nowplaying "
-                    "in %s once per song." % chan)
-            else:
-                self.config.set("np:2", sched_id)
-
-        # !npow
-
-        elif "!npow" in msg:
-            rs = self.handle_nowplaying(5)
-            sched_id = rs.pop(0)
-            if sched_id == int(self.config.get("np:5")):
-                privrs = rs
-                rs = []
-                privrs.append("I am cooling down. You can only use !nowplaying "
-                    "in %s once per song." % chan)
-            else:
-                self.config.set("np:5", sched_id)
-
-        # !nprw
-
-        elif "!nprw" in msg:
-            rs = self.handle_nowplaying(1)
-            sched_id = rs.pop(0)
-            if sched_id == int(self.config.get("np:1")):
-                privrs = rs
-                rs = []
-                privrs.append("I am cooling down. You can only use !nowplaying "
-                    "in %s once per song." % chan)
-            else:
-                self.config.set("np:1", sched_id)
 
         # !ppbw
 
