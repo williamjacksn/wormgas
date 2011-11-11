@@ -781,6 +781,16 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    @command_handler("!stop")
+    def handle_stop(self, nick, channel, output):
+        """Shut down the bot"""
+
+        priv = int(self.config.get("privlevel:%s" % nick))
+        if priv > 1:
+            self.die()
+
+        return True
+
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
@@ -818,11 +828,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             rs = self.config.handle(id, value)
-
-        # !stop
-
-        elif priv > 1 and "!stop" in msg:
-            self.die()
 
         # Send responses
 
@@ -874,11 +879,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.config.handle(id, value)
-
-        # !stop
-
-        elif priv > 1 and "!stop" in msg:
-            self.die()
 
         # Send responses
 
