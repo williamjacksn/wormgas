@@ -441,25 +441,32 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    def handle_lstats(self, sid, mode="text", days=30):
+    @command_handler(r"^!lstats(\s(?P<station>\w+))?(\s(?P<days>\d+))?")
+    def handle_lstats(self, nick, channel, output, station=None, days=30):
         """ Reports listener statistics, as numbers or a chart
 
         Arguments:
-            sid: station id of station to ask about
-            mode: "text" or "chart"
-            days: number of days to include data for chart
+            station: station to ask about, or maybe "chart"
+            days: number of days to include data for chart"""
 
-        Returns: A list of strings"""
         if not self.rwdb:
-            return ["Cannot access Rainwave database. Sorry."]
+            output.default.append("Cannot access Rainwave database. Sorry.")
+            return True
 
         rs = []
+
+        sid = self.station_ids.get(station, 0)
         st = self.station_names[sid]
 
-        if mode == "text":
+        try:
+            days = int(days)
+        except TypeError:
+            days = 30
+
+        if station != "chart":
             regd, guest = self.rwdb.get_listener_stats(sid)
             rs.append("%s: %s registered users, %s guests." % (st, regd, guest))
-        elif mode == "chart":
+        elif station == "chart":
 
             # Base url
             url = "http://chart.apis.google.com/chart"
@@ -485,14 +492,14 @@ class wormgas(SingleServerIRCBot):
             url = "".join((url, c1, c2))
 
             # Chart legend text
-            t1 = "&chdl=Rainwave+Guests|Rainwave+Registered|OCR+Radio+Guests|"
-            t2 = "OCR+Radio+Registered|Mixwave+Guests|Mixwave+Registered|"
-            t3 = "Bitwave+Guests|Bitwave+Registered|Omniwave+Guests|"
-            t4 = "Omniwave+Registered"
+            t1 = "&chdl=Game+Guests|Game+Registered|OCR+Guests|"
+            t2 = "OCR+Registered|Covers+Guests|Covers+Registered|"
+            t3 = "Chiptune+Guests|Chiptune+Registered|All+Guests|"
+            t4 = "All+Registered"
             url = "".join((url, t1, t2, t3, t4))
 
             # Chart title
-            t1 = "&chtt=Rainwave+Average+Hourly+Usage+by+User+Type+and+Station|"
+            t1 = "&chtt=Rainwave+Average+Hourly+Usage+by+User+Type+and+Channel|"
             t2 = "%s+Day" % days
             if days > 1:
                 t2 = "".join((t2, "s"))
@@ -510,7 +517,7 @@ class wormgas(SingleServerIRCBot):
             bwr = []
             owg = []
             owr = []
-            for sid, guests, users in self.rwdb.get_listener_chart_data():
+            for sid, guests, users in self.rwdb.get_listener_chart_data(days):
                 if sid == 1:
                     rwg.append(guests)
                     rwr.append(users)
@@ -558,9 +565,24 @@ class wormgas(SingleServerIRCBot):
             url = "".join((url, t3))
             rs.append(self.shorten(url))
         else:
-            rs = self.handle_help(topic="lstats")
+            return(self.handle_help(nick, channel, output, topic="lstats"))
 
-        return(rs)
+        if channel == PRIVMSG:
+            output.default.extend(rs)
+            return True
+
+        ltls = int(self.config.get("lasttime:lstats"))
+        wls = int(self.config.get("wait:lstats"))
+        if ltls < time.time() - wls:
+            output.default.extend(rs)
+            self.config.set("lasttime:lstats", time.time())
+        else:
+            output.privrs.extend(rs)
+            wait = ltls + wls - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !lstats in "
+                "%s for another %s seconds." % (channel, wait))
+
+        return True
 
     @command_handler(r"!nowplaying\s(?P<station>\w+)")
     @command_handler(r"!np(?P<station>\w+)")
@@ -703,44 +725,41 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    def handle_rate(self, nick, sid, rating):
+    @command_handler(r"^!rate(\s(?P<station>\w+))?(\s(?P<rating>\w+))?")
+    @command_handler(r"^!rt(?P<station>\w+)?(\s(?P<rating>\w+))?")
+    def handle_rate(self, nick, channel, output, station=None, rating=None):
         """Rate the currently playing song
 
         Arguments:
-            nick: person who is submitting the rating
-            sid: station id of song to rate
-            rating: the rating
+            station: station of song to rate
+            rating: the rating"""
 
-        Returns: a list of strings"""
-
-        rs = []
+        if station in self.station_ids and rating:
+            sid = self.station_ids.get(station)
+        else:
+            return(self.handle_help(nick, channel, output, topic="rate"))
 
         # Make sure this nick matches a username
 
         user_id = self.config.get_id_for_nick(nick)
+
+        if not user_id and self.rwdb:
+            user_id = self.rwdb.get_id_for_nick(nick)
+
         if not user_id:
-            if self.rwdb:
-                if self.rwdb.validate_nick(nick):
-                    user_id = nick
-                else:
-                    rs.append("I cannot find an account for '%s'. "
-                        "Is the username correct?" % nick)
-                    return(rs)
-            else:
-                rs.append("I'll try to rate with account '%s'. If this is not "
-                        "your Rainwave account, tell me what account to use "
-                        "with \x02!id add [account]\x02" % nick)
-                user_id = nick
+            output.privrs.append("I do not have a user id stored for you. "
+                "Visit http://rainwave.cc/auth/ to look up your user id and "
+                "tell me about it with \x02!id add <id>\x02")
+            return True
 
         # Get the key for this user
 
         key = self.config.get_key_for_nick(nick)
         if not key:
-            r = ("I do not have a key store for you. Visit "
+            output.privrs.append("I do not have a key stored for you. Visit "
                 "http://rainwave.cc/auth/ to get a key and tell me about it "
-                "with \x02!key add [key]\x02")
-            rs.append(r)
-            return(rs)
+                "with \x02!key add <key>\x02")
+            return True
 
         # Get the song_id
 
@@ -756,11 +775,11 @@ class wormgas(SingleServerIRCBot):
         data = self.api_call(url, args)
 
         if data["rate_result"]:
-            rs.append(data["rate_result"]["text"])
+            output.privrs.append(data["rate_result"]["text"])
         else:
-            rs.append(data["error"]["text"])
+            output.privrs.append(data["error"]["text"])
 
-        return(rs)
+        return True
 
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
@@ -799,97 +818,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             rs = self.config.handle(id, value)
-
-        # !lstats
-
-        elif cmd == "!lstats":
-            if len(cmdtokens) > 1:
-                mode = cmdtokens[1]
-                if mode == "chart":
-                    if len(cmdtokens) > 2:
-                        try:
-                            days = int(cmdtokens[2])
-                        except ValueError:
-                            days = 30
-                    else:
-                        days = 30
-                    if days < 1:
-                        days = 30
-                    rs = self.handle_lstats(0, "chart", days)
-                elif mode in self.station_ids:
-                    sid = self.station_ids[mode]
-                    rs = self.handle_lstats(sid)
-                else:
-                    rs = self.handle_lstats(0)
-            else:
-                rs = self.handle_lstats(0)
-
-        # !rate
-
-        elif cmd == "!rate":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    if len(cmdtokens) > 2:
-                        rating = cmdtokens[2]
-                        rs = self.handle_rate(nick, sid, rating)
-                    else:
-                        rs = self.handle_help(topic="rate")
-                else:
-                    rs = self.handle_help(topic="rate")
-            else:
-                rs = self.handle_help(topic="rate")
-
-        # !rtchip
-
-        elif cmd == "!rtchip":
-            sid = 4
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                rs = self.handle_rate(nick, sid, rating)
-            else:
-                rs = self.handle_help(topic="rate")
-
-        # !rtcover
-
-        elif cmd == "!rtcover":
-            sid = 3
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                rs = self.handle_rate(nick, sid, rating)
-            else:
-                rs = self.handle_help(topic="rate")
-
-        # !rtocr
-
-        elif cmd == "!rtocr":
-            sid = 2
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                rs = self.handle_rate(nick, sid, rating)
-            else:
-                rs = self.handle_help(topic="rate")
-
-        # !rtall
-
-        elif cmd == "!rtall":
-            sid = 5
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                rs = self.handle_rate(nick, sid, rating)
-            else:
-                rs = self.handle_help(topic="rate")
-
-        # !rtgame
-
-        elif cmd == "!rtgame":
-            sid = 1
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                rs = self.handle_rate(nick, sid, rating)
-            else:
-                rs = self.handle_help(topic="rate")
 
         # !stop
 
@@ -946,109 +874,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.config.handle(id, value)
-
-        # !lstats
-
-        elif cmd == "!lstats":
-            if len(cmdtokens) > 1:
-                mode = cmdtokens[1]
-                if mode == "chart":
-                    if len(cmdtokens) > 2:
-                        try:
-                            days = int(cmdtokens[2])
-                        except ValueError:
-                            days = 30
-                    else:
-                        days = 30
-                    if days < 1:
-                        days = 30
-                    rs = self.handle_lstats(0, "chart", days)
-                elif mode in self.station_ids:
-                    sid = self.station_ids[mode]
-                    rs = self.handle_lstats(sid)
-                else:
-                    rs = self.handle_lstats(0)
-            else:
-                rs = self.handle_lstats(0)
-
-            ltls = int(self.config.get("lasttime:lstats"))
-            wls = int(self.config.get("wait:lstats"))
-            if ltls < time.time() - wls:
-                self.config.set("lasttime:lstats", time.time())
-            else:
-                if rs:
-                    privrs = rs
-                    rs = []
-                    wait = ltls + wls - int(time.time())
-                    privrs.append("I am cooling down. You cannot use !lstats "
-                        "in %s for another %s seconds." % (chan, wait))
-
-        # !rate
-
-        elif cmd == "!rate":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    if len(cmdtokens) > 2:
-                        rating = cmdtokens[2]
-                        privrs = self.handle_rate(nick, sid, rating)
-                    else:
-                        privrs = self.handle_help(topic="rate")
-                else:
-                    privrs = self.handle_help(topic="rate")
-            else:
-                privrs = self.handle_help(topic="rate")
-
-        # !rtbw
-
-        elif cmd == "!rtbw":
-            sid = 4
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                privrs = self.handle_rate(nick, sid, rating)
-            else:
-                privrs = self.handle_help(topic="rate")
-
-        # !rtmw
-
-        elif cmd == "!rtmw":
-            sid = 3
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                privrs = self.handle_rate(nick, sid, rating)
-            else:
-                privrs = self.handle_help(topic="rate")
-
-        # !rtoc
-
-        elif cmd == "!rtoc":
-            sid = 2
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                privrs = self.handle_rate(nick, sid, rating)
-            else:
-                privrs = self.handle_help(topic="rate")
-
-        # !rtow
-
-        elif cmd == "!rtow":
-            sid = 5
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                privrs = self.handle_rate(nick, sid, rating)
-            else:
-                privrs = self.handle_help(topic="rate")
-
-        # !rtrw
-
-        elif cmd == "!rtrw":
-            sid = 1
-            if len(cmdtokens) > 1:
-                rating = cmdtokens[1]
-                privrs = self.handle_rate(nick, sid, rating)
-            else:
-                privrs = self.handle_help(topic="rate")
 
         # !stop
 
