@@ -160,9 +160,7 @@ class wormgas(SingleServerIRCBot):
             index = 0
         if index not in [0, 1]:
             # Not a valid index, return the help text.
-            output.privrs.extend(self.handle_help(nick, channel, output,
-                topic="election"))
-            return True
+            return(self.handle_help(nick, channel, output, topic="election"))
 
         if station in self.station_ids:
             sid = self.station_ids.get(station, 5)
@@ -264,8 +262,8 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "election":
-            rs.append("Use \x02!election <stationcode> [<election index>]\x02 "
-                "to see the candidates in an election")
+            rs.append("Use \x02!election <stationcode> [<index>]\x02 to see "
+                "the candidates in an election")
             rs.append("Short version is \x02!el<stationcode> [<index>]\x02")
             rs.append("Index should be 0 (current) or 1 (future), default is 0")
             rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
@@ -361,39 +359,36 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    def handle_key(self, nick, mode="help", key=None):
+    @command_handler(r"^!key(\s(?P<mode>\w+))?(\s(?P<key>\w{10}))?")
+    def handle_key(self, nick, channel, output, mode=None, key=None):
         """Manage API keys
 
         Arguments:
-            nick: string, IRC nick of person to manage key for
             mode: string, one of "help", "add", "drop", "show"
-            key: string, the API key to add
-
-        Returns: a list of strings"""
-
-        rs = []
+            key: string, the API key to add"""
 
         # Make sure this nick is in the user_keys table
         self.config.store_nick(nick)
 
-        if mode == "help":
-            priv = self.config.get("privlevel:%s" % nick)
-            rs = self.handle_help(priv, "key")
-        elif mode == "add":
+        if mode == "add" and key:
             self.config.add_key_to_nick(key, nick)
-            rs.append("I assigned the API key '%s' to nick '%s'" % (key, nick))
+            output.privrs.append("I assigned the API key '%s' to nick '%s'" %
+                (key, nick))
         elif mode == "drop":
             self.config.drop_key_for_nick(nick)
-            rs.append("I dropped the API key for nick '%s'" % nick)
+            output.privrs.append("I dropped the API key for nick '%s'" % nick)
         elif mode == "show":
             stored_id = self.config.get_key_for_nick(nick)
             if stored_id:
-                rs.append("The API key for nick '%s' is '%s'" %
+                output.privrs.append("The API key for nick '%s' is '%s'" %
                     (nick, stored_id))
             else:
-                rs.append("I do not have an API key for nick '%s'" % nick)
+                output.privrs.append("I do not have an API key for nick '%s'" %
+                    nick)
+        else:
+            return(self.handle_help(nick, channel, output, topic="key"))
 
-        return(rs)
+        return True
 
     @command_handler(r"^!lookup\s(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
     @command_handler(r"^!lu(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
@@ -636,24 +631,34 @@ class wormgas(SingleServerIRCBot):
             self.config.set("np:%s" % sid, sched_id)
 
         return True
-
-    def handle_prevplayed(self, sid, index=0):
+    @command_handler(r"!prevplayed(\s(?P<station>\w+))?(\s(?P<index>\d))?")
+    @command_handler(r"!pp(?P<station>\w+)(\s(?P<index>\d))?")
+    def handle_prevplayed(self, nick, channel, output, station=None, index=0):
         """Report what was previously playing on the radio
 
         Arguments:
-            sid: (int) station id of station to check
+            station: station to check
             index: (int) (0, 1, 2) which previously played song, higher number =
-                further in the past
-
-        Returns: a list of sched_id, strings"""
+                further in the past"""
 
         rs = []
+
+        if station in self.station_ids:
+            sid = self.station_ids.get(station)
+        else:
+            return(self.handle_help(nick, channel, output, topic="prevplayed"))
         st = self.station_names[sid]
+
+        try:
+            index = int(index)
+        except TypeError:
+            index = 0
+        if index not in [0, 1, 2]:
+            return(self.handle_help(nick, channel, output, topic="prevplayed"))
 
         url = "http://rainwave.cc/async/%s/get" % sid
         data = self.api_call(url)
         sched_id = data["sched_history"][index]["sched_id"]
-        rs.append(sched_id)
         sched_type = data["sched_history"][index]["sched_type"]
         if sched_type in (0, 4):
             pp = data["sched_history"][index]["song_data"][0]
@@ -686,7 +691,19 @@ class wormgas(SingleServerIRCBot):
             r = "%s: I have no idea (sched_type = %s)" % (st, sched_type)
             rs.append(r)
 
-        return(rs)
+        if channel == PRIVMSG:
+            output.default.extend(rs)
+            return True
+
+        if sched_id == int(self.config.get("pp:%s:%s" % (sid, index))):
+            output.privrs.extend(rs)
+            output.privrs.append("I am cooling down. You can only use "
+                "!prevplayed in %s once per song." % channel)
+        else:
+            output.default.extend(rs)
+            self.config.set("pp:%s:%s" % (sid, index), sched_id)
+
+        return True
 
     def handle_rate(self, nick, sid, rating):
         """Rate the currently playing song
@@ -785,19 +802,6 @@ class wormgas(SingleServerIRCBot):
                 value = None
             rs = self.config.handle(id, value)
 
-        # !key
-
-        elif cmd == "!key":
-            try:
-                mode = cmdtokens[1]
-            except IndexError:
-                mode = "help"
-            try:
-                key = cmdtokens[2]
-            except IndexError:
-                key = None
-            rs = self.handle_key(nick, mode, key)
-
         # !lstats
 
         elif cmd == "!lstats":
@@ -821,127 +825,6 @@ class wormgas(SingleServerIRCBot):
                     rs = self.handle_lstats(0)
             else:
                 rs = self.handle_lstats(0)
-
-        # !ppbw
-
-        elif cmd == "!ppchip":
-            sid = 4
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        rs.pop(0)
-                    else:
-                        rs = self.handle_help(topic="prevplayed")
-                except ValueError:
-                    rs = self.handle_prevplayed(sid)
-                    rs.pop(0)
-            else:
-                rs = self.handle_prevplayed(sid)
-                rs.pop(0)
-
-        # !ppmw
-
-        elif cmd == "!ppcover":
-            sid = 3
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        rs.pop(0)
-                    else:
-                        rs = self.handle_help(topic="prevplayed")
-                except ValueError:
-                    rs = self.handle_prevplayed(sid)
-                    rs.pop(0)
-            else:
-                rs = self.handle_prevplayed(sid)
-                rs.pop(0)
-
-        # !ppoc
-
-        elif cmd == "!ppocr":
-            sid = 2
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        rs.pop(0)
-                    else:
-                        rs = self.handle_help(topic="prevplayed")
-                except ValueError:
-                    rs = self.handle_prevplayed(sid)
-                    rs.pop(0)
-            else:
-                rs = self.handle_prevplayed(sid)
-                rs.pop(0)
-
-        # !ppow
-
-        elif cmd == "!ppall":
-            sid = 5
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        rs.pop(0)
-                    else:
-                        rs = self.handle_help(topic="prevplayed")
-                except ValueError:
-                    rs = self.handle_prevplayed(sid)
-                    rs.pop(0)
-            else:
-                rs = self.handle_prevplayed(sid)
-                rs.pop(0)
-
-        # !pprw
-
-        elif cmd == "!ppgame":
-            sid = 1
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        rs.pop(0)
-                    else:
-                        rs = self.handle_help(topic="prevplayed")
-                except ValueError:
-                    rs = self.handle_prevplayed(sid)
-                    rs.pop(0)
-            else:
-                rs = self.handle_prevplayed(sid)
-                rs.pop(0)
-
-        # !prevplayed
-
-        elif cmd == "!prevplayed":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    if len(cmdtokens) > 2:
-                        try:
-                            index = int(cmdtokens[2])
-                            if index in (0, 1, 2):
-                                rs = self.handle_prevplayed(sid, index)
-                                rs.pop(0)
-                            else:
-                                rs = self.handle_help(topic="prevplayed")
-                        except ValueError:
-                            rs = self.handle_prevplayed(sid)
-                            rs.pop(0)
-                    else:
-                        rs = self.handle_prevplayed(sid)
-                        rs.pop(0)
-                else:
-                    rs = self.handle_help(topic="prevplayed")
-            else:
-                rs = self.handle_help(topic="prevplayed")
 
         # !rate
 
@@ -1066,19 +949,6 @@ class wormgas(SingleServerIRCBot):
                 value = None
             privrs = self.config.handle(id, value)
 
-        # !key
-
-        elif cmd == "!key":
-            try:
-                mode = cmdtokens[1]
-            except IndexError:
-                mode = "help"
-            try:
-                key = cmdtokens[2]
-            except IndexError:
-                key = None
-            privrs = self.handle_key(nick, mode, key)
-
         # !lstats
 
         elif cmd == "!lstats":
@@ -1114,163 +984,6 @@ class wormgas(SingleServerIRCBot):
                     wait = ltls + wls - int(time.time())
                     privrs.append("I am cooling down. You cannot use !lstats "
                         "in %s for another %s seconds." % (chan, wait))
-
-        # !ppbw
-
-        elif cmd == "!ppbw":
-            sid = 4
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                except ValueError:
-                    index = 0
-            else:
-                index = 0
-            if index in (0, 1, 2):
-                rs = self.handle_prevplayed(sid, index)
-                sched_id = rs.pop(0)
-                last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                if sched_id == last:
-                    privrs = rs
-                    rs = []
-                    privrs.append("I am cooling down. You can only use "
-                        "!prevplayed in %s once per song." % chan)
-                else:
-                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
-            else:
-                privrs = self.handle_help(topic="prevplayed")
-
-        # !ppmw
-
-        elif cmd == "!ppmw":
-            sid = 3
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                except ValueError:
-                    index = 0
-            else:
-                index = 0
-            if index in (0, 1, 2):
-                rs = self.handle_prevplayed(sid, index)
-                sched_id = rs.pop(0)
-                last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                if sched_id == last:
-                    privrs = rs
-                    rs = []
-                    privrs.append("I am cooling down. You can only use "
-                        "!prevplayed in %s once per song." % chan)
-                else:
-                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
-            else:
-                privrs = self.handle_help(topic="prevplayed")
-
-        # !ppoc
-
-        elif cmd == "!ppoc":
-            sid = 2
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                except ValueError:
-                    index = 0
-            else:
-                index = 0
-            if index in (0, 1, 2):
-                rs = self.handle_prevplayed(sid, index)
-                sched_id = rs.pop(0)
-                last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                if sched_id == last:
-                    privrs = rs
-                    rs = []
-                    privrs.append("I am cooling down. You can only use "
-                        "!prevplayed in %s once per song." % chan)
-                else:
-                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
-            else:
-                privrs = self.handle_help(topic="prevplayed")
-
-        # !ppow
-
-        elif cmd == "!ppow":
-            sid = 5
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                except ValueError:
-                    index = 0
-            else:
-                index = 0
-            if index in (0, 1, 2):
-                rs = self.handle_prevplayed(sid, index)
-                sched_id = rs.pop(0)
-                last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                if sched_id == last:
-                    privrs = rs
-                    rs = []
-                    privrs.append("I am cooling down. You can only use "
-                        "!prevplayed in %s once per song." % chan)
-                else:
-                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
-            else:
-                privrs = self.handle_help(topic="prevplayed")
-
-        # !pprw
-
-        elif cmd == "!pprw":
-            sid = 1
-            if len(cmdtokens) > 1:
-                try:
-                    index = int(cmdtokens[1])
-                except ValueError:
-                    index = 0
-            else:
-                index = 0
-            if index in (0, 1, 2):
-                rs = self.handle_prevplayed(sid, index)
-                sched_id = rs.pop(0)
-                last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                if sched_id == last:
-                    privrs = rs
-                    rs = []
-                    privrs.append("I am cooling down. You can only use "
-                        "!prevplayed in %s once per song." % chan)
-                else:
-                    self.config.set("pp:%s:%s" % (sid, index), sched_id)
-            else:
-                privrs = self.handle_help(topic="prevplayed")
-
-        # !prevplayed
-
-        elif cmd == "!prevplayed":
-            if len(cmdtokens) > 1:
-                station = cmdtokens[1]
-                if station in self.station_ids:
-                    sid = self.station_ids[station]
-                    if len(cmdtokens) > 2:
-                        try:
-                            index = int(cmdtokens[2])
-                        except ValueError:
-                            index = 0
-                    else:
-                        index = 0
-                    if index in (0, 1, 2):
-                        rs = self.handle_prevplayed(sid, index)
-                        sched_id = rs.pop(0)
-                        last = int(self.config.get("pp:%s:%s" % (sid, index)))
-                        if sched_id == last:
-                            privrs = rs
-                            rs = []
-                            privrs.append("I am cooling down. You can only use "
-                                "!prevplayed in %s once per song." % chan)
-                        else:
-                            self.config.set("pp:%s:%s" % (sid, index), sched_id)
-                    else:
-                        privrs = self.handle_help(topic="prevplayed")
-                else:
-                    privrs = self.handle_help(topic="prevplayed")
-            else:
-                privrs = self.handle_help(topic="prevplayed")
 
         # !rate
 
