@@ -255,7 +255,7 @@ class wormgas(SingleServerIRCBot):
         if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate")
+                "prevplayed, rate, request, roll")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -328,6 +328,8 @@ class wormgas(SingleServerIRCBot):
                 "\x02!lookup\x0f or \x02!unrated\x0f")
             rs.append("Short version is \x02!rq<stationcode> <song_id>\x0f")
             rs.append(stationcodes)
+        elif topic == "roll":
+            rs.append("Use \x02!roll [#d^]\x0f to roll a ^-sided die # times")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
@@ -838,6 +840,46 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(data["request_result"]["text"])
         else:
             output.privrs.append(data["error"]["text"])
+
+        return True
+
+    @command_handler("!roll(\s(?P<dice>\d+)(d(?P<sides>\d+))?)?")
+    def handle_roll(self, nick, channel, output, dice=None, sides=None):
+        """Roll some dice"""
+
+        try:
+            dice = min(int(dice), 100)
+        except TypeError:
+            dice = 1
+
+        try:
+            sides = min(int(sides), 100)
+        except TypeError:
+            sides = 20
+
+        rolls = []
+        for i in range(dice):
+            rolls.append(random.randint(1, sides))
+
+        r = "%sd%s: " % (dice, sides)
+        if dice > 1 and dice < 11:
+            r += "[" + ", ".join(map(str, rolls)) + "] = "
+        r += "%s" % sum(rolls)
+
+        if channel == PRIVMSG:
+            output.default.append(r)
+            return True
+
+        ltr = int(self.config.get("lasttime:roll"))
+        wr = int(self.config.get("wait:roll"))
+        if ltr < time.time() - wr:
+            output.default.append(r)
+            self.config.set("lasttime:roll", time.time())
+        else:
+            output.privrs.append(r)
+            wait = ltr + wr - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !roll in "
+                "%s for another %s seconds." % (channel, wait))
 
         return True
 
