@@ -330,38 +330,36 @@ class wormgas(SingleServerIRCBot):
         output.privrs.extend(rs)
         return True
 
-    def handle_id(self, nick, mode, id):
+    @command_handler(r"^!id(\s(?P<mode>\w+))?(\s(?P<id>\d+))?")
+    def handle_id(self, nick, channel, output, mode=None, id=None):
         """Manage correlation between an IRC nick and Rainwave User ID
 
         Arguments:
-            nick: string, IRC nick of person to manage id for
             mode: string, one of "help", "add", "drop", "show"
-            id: numeric, the person's Rainwave User ID
-
-        Returns: a list of strings"""
-
-        rs = []
+            id: numeric, the person's Rainwave User ID"""
 
         # Make sure this nick is in the user_keys table
         self.config.store_nick(nick)
 
-        if mode == "help":
-            priv = self.config.get("privlevel:%s" % nick)
-            rs = self.handle_help(priv, "id")
-        elif mode == "add":
+        if mode == "add" and id:
             self.config.add_id_to_nick(id, nick)
-            rs.append("I assigned the user id %s to nick '%s'" % (id, nick))
+            output.privrs.append("I assigned the user id %s to nick '%s'" %
+                (id, nick))
         elif mode == "drop":
             self.config.drop_id_for_nick(nick)
-            rs.append("I dropped the user id for nick '%s'" % nick)
+            output.privrs.append("I dropped the user id for nick '%s'" % nick)
         elif mode == "show":
             stored_id = self.config.get_id_for_nick(nick)
             if stored_id:
-                rs.append("The user id for nick '%s' is %s" % (nick, stored_id))
+                output.privrs.append("The user id for nick '%s' is %s" %
+                    (nick, stored_id))
             else:
-                rs.append("I do not have a user id for nick '%s'" % nick)
+                output.privrs.append("I do not have a user id for nick '%s'" %
+                    nick)
+        else:
+            return(self.handle_help(nick, channel, output, topic="id"))
 
-        return(rs)
+        return True
 
     def handle_key(self, nick, mode="help", key=None):
         """Manage API keys
@@ -787,19 +785,6 @@ class wormgas(SingleServerIRCBot):
                 value = None
             rs = self.config.handle(id, value)
 
-        # !id
-
-        elif cmd == "!id":
-            try:
-                mode = cmdtokens[1]
-            except IndexError:
-                mode = "help"
-            try:
-                id = cmdtokens[2]
-            except IndexError:
-                id = None
-            rs = self.handle_id(nick, mode, id)
-
         # !key
 
         elif cmd == "!key":
@@ -1080,19 +1065,6 @@ class wormgas(SingleServerIRCBot):
             except IndexError:
                 value = None
             privrs = self.config.handle(id, value)
-
-        # !id
-
-        elif cmd == "!id":
-            try:
-                mode = cmdtokens[1]
-            except IndexError:
-                mode = "help"
-            try:
-                id = cmdtokens[2]
-            except IndexError:
-                id = None
-            privrs = self.handle_id(nick, mode, id)
 
         # !key
 
