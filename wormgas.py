@@ -146,13 +146,11 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
+    @command_handler(r"^!election(\s(?P<station>\w+))?(\s(?P<index>\d))?")
     @command_handler(r"^!el(?P<station>\w+)(\s(?P<index>\d))?")
-    @command_handler(r"^!election\s(?P<station>\w+)(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, station=None, index=None):
-        """Show the candidates in an election
+        """Show the candidates in an election"""
 
-        Returns: a list of sched_id, response strings
-        """
         # Make sure the index is valid.
         try:
             index = int(index)
