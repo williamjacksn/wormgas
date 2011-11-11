@@ -146,6 +146,15 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
+    @command_handler(r"^!config(\s(?P<id>\w+))?(\s(?P<value>.+))?")
+    def handle_config(self, nick, channel, output, id=None, value=None):
+        """View and set config items"""
+
+        priv = int(self.config.get("privlevel:%s" % nick))
+        if priv > 1:
+            output.privrs.extend(self.config.handle(id, value))
+        return True
+
     @command_handler(r"^!election(\s(?P<station>\w+))?(\s(?P<index>\d))?")
     @command_handler(r"^!el(?P<station>\w+)(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, station=None, index=None):
@@ -192,6 +201,7 @@ class wormgas(SingleServerIRCBot):
         elections. The results of this call can therefore be cached locally
         using the sched_id as the cache key.
         """
+
         data = self.api_call("http://rainwave.cc/async/%s/get" % sid)
         elec = data["sched_next"][index]
         text = ""
@@ -651,6 +661,7 @@ class wormgas(SingleServerIRCBot):
             self.config.set("np:%s" % sid, sched_id)
 
         return True
+
     @command_handler(r"!prevplayed(\s(?P<station>\w+))?(\s(?P<index>\d))?")
     @command_handler(r"!pp(?P<station>\w+)(\s(?P<index>\d))?")
     def handle_prevplayed(self, nick, channel, output, station=None, index=0):
@@ -797,37 +808,19 @@ class wormgas(SingleServerIRCBot):
         Arguments:
             c: the Connection object associated with this event
             e: the Event object"""
-        nick = e.source().split("!")[0]
-        priv = self.config.get("privlevel:%s" % nick)
-        msg = e.arguments()[0].strip()
 
-        cmdtokens = msg.split()
-        try:
-            cmd = cmdtokens[0]
-        except IndexError:
-            cmd = None
+        nick = e.source().split("!")[0]
+        msg = e.arguments()[0].strip()
 
         rs = []
 
-        # Try all the new command handlers first.
+        # Try all the command handlers
+
         output = Output("private")
         for command in _commands:
             if command(self, nick, msg, PRIVMSG, output):
                 rs = output.privrs
                 break
-
-        # !config
-
-        if not rs and priv > 1 and cmd == "!config":
-            try:
-                id = cmdtokens[1]
-            except IndexError:
-                id = None
-            try:
-                value = cmdtokens[2]
-            except IndexError:
-                value = None
-            rs = self.config.handle(id, value)
 
         # Send responses
 
@@ -847,38 +840,20 @@ class wormgas(SingleServerIRCBot):
             e: the Event object"""
 
         nick = e.source().split("!")[0]
-        priv = self.config.get("privlevel:%s" % nick)
         chan = e.target()
         msg = e.arguments()[0].strip()
-        cmdtokens = msg.split()
-        try:
-            cmd = cmdtokens[0]
-        except IndexError:
-            cmd = None
 
         rs = []
         privrs = []
 
-        # Try all the new command handlers first.
+        # Try all the command handlers
+
         output = Output("public")
         for command in _commands:
             if command(self, nick, msg, chan, output):
                 rs = output.rs
                 privrs = output.privrs
                 break
-
-        # !config
-
-        if not rs and priv > 1 and cmd == "!config":
-            try:
-                id = cmdtokens[1]
-            except IndexError:
-                id = None
-            try:
-                value = cmdtokens[2]
-            except IndexError:
-                value = None
-            privrs = self.config.handle(id, value)
 
         # Send responses
 
