@@ -249,6 +249,9 @@ class wormgas(SingleServerIRCBot):
         priv = self.config.get("privlevel:%s" % nick)
         rs = []
 
+        stationcodes = ("Station codes are \x02" +
+            "\x02, \x02".join(self.station_ids.keys()) + "\x02")
+
         if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
@@ -274,8 +277,7 @@ class wormgas(SingleServerIRCBot):
                 "the candidates in an election")
             rs.append("Short version is \x02!el<stationcode> [<index>]\x02")
             rs.append("Index should be 0 (current) or 1 (future), default is 0")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "id":
@@ -294,8 +296,7 @@ class wormgas(SingleServerIRCBot):
                 "to search for songs or albums with <text> in the title")
             rs.append("Short version is \x02!lu<stationcode> song|album "
                 "<text>\x02")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
         elif topic == "lstats":
             rs.append("Use \x02!lstats [<stationcode>]\x02 to see information "
                 "about current listeners, all stations are aggregated if you "
@@ -303,28 +304,30 @@ class wormgas(SingleServerIRCBot):
             rs.append("Use \x02!lstats chart [<num>]\x02 to see a chart of "
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
         elif topic == "nowplaying":
             rs.append("Use \x02!nowplaying <stationcode>\x02 to show what is "
                 "now playing on the radio")
             rs.append("Short version is \x02!np<stationcode>\x02")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
         elif topic == "prevplayed":
             rs.append("Use \x02!prevplayed <stationcode> [<index>]\x02 to show "
                 "what was previously playing on the radio")
             rs.append("Short version is \x02!pp<stationcode> [<index>]\x02")
             rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
                 "numbers are further in the past")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
         elif topic == "rate":
             rs.append("Use \x02!rate <stationcode> <rating>\x02 to rate the "
                 "currently playing song")
             rs.append("Short version is \x02!rt<stationcode> <rating>\x02")
-            rs.append("Station codes are \x02game\x02, \x02ocr\x02, "
-                "\x02cover\x02, \x02chip\x02, or \x02all\x02")
+            rs.append(stationcodes)
+        elif topic == "request":
+            rs.append("Use \x02!request <stationcode> <song_id>\x0f to add a "
+                "song to your request queue, find the <song_id> using "
+                "\x02!lookup\x0f or \x02!unrated\x0f")
+            rs.append("Short version is \x02!rq<stationcode> <song_id>\x0f")
+            rs.append(stationcodes)
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
@@ -398,8 +401,10 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"^!lookup\s(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
-    @command_handler(r"^!lu(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
+    @command_handler(r"^!lookup(\s(?P<station>\w+))?(\s(?P<mode>\w+))?"
+        r"(\s(?P<text>.+))?")
+    @command_handler(r"^!lu(?P<station>\w+)?(\s(?P<mode>\w+))?"
+        r"(\s(?P<text>.+))?")
     def handle_lookup(self, nick, channel, output, station, mode, text):
         """Look up (search for) a song or album"""
 
@@ -446,7 +451,8 @@ class wormgas(SingleServerIRCBot):
 
             # I got between 1 and 10 results
 
-            r = ("%s: Your search returned %s results." % (st, len(rs)))
+            r = ("%s: Your search returned %s results." %
+                (st, len(output.privrs)))
             output.privrs.insert(0, r)
 
         return True
@@ -787,6 +793,49 @@ class wormgas(SingleServerIRCBot):
 
         if data["rate_result"]:
             output.privrs.append(data["rate_result"]["text"])
+        else:
+            output.privrs.append(data["error"]["text"])
+
+        return True
+
+    @command_handler(r"^!request(\s(?P<station>\w+))?(\s(?P<songid>\d+))?")
+    @command_handler(r"^!rq(\s(?P<station>\w+))?(\s(?P<songid>\d+))?")
+    def handle_request(self, nick, channel, output, station=None, songid=None):
+        """Request a song on the radio
+
+        Arguments:
+            station: the station to request on
+            songid: id of song to request"""
+
+        if station in self.station_ids and songid:
+            sid = self.station_ids.get(station)
+        else:
+            return(self.handle_help(nick, channel, output, topic="request"))
+
+        user_id = self.config.get_id_for_nick(nick)
+
+        if not user_id and self.rwdb:
+            user_id = self.rwdb.get_id_for_nick(nick)
+
+        if not user_id:
+            output.privrs.append("I do not have a user id stored for you. "
+                "Visit http://rainwave.cc/auth/ to look up your user id and "
+                "tell me about it with \x02!id add <id>\x02")
+            return True
+
+        key = self.config.get_key_for_nick(nick)
+        if not key:
+            output.privrs.append("I do not have a key stored for you. Visit "
+                "http://rainwave.cc/auth/ to get a key and tell me about it "
+                "with \x02!key add <key>\x02")
+            return True
+
+        url = "http://rainwave.cc/async/%s/request" % sid
+        args = {"user_id": user_id, "key": key, "song_id": songid}
+        data = self.api_call(url, args)
+
+        if data["request_result"]:
+            output.privrs.append(data["request_result"]["text"])
         else:
             output.privrs.append(data["error"]["text"])
 
