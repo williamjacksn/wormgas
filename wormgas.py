@@ -146,8 +146,8 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
-    @command_handler(r"^!el(?P<station>\w\w)?\s*(?P<index>\d)?")
-    @command_handler(r"^!election\s*(?P<station>\w\w)?\s*(?P<index>\d)?")
+    @command_handler(r"^!el(?P<station>\w+)(\s(?P<index>\d))?")
+    @command_handler(r"^!election\s(?P<station>\w+)(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, station=None, index=None):
         """Show the candidates in an election
 
@@ -160,10 +160,15 @@ class wormgas(SingleServerIRCBot):
             index = 0
         if index not in [0, 1]:
             # Not a valid index, return the help text.
-            output.privrs.extend(self.handle_help(topic="election"))
+            output.privrs.extend(self.handle_help(nick, channel, output,
+                topic="election"))
             return True
 
-        sid = self.station_ids.get(station, 1)
+        if station in self.station_ids:
+            sid = self.station_ids.get(station, 5)
+        else:
+            return(self.handle_help(nick, channel, output, topic="election"))
+
         sched_config = "el:%s:%s" % (sid, index)
         sched_id, text = self._fetch_election(index, sid)
 
@@ -392,19 +397,18 @@ class wormgas(SingleServerIRCBot):
 
         return(rs)
 
-    def handle_lookup(self, sid, mode, text):
-        """Look up (search for) a song or album
+    @command_handler(r"^!lookup\s(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
+    @command_handler(r"^!lu(?P<station>\w+)\s(?P<mode>\w+)\s(?P<text>\w+)")
+    def handle_lookup(self, nick, channel, output, station, mode, text):
+        """Look up (search for) a song or album"""
 
-        Arguments:
-            sid: station id of station to search
-            mode: "song" or "album"
-            text: text to search for
-
-        Returns: a list of strings"""
         if not self.rwdb:
             return ["Cannot access Rainwave database. Sorry."]
 
-        rs = []
+        if station in self.station_ids:
+            sid = self.station_ids.get(station, 5)
+        else:
+            return(self.handle_help(nick, channel, output, topic="lookup"))
         st = self.station_names[sid]
 
         if mode == "song":
@@ -414,13 +418,13 @@ class wormgas(SingleServerIRCBot):
             rows, unreported_results = self.rwdb.search_albums(sid, text)
             out = "%(station)s: %(album_name)s [%(album_id)s]"
         else:
-            return(self.handle_help(topic="lookup"))
+            return(self.handle_help(nick, channel, output, topic="lookup"))
 
         # If I got results, output them
 
         for row in rows:
             row["station"] = st
-            rs.append(out % row)
+            output.privrs.append(out % row)
 
         # If I had to trim the results, be honest about it
 
@@ -430,21 +434,21 @@ class wormgas(SingleServerIRCBot):
                 r = "%ss" % r
             r = ("%s. If you do not see what you are looking for, be more "
                 "specific with your search." % r)
-            rs.append(r)
+            output.privrs.append(r)
 
         # If I did not find anything with this search, mention that
 
-        if len(rs) < 1:
+        if len(output.privrs) < 1:
             r = "%s: No results." % st
-            rs.append(r)
+            output.privrs.append(r)
         elif unreported_results < 1:
 
             # I got between 1 and 10 results
 
             r = ("%s: Your search returned %s results." % (st, len(rs)))
-            rs.insert(0, r)
+            output.privrs.insert(0, r)
 
-        return(rs)
+        return True
 
     def handle_lstats(self, sid, mode="text", days=30):
         """ Reports listener statistics, as numbers or a chart
@@ -809,18 +813,6 @@ class wormgas(SingleServerIRCBot):
                 key = None
             rs = self.handle_key(nick, mode, key)
 
-        # !lookup
-
-        elif cmd == "!lookup":
-            try:
-                station = cmdtokens[1]
-                sid = self.station_ids[station]
-                mode = cmdtokens[2]
-                text = cmdtokens[3]
-                rs = self.handle_lookup(sid, mode, text)
-            except IndexError, KeyError:
-                rs = self.handle_help(topic="lookup")
-
         # !lstats
 
         elif cmd == "!lstats":
@@ -844,56 +836,6 @@ class wormgas(SingleServerIRCBot):
                     rs = self.handle_lstats(0)
             else:
                 rs = self.handle_lstats(0)
-
-        # !luchip
-
-        elif cmd == "!luchip":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                rs = self.handle_lookup(4, mode, text)
-            except IndexError:
-                rs = self.handle_help(topic="lookup")
-
-        # !lumw
-
-        elif cmd == "!lucover":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                rs = self.handle_lookup(3, mode, text)
-            except IndexError:
-                rs = self.handle_help(topic="lookup")
-
-        # !luoc
-
-        elif cmd == "!luocr":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                rs = self.handle_lookup(2, mode, text)
-            except IndexError:
-                rs = self.handle_help(topic="lookup")
-
-        # !luow
-
-        elif cmd == "!luall":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                rs = self.handle_lookup(5, mode, text)
-            except IndexError:
-                rs = self.handle_help(topic="lookup")
-
-        # !lurw
-
-        elif cmd == "!lugame":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                rs = self.handle_lookup(1, mode, text)
-            except IndexError:
-                rs = self.handle_help(topic="lookup")
 
         # !ppbw
 
@@ -1165,18 +1107,6 @@ class wormgas(SingleServerIRCBot):
                 key = None
             privrs = self.handle_key(nick, mode, key)
 
-        # !lookup
-
-        elif cmd == "!lookup":
-            try:
-                station = cmdtokens[1]
-                sid = self.station_ids[station]
-                mode = cmdtokens[2]
-                text = cmdtokens[3]
-                privrs = self.handle_lookup(sid, mode, text)
-            except IndexError, KeyError:
-                privrs = self.handle_help(topic="lookup")
-
         # !lstats
 
         elif cmd == "!lstats":
@@ -1212,56 +1142,6 @@ class wormgas(SingleServerIRCBot):
                     wait = ltls + wls - int(time.time())
                     privrs.append("I am cooling down. You cannot use !lstats "
                         "in %s for another %s seconds." % (chan, wait))
-
-        # !lubw
-
-        elif cmd == "!lubw":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                privrs = self.handle_lookup(4, mode, text)
-            except IndexError:
-                privrs = self.handle_help(topic="lookup")
-
-        # !lumw
-
-        elif cmd == "!lumw":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                privrs = self.handle_lookup(3, mode, text)
-            except IndexError:
-                privrs = self.handle_help(topic="lookup")
-
-        # !luoc
-
-        elif cmd == "!luoc":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                privrs = self.handle_lookup(2, mode, text)
-            except IndexError:
-                privrs = self.handle_help(topic="lookup")
-
-        # !luow
-
-        elif cmd == "!luow":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                privrs = self.handle_lookup(5, mode, text)
-            except IndexError:
-                privrs = self.handle_help(topic="lookup")
-
-        # !lurw
-
-        elif cmd == "!lurw":
-            try:
-                mode = cmdtokens[1]
-                text = cmdtokens[2]
-                privrs = self.handle_lookup(1, mode, text)
-            except IndexError:
-                privrs = self.handle_help(topic="lookup")
 
         # !ppbw
 
