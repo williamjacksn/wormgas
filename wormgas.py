@@ -146,7 +146,7 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
-    @command_handler(r"^!config(\s(?P<id>\w+))?(\s(?P<value>.+))?")
+    @command_handler(r"^!config(\s(?P<id>[\w:]+))?(\s(?P<value>.+))?")
     def handle_config(self, nick, channel, output, id=None, value=None):
         """View and set config items"""
 
@@ -255,7 +255,7 @@ class wormgas(SingleServerIRCBot):
         if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate, request, roll")
+                "prevplayed, rate, request, roll, rps")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -330,6 +330,16 @@ class wormgas(SingleServerIRCBot):
             rs.append(stationcodes)
         elif topic == "roll":
             rs.append("Use \x02!roll [#d^]\x0f to roll a ^-sided die # times")
+        elif topic == "rps":
+            rs.append("Use \x02!rock\x0f, \x02!paper\x0f, or \x02!scissors\x0f "
+                "to play a game")
+            rs.append("Use \x02!rps record [<nick>]\x0f to see the record for "
+                "<nick>, leave off <nick> to see your own record, use nick "
+                "'!global' to see the global record")
+            rs.append("Use \x02!rps reset\x0f to reset your record and delete "
+                "your game history, there is no confirmation and this cannot "
+                "be undone")
+            rs.append("Use \x02!rps who\x0f to see a list of known players")
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
@@ -880,6 +890,119 @@ class wormgas(SingleServerIRCBot):
             wait = ltr + wr - int(time.time())
             output.privrs.append("I am cooling down. You cannot use !roll in "
                 "%s for another %s seconds." % (channel, wait))
+
+        return True
+
+    @command_handler(r"!(?P<mode>rock|paper|scissors)")
+    def handle_rps(self, nick, channel, output, mode=None):
+        """Rock, paper, scissors"""
+
+        rps = ["rock", "paper", "scissors"]
+        challenge  = rps.index(mode)
+        response = random.randint(0, 2)
+
+        self.config.log_rps(nick, challenge, response)
+
+        r = "You challenge with %s. I counter with %s. " % (mode, rps[response])
+
+        if challenge == (response + 1) % 3:
+            r += "You win!"
+        elif challenge == response:
+            r += "We draw!"
+        elif challenge == (response + 2) % 3:
+            r+= "You lose!"
+
+        w, d, l = self.config.get_rps_record(nick)
+        r += " Your current record is %s-%s-%s (w-d-l)." % (w, d, l)
+
+        if channel == PRIVMSG:
+            output.default.append(r)
+            return True
+
+        ltr = int(self.config.get("lasttime:rps"))
+        wr = int(self.config.get("wait:rps"))
+        if ltr < time.time() - wr:
+            output.default.append(r)
+            self.config.set("lasttime:rps", time.time())
+        else:
+            output.privrs.append(r)
+            wait = ltr + wr - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !%s in %s "
+                "for another %s seconds." % (mode, channel, wait))
+
+        return True
+
+    @command_handler(r"^!rps record(\s(?P<target>[\w!]+))?")
+    def handle_rps_record(self, nick, channel, output, target=None):
+        """Report RPS record for a nick"""
+
+        if target is None:
+            target = nick
+
+        w, d, l = self.config.get_rps_record(target)
+        total = sum((w, d, l))
+        r = "RPS record for %s (%s game" % (target, total)
+        if total != 1:
+            r += "s"
+        r += ") is %s-%s-%s (w-d-l)." % (w, d, l)
+
+        if channel == PRIVMSG:
+            output.default.append(r)
+            return True
+
+        ltr = int(self.config.get("lasttime:rps"))
+        wr = int(self.config.get("wait:rps"))
+        if ltr < time.time() - wr:
+            output.default.append(r)
+            self.config.set("lasttime:rps", time.time())
+        else:
+            output.privrs.append(r)
+            wait = ltr + wr - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !rps in %s "
+                "for another %s seconds." % (channel, wait))
+
+        return True
+
+
+    @command_handler(r"^!rps reset")
+    def handle_rps_reset(self, nick, channel, output):
+        """Reset RPS stats and delete game history for a nick"""
+
+        self.config.reset_rps_record(nick)
+        output.privrs.append("I reset your RPS record and deleted your game "
+            "history.")
+        return True
+
+    @command_handler(r"^!rps who")
+    def handle_rps_who(self, nick, channel, output):
+        """List all players in the RPS game history"""
+
+        rs = []
+        players = self.config.get_rps_players()
+
+        mlnl = int(self.config.get("maxlength:nicklist"))
+        while len(players) > mlnl:
+            plist = players[:mlnl]
+            players[:mlnl] = []
+            r = "RPS players: " + ", ".join(plist)
+            rs.append(r)
+        r = "RPS players: " + ", ".join(players)
+        rs.append(r)
+
+        if channel == PRIVMSG:
+            output.default.extend(rs)
+            return True
+
+        ltr = int(self.config.get("lasttime:rps"))
+        wr = int(self.config.get("wait:rps"))
+        if ltr < time.time() - wr:
+            output.default.extend(rs)
+            self.config.set("lasttime:rps", time.time())
+        else:
+            output.privrs.extend(rs)
+            wait = ltr + wr - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !rps in %s "
+                "for another %s seconds." % (channel, wait))
 
         return True
 

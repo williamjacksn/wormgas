@@ -155,6 +155,57 @@ class Config(object):
             stored_id = r[0]
         return stored_id
 
+    def log_rps(self, nick, challenge, response):
+        """Record an RPS game in the database"""
+        sql = ("insert into rps_log (timestamp, user_nick, challenge, "
+            "response) values (datetime('now'), ?, ?, ?)")
+        self.ccur.execute(sql, (nick, challenge, response))
+
+    def get_rps_record(self, nick):
+        """Get the current RPS record for a particular nick. If nick is
+        "!global", aggregate the record for all nicks.
+
+        Returns: the tuple (wins, draws, losses)"""
+
+        w = 0
+        d = 0
+        l = 0
+
+        sql = "select challenge, response from rps_log"
+        if nick != "!global":
+            sql += " where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+        else:
+            self.ccur.execute(sql)
+
+        games = self.ccur.fetchall()
+        for g in games:
+            c = int(g[0])
+            r = int(g[1])
+            if c == (r + 1) % 3:
+                w += 1
+            elif c == r:
+                d += 1
+            elif c == (r + 2) % 3:
+                l += 1
+
+        return w, d, l
+
+    def reset_rps_record(self, nick):
+        """Reset the RPS record and delete game history for nick"""
+        sql = "delete from rps_log where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+
+    def get_rps_players(self):
+        """Get all players in the RPS history"""
+        players = []
+        sql = "select distinct user_nick from rps_log order by user_nick"
+        self.ccur.execute(sql)
+        rows = self.ccur.fetchall()
+        for r in rows:
+            players.append(r[0])
+        return players
+
 class RainwaveDatabaseUnavailableError(IOError):
     """Raised if the Rainwave database or PostgreSQL module is missing."""
 
