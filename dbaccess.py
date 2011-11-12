@@ -322,3 +322,18 @@ class RainwaveDatabase(object):
         rows = self.rcur.fetchall()
         for row in rows:
             yield row[0], row[2], row[3]
+
+    def get_radio_stats(self, sid):
+        """Return songs, albums, hours of music for one or all channel"""
+        sql = ("select count(song_id), count(distinct album_id), "
+            "round(sum(song_secondslong) / 3600.0, 2) from rw_songs where "
+            "song_verified is true")
+        if sid > 0:
+            sql += " and sid = %s"
+            self.rcur.execute(sql, (sid,))
+        else:
+            sql += " and sid < 5"
+            self.rcur.execute(sql)
+        rows = self.rcur.fetchall()
+        for r in rows:
+            return r[0], r[1], r[2]

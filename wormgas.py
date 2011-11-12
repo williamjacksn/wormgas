@@ -255,7 +255,7 @@ class wormgas(SingleServerIRCBot):
         if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate, request, roll, rps")
+                "prevplayed, rate, request, roll, rps, stats")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -340,6 +340,11 @@ class wormgas(SingleServerIRCBot):
                 "your game history, there is no confirmation and this cannot "
                 "be undone")
             rs.append("Use \x02!rps who\x0f to see a list of known players")
+        elif topic == "stats":
+            rs.append("Use \x02!stats [<stationcode>]\x0f to show information "
+                "about the music collection, leave off <stationcode> to see "
+                "the aggregate for all stations")
+            rs.append(stationcodes)
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
@@ -1003,6 +1008,35 @@ class wormgas(SingleServerIRCBot):
             wait = ltr + wr - int(time.time())
             output.privrs.append("I am cooling down. You cannot use !rps in %s "
                 "for another %s seconds." % (channel, wait))
+
+        return True
+
+    @command_handler(r"!stats(\s(?P<station>\w+))?")
+    def handle_stats(self, nick, channel, output, station=None):
+        """Report radio statistics"""
+
+        sid = self.station_ids.get(station, 0)
+        if self.rwdb:
+            songs, albums, hours = self.rwdb.get_radio_stats(sid)
+            r = ("%s: %s songs in %s albums with %s hours of music." %
+                (self.station_names[sid], songs, albums, hours))
+        else:
+            r = "The Rainwave database is unavailable."
+
+        if channel == PRIVMSG:
+            output.default.append(r)
+            return True
+
+        lts = int(self.config.get("lasttime:stats"))
+        ws = int(self.config.get("wait:stats"))
+        if lts < time.time() - ws:
+            output.default.append(r)
+            self.config.set("lasttime:stats", time.time())
+        else:
+            output.privrs.append(r)
+            wait = lts + ws - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !stats in "
+                "%s for another %s seconds." % (channel, wait))
 
         return True
 
