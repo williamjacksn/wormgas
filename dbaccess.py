@@ -206,6 +206,22 @@ class Config(object):
             players.append(r[0])
         return players
 
+    def rename_rps_player(self, old, new):
+        """Change the nick in RPS history, useful for merging two nicks"""
+        sql = "update rps_log set user_nick = ? where user_nick = ?"
+        self.ccur.execute(sql, (new, old))
+
+    def get_rps_challenge_totals(self, nick):
+        """Returns total times a player has challenged with each option"""
+        challenge_totals = [0, 0, 0]
+        sql = "select challenge, response from rps_log where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        rows = self.ccur.fetchall()
+        for r in rows:
+            challenge_totals[int(r[0])] += 1
+
+        return challenge_totals
+
 class RainwaveDatabaseUnavailableError(IOError):
     """Raised if the Rainwave database or PostgreSQL module is missing."""
 

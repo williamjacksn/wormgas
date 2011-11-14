@@ -336,10 +336,16 @@ class wormgas(SingleServerIRCBot):
             rs.append("Use \x02!rps record [<nick>]\x0f to see the record for "
                 "<nick>, leave off <nick> to see your own record, use nick "
                 "'!global' to see the global record")
+            rs.append("Use \x02!rps stats [<nick>]\x0f to see some statistics "
+                "for <nick>, leave off <nick> to see your own statistics")
             rs.append("Use \x02!rps reset\x0f to reset your record and delete "
                 "your game history, there is no confirmation and this cannot "
                 "be undone")
             rs.append("Use \x02!rps who\x0f to see a list of known players")
+            if priv > 1:
+                rs.append("Level 2 administrators can use \x02!rps rename "
+                    "<oldnick> <newnick>\x0f to reassign stats and game "
+                    "history from one nick to another")
         elif topic == "stats":
             rs.append("Use \x02!stats [<stationcode>]\x0f to show information "
                 "about the music collection, leave off <stationcode> to see "
@@ -968,6 +974,16 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    @command_handler(r"!rps rename(\s(?P<old>\w+))?(\s(?P<new>\w+))?")
+    def handle_rps_rename(self, nick, channel, output, old=None, new=None):
+        """Rename an RPS nick, useful for merging game histories"""
+
+        if self.config.get("privlevel:%s" % nick) > 1 and old and new:
+            self.config.rename_rps_player(old, new)
+            output.privrs.append("I assigned the RPS game history for %s to %s." %
+                (old, new))
+
+        return True
 
     @command_handler(r"^!rps reset")
     def handle_rps_reset(self, nick, channel, output):
@@ -976,6 +992,43 @@ class wormgas(SingleServerIRCBot):
         self.config.reset_rps_record(nick)
         output.privrs.append("I reset your RPS record and deleted your game "
             "history.")
+        return True
+
+    @command_handler(r"!rps stats(\s(?P<target>\w+))?")
+    def handle_rps_stats(self, nick, channel, output, target=None):
+        """Get some RPS statistics for a player"""
+
+        if target is None:
+            target = nick
+
+        totals = self.config.get_rps_challenge_totals(target)
+        games = sum(totals)
+        if games > 0:
+            r_rate = totals[0] / float(games) * 100
+            p_rate = totals[1] / float(games) * 100
+            s_rate = totals[2] / float(games) * 100
+
+            #r = ("%s, %s, %s" % (totals[0], totals[1], totals[2]))
+            r = ("%s challenges with rock/paper/scissors at these rates: "
+                "%3.1f/%3.1f/%3.1f%%." % (target, r_rate, p_rate, s_rate))
+        else:
+            r = "%s does not play. :(" % target
+
+        if channel == PRIVMSG:
+            output.default.append(r)
+            return True
+
+        ltr = int(self.config.get("lasttime:rps"))
+        wr = int(self.config.get("wait:rps"))
+        if ltr < time.time() - wr:
+            output.default.append(r)
+            self.config.set("lasttime:rps", time.time())
+        else:
+            output.privrs.append(r)
+            wait = ltr + wr - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !rps in %s "
+                "for another %s seconds." % (channel, wait))
+
         return True
 
     @command_handler(r"^!rps who")
