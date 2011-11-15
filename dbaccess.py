@@ -441,15 +441,14 @@ class RainwaveDatabase(object):
 
             elif len(albums_unrated_unavailable) > 0:
                 au = albums_unrated_unavailable.pop()
-                sql = ("select rw_songs.sid, album_name, song_title, "
+                sql = ("select rw_songs.sid, album_name, song_title, song_id, "
                     "(song_releasetime - extract(epoch from "
-                    "current_timestamp)::integer) * interval '1 second', "
-                    "song_id from rw_songs left join (select user_id, "
-                    "song_rating_id, song_rating from rw_songratings where "
-                    "user_id = %s) as r using (song_rating_id) join rw_albums "
-                    "using (album_id) where song_verified is true and "
-                    "song_available is false and song_rating is null and "
-                    "album_id = %s")
+                    "current_timestamp)::integer) * interval '1 second' from "
+                    "rw_songs left join (select user_id, song_rating_id, "
+                    "song_rating from rw_songratings where user_id = %s) as r "
+                    "using (song_rating_id) join rw_albums using (album_id) "
+                    "where song_verified is true and song_available is false "
+                    "and song_rating is null and album_id = %s")
                 if sid > 0:
                     sql += " and rw_songs.sid = %s"
                 else:
