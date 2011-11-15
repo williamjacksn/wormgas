@@ -827,7 +827,7 @@ class wormgas(SingleServerIRCBot):
         return True
 
     @command_handler(r"^!request(\s(?P<station>\w+))?(\s(?P<songid>\d+))?")
-    @command_handler(r"^!rq(\s(?P<station>\w+))?(\s(?P<songid>\d+))?")
+    @command_handler(r"^!rq(?P<station>\w+)?(\s(?P<songid>\d+))?")
     def handle_request(self, nick, channel, output, station=None, songid=None):
         """Request a song on the radio
 
