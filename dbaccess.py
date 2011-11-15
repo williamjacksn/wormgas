@@ -481,3 +481,16 @@ class RainwaveDatabase(object):
             rs.append((sid, r))
 
         return rs
+
+    def get_current_channel(self, uid):
+        """Return id of channel that uid is currently listening to, or None"""
+
+        cur_chan = None
+        sql = ("select sid from rw_listeners where list_purge is false and "
+            "user_id = %s")
+        self.rcur.execute(sql, (uid,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            cur_chan = row[0]
+        return cur_chan
+

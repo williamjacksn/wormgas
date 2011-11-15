@@ -136,7 +136,7 @@ class wormgas(SingleServerIRCBot):
         wb = int(self.config.get("wait:8ball"))
         if ltb < time.time() - wb:
             output.default.append(result)
-            if "again" not in rs[0]:
+            if "again" not in result:
                 self.config.set("lasttime:8ball", time.time())
         else:
             output.privrs.append(result)
@@ -255,7 +255,7 @@ class wormgas(SingleServerIRCBot):
         if (not topic) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate, request, roll, rps, stats")
+                "prevplayed, rate, request, roll, rps, stats, unrated, ustats")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
@@ -361,6 +361,9 @@ class wormgas(SingleServerIRCBot):
                 "you have not rated, <num> can go up to 12, leave it off to "
                 "see just one song")
             rs.append(stationcodes)
+        elif topic == "ustats":
+            rs.append("Use \x02!ustats [<nick>]\x0s to show user statistics "
+                "for <nick>, leave off <nick> to see your own statistics")
         else:
             rs.append("I cannot help you with '%s'" % topic)
 
@@ -1141,6 +1144,89 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("%s: %s" %
                 (self.station_names[usid], text))
 
+        return True
+
+    @command_handler(r"!ustats(\s(?P<target>\w+))?")
+    def handle_ustats(self, nick, channel, output, target=None):
+        """Report user statistics"""
+
+        rs = []
+
+        if target is None:
+            target = nick
+
+        luid = self.config.get_id_for_nick(target)
+        if not luid and self.rwdb:
+            luid = self.rwdb.get_id_for_nick(target)
+        if not luid:
+            output.default.append("I do not recognize the username '%s'." %
+                target)
+            return True
+
+        uid = self.config.get("api:user_id")
+        key = self.config.get("api:key")
+        url = "http://rainwave.cc/async/1/listener_detail"
+        args = {"user_id": uid, "key": key, "listener_uid": luid}
+        data = self.api_call(url, args)
+
+        if data["listener_detail"]:
+            ld = data["listener_detail"]
+
+            # Line 1: winning/losing votes/requests
+
+            r = "%s has %s winning vote" % (target, ld["radio_winningvotes"])
+            if ld["radio_winningvotes"] != 1:
+                r += "s"
+            r += ", %s losing vote" % ld["radio_losingvotes"]
+            if ld["radio_losingvotes"] != 1:
+                r += "s"
+            r += ", %s winning request" % ld["radio_winningrequests"]
+            if ld["radio_winningrequests"] != 1:
+                r += "s"
+            r += ", %s losing request" % ld["radio_losingrequests"]
+            if ld["radio_losingrequests"] != 1:
+                r += "s"
+            r += " (%s vote" % ld["radio_2wkvotes"]
+            if ld["radio_2wkvotes"] != 1:
+                r += "s"
+            r += " in the last two weeks)."
+            rs.append(r)
+
+            # Line 2: rating progress
+
+            game = ld["user_station_specific"]["1"]["rating_progress"]
+            ocr = ld["user_station_specific"]["2"]["rating_progress"]
+            cover = ld["user_station_specific"]["3"]["rating_progress"]
+            chip = ld["user_station_specific"]["4"]["rating_progress"]
+            r = ("%s has rated %d%% of Game, %d%% of OCR, %d%% of Covers, %d%% "
+                "of Chiptune channel content." %
+                (target, game, ocr, cover, chip))
+            rs.append(r)
+
+            # Line 3: What channel are you listening to?
+
+            cur_chan = self.rwdb.get_current_channel(luid)
+            if cur_chan is not None:
+                r = ("%s is currently listening to the %s." %
+                    (target, self.station_names[cur_chan]))
+                rs.append(r)
+        else:
+            rs.append(data["error"]["text"])
+
+        if channel == PRIVMSG:
+            output.default.extend(rs)
+            return True
+
+        ltu = int(self.config.get("lasttime:ustats"))
+        wu = int(self.config.get("wait:ustats"))
+        if ltu < time.time() - wu:
+            output.default.extend(rs)
+            self.config.set("lasttime:ustats", time.time())
+        else:
+            output.privrs.extend(rs)
+            wait = ltu + wu - int(time.time())
+            output.privrs.append("I am cooling down. You cannot use !ustats in "
+                "%s for another %s seconds." % (channel, wait))
         return True
 
     def on_privmsg(self, c, e):
