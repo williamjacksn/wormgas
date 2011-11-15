@@ -356,6 +356,11 @@ class wormgas(SingleServerIRCBot):
                 rs.append("Use \x02!stop\x02 to shut down the bot")
             else:
                 rs.append("You are not permitted to use this command")
+        elif topic == "unrated":
+            rs.append("Use \x02!unrated <stationcode> [<num>]\x0f to see songs "
+                "you have not rated, <num> can go up to 12, leave it off to "
+                "see just one song")
+            rs.append(stationcodes)
         else:
             rs.append("I cannot help you with '%s'" % topic)
 
@@ -1100,6 +1105,41 @@ class wormgas(SingleServerIRCBot):
         priv = int(self.config.get("privlevel:%s" % nick))
         if priv > 1:
             self.die()
+
+        return True
+
+    @command_handler(r"!unrated(\s(?P<station>\w+))?(\s(?P<num>\d+))?")
+    def handle_unrated(self, nick, channel, output, station=None, num=None):
+        """Report unrated songs"""
+
+        if station in self.station_ids:
+            sid = self.station_ids.get(station)
+        else:
+            return(self.handle_help(nick, channel, output, topic="unrated"))
+
+        try:
+            num = int(num)
+        except TypeError, ValueError:
+            num = 1
+
+        user_id = self.config.get_id_for_nick(nick)
+        if not user_id and self.rwdb:
+            user_id = self.rwdb.get_id_for_nick(nick)
+
+        if not user_id:
+            output.privrs.append("I do not have a user id stored for you. "
+                "Visit http://rainwave.cc/auth/ to look up your user id and "
+                "tell me about it with \x02!id add <id>\x02")
+            return True
+
+        if not self.rwdb:
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
+
+        unrated = self.rwdb.get_unrated_songs(user_id, sid, num)
+        for usid, text in unrated:
+            output.privrs.append("%s: %s" %
+                (self.station_names[usid], text))
 
         return True
 

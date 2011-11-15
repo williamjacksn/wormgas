@@ -353,3 +353,132 @@ class RainwaveDatabase(object):
         rows = self.rcur.fetchall()
         for r in rows:
             return r[0], r[1], r[2]
+
+    def get_unrated_songs(self, user_id, sid, num=None):
+        """Get unrated songs
+
+        Returns: a list of tuples (sid, message)"""
+
+        rs = []
+
+       # Get list of albums that have available unrated songs
+
+        albums_unrated_available = []
+        sql = ("select distinct album_id from rw_songs left join (select "
+            "user_id, song_rating_id, song_rating from rw_songratings where "
+            "user_id = %s) as r using (song_rating_id) where song_verified is "
+            "true and song_available is true and song_rating is null")
+        if sid > 0:
+            sql += " and sid = %s"
+            self.rcur.execute(sql, (user_id, sid))
+        else:
+            sql += " and sid < 5"
+            self.rcur.execute(sql, (user_id,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            albums_unrated_available.append(row[0])
+
+       # Get list of albums that have unavailable unrated songs, exclude any
+       # albums already in the first list
+
+        albums_unrated_unavailable = []
+        sql = ("select album_id, min(song_releasetime) as rt from rw_songs "
+            "left join (select user_id, song_rating_id, song_rating from "
+            "rw_songratings where user_id = %s) as r using (song_rating_id) "
+            "where song_verified is true and song_available is false and "
+            "song_rating is null")
+        if sid > 0:
+            sql += " and sid = %s"
+        else:
+            sql += " and sid < 5"
+        for a in albums_unrated_available:
+            sql += " and album_id != %s"
+        sql += " group by album_id order by rt desc"
+        if sid > 0:
+            params = [user_id, sid]
+        else:
+            params = [user_id]
+        params.extend(albums_unrated_available)
+        self.rcur.execute(sql, tuple(params))
+        rows = self.rcur.fetchall()
+        for r in rows:
+            albums_unrated_unavailable.append(r[0])
+
+        # If everything has been rated, bail out now
+
+        if len(albums_unrated_available) + len(albums_unrated_unavailable) == 0:
+            return None
+
+        # The number of songs returned cannot exceed the number requested or the
+        # maximum allowed
+
+        limit = min(num, int(self.config.get("maxlength:unrated")))
+
+        while limit > 0:
+
+            # Report available songs first
+
+            if len(albums_unrated_available) > 0:
+                aa = albums_unrated_available.pop()
+                sql = ("select rw_songs.sid, album_name, song_title, song_id "
+                    "from rw_songs left join (select user_id, song_rating_id, "
+                    "song_rating from rw_songratings where user_id = %s) as r "
+                    "using (song_rating_id) join rw_albums using (album_id) "
+                    "where song_verified is true and song_available is true "
+                    "and song_rating is null and album_id = %s")
+                if sid > 0:
+                    sql += " and rw_songs.sid = %s"
+                else:
+                    sql += " and rw_songs.sid < 6"
+                sql += " order by song_releasetime limit 1"
+                if sid > 0:
+                    self.rcur.execute(sql, (user_id, aa, sid))
+                else:
+                    self.rcur.execute(sql, (user_id, aa))
+                rows = self.rcur.fetchall()
+                for row in rows:
+                    rs.append((row[0], "%s / %s [%s]" % row[1:]))
+
+            elif len(albums_unrated_unavailable) > 0:
+                au = albums_unrated_unavailable.pop()
+                sql = ("select rw_songs.sid, album_name, song_title, "
+                    "(song_releasetime - extract(epoch from "
+                    "current_timestamp)::integer) * interval '1 second', "
+                    "song_id from rw_songs left join (select user_id, "
+                    "song_rating_id, song_rating from rw_songratings where "
+                    "user_id = %s) as r using (song_rating_id) join rw_albums "
+                    "using (album_id) where song_verified is true and "
+                    "song_available is false and song_rating is null and "
+                    "album_id = %s")
+                if sid > 0:
+                    sql += " and rw_songs.sid = %s"
+                else:
+                    sql += " and rw_songs.sid < 6"
+                sql += " order by song_releasetime limit 1"
+                if sid > 0:
+                    self.rcur.execute(sql, (user_id, au, sid))
+                else:
+                    self.rcur.execute(sql, (user_id, au))
+                rows = self.rcur.fetchall()
+                for row in rows:
+                    rs.append((row[0], "%s / %s [%s] (available in %s)" %
+                        row[1:]))
+
+            else:
+                rs.append((sid, "No more albums with unrated songs."))
+
+            limit -= 1
+
+        # How many albums were not specifically reported?
+
+        albums_left = (len(albums_unrated_available) +
+            len(albums_unrated_unavailable))
+
+        if albums_left > 0:
+            r = "%s more album" % albums_left
+            if albums_left > 1:
+                r += "s"
+            r += " with unrated songs."
+            rs.append((sid, r))
+
+        return rs
