@@ -282,7 +282,7 @@ class wormgas(SingleServerIRCBot):
                 "prevplayed, rate, request, roll, rps, stats, unrated, ustats, "
                 "vote")
             if priv > 0:
-                rs.append("Level 1 administration topics: (none)")
+                rs.append("Level 1 administration topics: newmusic")
             if priv > 1:
                 rs.append("Level 2 administration topics: config, forum, stop")
         elif topic == "8ball":
@@ -336,6 +336,13 @@ class wormgas(SingleServerIRCBot):
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
             rs.append(stationcodes)
+        elif topic == "newmusic":
+            if priv > 0:
+                rs.append("Use \x02!newmusic <stationcode>\x02 to announce the "
+                    "three most recently added songs on the station")
+                rs.append(stationcodes)
+            else:
+                rs.append("You are not permitted to use this command")
         elif topic == "nowplaying":
             rs.append("Use \x02!nowplaying <stationcode>\x02 to show what is "
                 "now playing on the radio")
@@ -663,6 +670,40 @@ class wormgas(SingleServerIRCBot):
             wait = ltls + wls - int(time.time())
             output.privrs.append("I am cooling down. You cannot use !lstats in "
                 "%s for another %s seconds." % (channel, wait))
+
+        return True
+
+    @command_handler(r"!newmusic(\s(?P<station>\w+))?")
+    def handle_newmusic(self, nick, channel, output, station=None, force=True):
+        """Check for new music and announce up to three new songs per station"""
+
+        priv = self.config.get("privlevel:%s" % nick)
+        if priv < 1:
+            return True
+
+        if station in self.station_ids:
+            sid = self.station_ids[station]
+        else:
+            return(self.handle_help(nick, channel, output, topic="newmusic"))
+
+        if force:
+            self.config.set("maxid:%s" % sid, 0)
+
+        if self.rwdb:
+            newmaxid = self.rwdb.get_max_song_id(sid)
+        else:
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
+
+        if newmaxid > int(self.config.get("maxid:%s" % sid)):
+            songs = self.rwdb.get_new_song_info(sid)
+            for r, url in songs:
+                msg = "New on the %s: %s" % (self.station_names[sid], r)
+                if "http" in url:
+                    surl = self.shorten(url)
+                    msg += " <%s>" % surl
+                output.rs.append(msg)
+            self.config.set("maxid:%s" % sid, newmaxid)
 
         return True
 

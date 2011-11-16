@@ -530,3 +530,40 @@ class RainwaveDatabase(object):
                 (row[3], row[3]))
             r = "%s / %s by %s" % (row[0], row[1], row[2])
             return r, url
+
+    def get_max_song_id(self, sid):
+        """Return song_id of newest song on a channel"""
+        song_id = 0
+        sql = ("select max(song_id) from rw_songs where song_verified is true "
+            "and sid = %s")
+        self.rcur.execute(sql, (sid,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            song_id = row[0]
+        return song_id
+
+    def get_new_song_info(self, sid):
+        """Return a list of tuples (song_info, url) for new songs on this
+        channel up to three"""
+
+        rs = []
+        maxid = self.config.get("maxid:%s" % sid)
+        sql = ("select song_id, album_name, song_title, song_url from rw_songs "
+            "join rw_albums using (album_id) where song_id > %s and "
+            "song_verified is true and rw_songs.sid = %s order by song_id desc "
+            "limit 3")
+        self.rcur.execute(sql, (maxid, sid))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            r = "%s / %s by " % (row[1], row[2])
+            artists = []
+            sql = ("select artist_name from rw_song_artist join rw_artists "
+                "using (artist_id) where song_id = %s")
+            self.rcur.execute(sql, (row[0],))
+            arows = self.rcur.fetchall()
+            for arow in arows:
+                artists.append(arow[0])
+            r += ", ".join(artists)
+            rs.append((r, row[3]))
+        return rs
+
