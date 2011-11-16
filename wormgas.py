@@ -155,8 +155,7 @@ class wormgas(SingleServerIRCBot):
             output.privrs.extend(self.config.handle(id, value))
         return True
 
-    @command_handler(r"^!election(\s(?P<station>\w+))?(\s(?P<index>\d))?")
-    @command_handler(r"^!el(?P<station>\w+)(\s(?P<index>\d))?")
+    @command_handler(r"!el(ection\s)?(?P<station>\w+)?(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, station=None, index=None):
         """Show the candidates in an election"""
 
@@ -323,31 +322,31 @@ class wormgas(SingleServerIRCBot):
             rs.append("Short version is \x02!rt<stationcode> <rating>\x02")
             rs.append(stationcodes)
         elif topic == "request":
-            rs.append("Use \x02!request <stationcode> <song_id>\x0f to add a "
+            rs.append("Use \x02!request <stationcode> <song_id>\x02 to add a "
                 "song to your request queue, find the <song_id> using "
-                "\x02!lookup\x0f or \x02!unrated\x0f")
-            rs.append("Short version is \x02!rq<stationcode> <song_id>\x0f")
+                "\x02!lookup\x02 or \x02!unrated\x02")
+            rs.append("Short version is \x02!rq<stationcode> <song_id>\x02")
             rs.append(stationcodes)
         elif topic == "roll":
-            rs.append("Use \x02!roll [#d^]\x0f to roll a ^-sided die # times")
+            rs.append("Use \x02!roll [#d^]\x02 to roll a ^-sided die # times")
         elif topic == "rps":
-            rs.append("Use \x02!rock\x0f, \x02!paper\x0f, or \x02!scissors\x0f "
+            rs.append("Use \x02!rock\x02, \x02!paper\x02, or \x02!scissors\x02 "
                 "to play a game")
-            rs.append("Use \x02!rps record [<nick>]\x0f to see the record for "
+            rs.append("Use \x02!rps record [<nick>]\x02 to see the record for "
                 "<nick>, leave off <nick> to see your own record, use nick "
                 "'!global' to see the global record")
-            rs.append("Use \x02!rps stats [<nick>]\x0f to see some statistics "
+            rs.append("Use \x02!rps stats [<nick>]\x02 to see some statistics "
                 "for <nick>, leave off <nick> to see your own statistics")
-            rs.append("Use \x02!rps reset\x0f to reset your record and delete "
+            rs.append("Use \x02!rps reset\x02 to reset your record and delete "
                 "your game history, there is no confirmation and this cannot "
                 "be undone")
-            rs.append("Use \x02!rps who\x0f to see a list of known players")
+            rs.append("Use \x02!rps who\x02 to see a list of known players")
             if priv > 1:
                 rs.append("Level 2 administrators can use \x02!rps rename "
-                    "<oldnick> <newnick>\x0f to reassign stats and game "
+                    "<oldnick> <newnick>\x02 to reassign stats and game "
                     "history from one nick to another")
         elif topic == "stats":
-            rs.append("Use \x02!stats [<stationcode>]\x0f to show information "
+            rs.append("Use \x02!stats [<stationcode>]\x02 to show information "
                 "about the music collection, leave off <stationcode> to see "
                 "the aggregate for all stations")
             rs.append(stationcodes)
@@ -357,13 +356,17 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "unrated":
-            rs.append("Use \x02!unrated <stationcode> [<num>]\x0f to see songs "
+            rs.append("Use \x02!unrated <stationcode> [<num>]\x02 to see songs "
                 "you have not rated, <num> can go up to 12, leave it off to "
                 "see just one song")
             rs.append(stationcodes)
         elif topic == "ustats":
-            rs.append("Use \x02!ustats [<nick>]\x0s to show user statistics "
+            rs.append("Use \x02!ustats [<nick>]\x02 to show user statistics "
                 "for <nick>, leave off <nick> to see your own statistics")
+        elif topic == "vote":
+            rs.append("Use \x02!vote <stationcode> <index>\x02 to vote in the "
+                "current election, find the <index> with \x02!election\x02")
+            rs.append(stationcodes)
         else:
             rs.append("I cannot help you with '%s'" % topic)
 
@@ -1227,6 +1230,65 @@ class wormgas(SingleServerIRCBot):
             wait = ltu + wu - int(time.time())
             output.privrs.append("I am cooling down. You cannot use !ustats in "
                 "%s for another %s seconds." % (channel, wait))
+        return True
+
+    @command_handler(r"!vote(\s(?P<station>\w+))?(\s(?P<index>\d+))?")
+    @command_handler(r"!vt(?P<station>\w+)?(\s(?P<index>\d+))?")
+    def handle_vote(self, nick, channel, output, station=None, index=None):
+        """Vote in the current election"""
+
+        if station in self.station_ids and index:
+            sid = self.station_ids.get(station)
+        else:
+            return(self.handle_help(nick, channel, output, topic="vote"))
+
+        try:
+            index = int(index)
+        except TypeError, ValueError:
+            return(self.handle_help(nick, channel, output, topic="vote"))
+
+        if index not in [1, 2, 3]:
+            return(self.handle_help(nick, channel, output, topic="vote"))
+
+        user_id = self.config.get_id_for_nick(nick)
+
+        if not user_id and self.rwdb:
+            user_id = self.rwdb.get_id_for_nick(nick)
+
+        if not user_id:
+            output.privrs.append("I do not have a user id stored for you. "
+                "Visit http://rainwave.cc/auth/ to look up your user id and "
+                "tell me about it with \x02!id add <id>\x02")
+            return True
+
+        # Get the key for this user
+
+        key = self.config.get_key_for_nick(nick)
+        if not key:
+            output.privrs.append("I do not have a key stored for you. Visit "
+                "http://rainwave.cc/auth/ to get a key and tell me about it "
+                "with \x02!key add <key>\x02")
+            return True
+
+        # Get the elec_entry_id
+
+        url = "http://rainwave.cc/async/%s/get" % sid
+        data = self.api_call(url)
+        voteindex = index - 1
+        song_data = data["sched_next"][0]["song_data"]
+        elec_entry_id = song_data[voteindex]["elec_entry_id"]
+
+        # Try the vote
+
+        url = "http://rainwave.cc/async/%s/vote" % sid
+        args = {"user_id": user_id, "key": key, "elec_entry_id": elec_entry_id}
+        data = self.api_call(url, args)
+
+        if data["vote_result"]:
+            output.privrs.append(data["vote_result"]["text"])
+        else:
+            output.privrs.append(data["error"]["text"])
+
         return True
 
     def on_privmsg(self, c, e):
