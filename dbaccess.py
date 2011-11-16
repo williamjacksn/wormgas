@@ -494,3 +494,39 @@ class RainwaveDatabase(object):
             cur_chan = row[0]
         return cur_chan
 
+    def get_max_forum_post_id(self):
+        """Return id of latest public forum post"""
+        post_id = 0
+        sql = ("select max(post_id) from phpbb_posts join phpbb_acl_groups "
+            "using (forum_id) where group_id = 1 and auth_role_id != 16")
+        self.rcur.execute(sql)
+        rows = self.rcur.fetchall()
+        for row in rows:
+            post_id = row[0]
+        return post_id
+
+    def get_forum_post_info(self, post_id=None):
+        """Return a string of information and a url for a forum post, default
+        to the latest public post"""
+
+        if post_id:
+            sql = ("select forum_name, post_subject, username, post_id from "
+                "phpbb_posts join phpbb_forums using (forum_id) join "
+                "phpbb_users on (phpbb_posts.poster_id = phpbb_users.user_id) "
+                "where post_id = %s")
+            self.rcur.execute(sql, (post_id,))
+        else:
+            sql = ("select forum_name, post_subject, username, post_id from "
+            "phpbb_posts join phpbb_forums using (forum_id) join phpbb_users "
+            "on (phpbb_posts.poster_id = phpbb_users.user_id) join "
+            "phpbb_acl_groups using (forum_id) where phpbb_acl_groups.group_id "
+            "= 1 and phpbb_acl_groups.auth_role_id != 16 order by post_time "
+            "desc limit 1")
+            self.rcur.execute(sql)
+
+        rows = self.rcur.fetchall()
+        for row in rows:
+            url = ("http://rainwave.cc/forums/viewtopic.php?p=%s#p%s" %
+                (row[3], row[3]))
+            r = "%s / %s by %s" % (row[0], row[1], row[2])
+            return r, url

@@ -241,6 +241,31 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(cdmsg)
         return True
 
+    @command_handler(r"!forum")
+    def handle_forum(self, nick, channel, output, force=True):
+        """Check for new forum posts, excluding forums where the anonymous user
+        has no access"""
+
+        priv = self.config.get("privlevel:%s" % nick)
+        if priv < 2:
+            return True
+
+        if force:
+            self.config.set("maxid:forum", 0)
+
+        if self.rwdb:
+            newmaxid = self.rwdb.get_max_forum_post_id()
+        else:
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
+
+        if newmaxid > int(self.config.get("maxid:forum")):
+            r, url = self.rwdb.get_forum_post_info()
+            surl = self.shorten(url)
+            output.rs.append("New on the forums! %s <%s>" % (r, surl))
+
+        return True
+
     @command_handler(r"^!help(\s(?P<topic>\w+))?")
     def handle_help(self, nick, channel, output, topic=None):
         """Look up help about a topic"""
@@ -251,14 +276,15 @@ class wormgas(SingleServerIRCBot):
         stationcodes = ("Station codes are \x02" +
             "\x02, \x02".join(self.station_ids.keys()) + "\x02")
 
-        if (not topic) or (topic == "all"):
+        if (topic is None) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate, request, roll, rps, stats, unrated, ustats")
+                "prevplayed, rate, request, roll, rps, stats, unrated, ustats, "
+                "vote")
             if priv > 0:
                 rs.append("Level 1 administration topics: (none)")
             if priv > 1:
-                rs.append("Level 2 administration topics: config, stop")
+                rs.append("Level 2 administration topics: config, forum, stop")
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
         elif topic == "config":
@@ -279,6 +305,12 @@ class wormgas(SingleServerIRCBot):
             rs.append(stationcodes)
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
+        elif topic == "forum":
+            if priv > 1:
+                rs.append("Use \x02!forum\x02 to announce the most recent "
+                    "forum post in the channel")
+            else:
+                rs.append("You are not permitted to use this command")
         elif topic == "id":
             rs.append("Look up your Rainwave user id at "
                 "http://rainwave.cc/auth/ and use \x02!id add <id>\x02 to tell "
@@ -1302,22 +1334,32 @@ class wormgas(SingleServerIRCBot):
         msg = e.arguments()[0].strip()
 
         rs = []
+        privrs = []
 
         # Try all the command handlers
 
         output = Output("private")
         for command in _commands:
             if command(self, nick, msg, PRIVMSG, output):
-                rs = output.privrs
+                rs = output.rs
+                privrs = output.privrs
                 break
 
         # Send responses
 
+        channel = self.config.get("irc:channel")
         for r in rs:
             if type(r) is unicode:
                 message = r.encode("utf-8")
             else:
                 message = unicode(r, "utf-8").encode("utf-8")
+            c.privmsg(channel, message)
+
+        for privr in privrs:
+            if type(privr) is unicode:
+                message = privr.encode("utf-8")
+            else:
+                message = unicode(privr, "utf-8").encode("utf-8")
             c.privmsg(nick, message)
 
     def on_pubmsg(self, c, e):
