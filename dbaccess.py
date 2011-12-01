@@ -38,7 +38,8 @@ class Config(object):
     def open(self, path):
         """Open local database for reading and writing."""
         connstr = "%s/config.sqlite" % path
-        self.cdbh = sqlite3.connect(connstr, isolation_level=None)
+        self.cdbh = sqlite3.connect(connstr, isolation_level=None,
+            check_same_thread=False)
         self.ccur = self.cdbh.cursor()
 
     def handle(self, id=None, value=None):

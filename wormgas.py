@@ -12,7 +12,9 @@ import os
 import random
 import re
 import StringIO
+import subprocess
 import sys
+import threading
 import time
 import urllib, urllib2
 
@@ -250,6 +252,8 @@ class wormgas(SingleServerIRCBot):
         if priv < 2:
             return True
 
+        self.config.set("lasttime:forumcheck", time.time())
+
         if force:
             self.config.set("maxid:forum", 0)
 
@@ -284,7 +288,8 @@ class wormgas(SingleServerIRCBot):
             if priv > 0:
                 rs.append("Level 1 administration topics: newmusic")
             if priv > 1:
-                rs.append("Level 2 administration topics: config, forum, stop")
+                rs.append("Level 2 administration topics: config, forum, "
+                    "restart, stop")
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
         elif topic == "config":
@@ -366,6 +371,11 @@ class wormgas(SingleServerIRCBot):
                 "\x02!lookup\x02 or \x02!unrated\x02")
             rs.append("Short version is \x02!rq<stationcode> <song_id>\x02")
             rs.append(stationcodes)
+        elif topic == "restart":
+            if priv > 1:
+                rs.append("Use \x02!restart\x02 to restart the bot")
+            else:
+                rs.append("You are not permitted to use this command")
         elif topic == "roll":
             rs.append("Use \x02!roll [#d^]\x02 to roll a ^-sided die # times")
         elif topic == "rps":
@@ -948,6 +958,17 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    @command_handler("!restart")
+    def handle_restart(self, nick, channel, output):
+        """Restart the bot"""
+
+        priv = int(self.config.get("privlevel:%s" % nick))
+        if priv > 1:
+            self.config.set("restart_on_stop", 1)
+            self.handle_stop(nick, channel, output)
+
+        return True
+
     @command_handler("!roll(\s(?P<dice>\d+)(d(?P<sides>\d+))?)?")
     def handle_roll(self, nick, channel, output, dice=None, sides=None):
         """Roll some dice"""
@@ -1183,6 +1204,13 @@ class wormgas(SingleServerIRCBot):
 
         priv = int(self.config.get("privlevel:%s" % nick))
         if priv > 1:
+            self.config.set("who_stopped_me", nick)
+            restart = int(self.config.get("restart_on_stop"))
+            self.config.set("restart_on_stop", 0)
+            if restart == 1:
+                pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+            self.timer.cancel()
             self.die()
 
         return True
@@ -1364,6 +1392,43 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    def on_join(self, c, e):
+        """This method is called when an IRC join event happens
+
+        Arguments:
+            c: the Connection object asociated with this event
+            e: the Event object"""
+
+        nick = e.source().split("!")[0]
+
+        if nick == self.config.get("irc:nick"):
+            # It's me!
+
+            # If I recorded a ping timeout, tell everyone and clear it
+            if int(self.config.get("ping_timeout")) == 1:
+                r = ("I restarted because the IRC server hadn't pinged for %s "
+                "seconds." % self.config.get("timeout:ping"))
+                c.privmsg(self.config.get("irc:channel"), r)
+                self.config.set("ping_timeout", 0)
+
+            # If someone stopped me, call them out and clear it
+            a = self.config.get("who_stopped_me")
+            if a != 0:
+                r = "I was stopped by %s." % a
+                c.privmsg(self.config.get("irc:channel"), r)
+                self.config.set("who_stopped_me", 0)
+
+        # Check for a join response
+        jr = self.config.get("joinresponse:%s" % nick)
+        if jr != -1:
+            c.privmsg(self.config.get("irc:channel"), jr)
+
+        # Start the periodic tasks.
+        self._periodic(c)
+
+    def on_ping(self, c, e):
+        self.config.set("lasttime:ping", time.time())
+
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
@@ -1450,6 +1515,7 @@ class wormgas(SingleServerIRCBot):
             c: the Connection object associated with this event
             e: the Event object"""
 
+        self.config.set("lasttime:ping", time.time())
         passwd = self.config.get("irc:nickservpass")
         c.privmsg("nickserv", "identify %s" % passwd)
         c.join(self.config.get("irc:channel"))
@@ -1498,6 +1564,30 @@ class wormgas(SingleServerIRCBot):
 
         result = json.loads(content)
         return(result["id"])
+
+    def _periodic(self, c):
+        # If I have not checked for forum activity for "timeout:forumcheck"
+        # seconds, check now
+
+        output = Output("public")
+
+        ltfc = int(self.config.get("lasttime:forumcheck"))
+        tofc = int(self.config.get("timeout:forumcheck"))
+        if int(time.time()) > ltfc + tofc:
+            nick = self.config.get("irc:nick")
+            chan = self.config.get("irc:channel")
+            self.handle_forum(nick, chan, output, force=False)
+
+        for r in output.rs:
+            if type(r) is unicode:
+                message = r.encode("utf-8")
+            else:
+                message = unicode(r, "utf-8").encode("utf-8")
+            c.privmsg(chan, message)
+
+        # Come back in 60 seconds
+        self.timer = threading.Timer(60, self._periodic, [c])
+        self.timer.start()
 
 def main():
     bot = wormgas()
