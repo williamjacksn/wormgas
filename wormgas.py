@@ -20,6 +20,7 @@ import urllib, urllib2
 
 import dbaccess
 from ircbot import SingleServerIRCBot
+from cobe.brain import Brain
 
 _abspath = os.path.abspath(__file__)
 
@@ -118,6 +119,8 @@ class wormgas(SingleServerIRCBot):
             self.rwdb.connect()
         except dbaccess.RainwaveDatabaseUnavailableError:
             self.rwdb = None
+
+        self.brain = Brain(self.path + "brain.sqlite")
 
         server = self.config.get("irc:server")
         nick = self.config.get("irc:nick")
@@ -1451,6 +1454,11 @@ class wormgas(SingleServerIRCBot):
                 privrs = output.privrs
                 break
 
+        if len(rs) + len(privrs) == 0:
+            # No responses from the commands, punt to the brain
+
+            privrs.extend(self._talk(msg))
+
         # Send responses
 
         channel = self.config.get("irc:channel")
@@ -1491,6 +1499,26 @@ class wormgas(SingleServerIRCBot):
                 rs = output.rs
                 privrs = output.privrs
                 break
+
+        if len(rs) + len(privrs) == 0:
+            # No responses from the commands, punt to the brain
+            talkrs = self._talk(msg)
+            if len(talkrs) > 0:
+                self.config.set("msg:last", msg)
+                self.config.set("lasttime:msg", time.time())
+                ltr = int(self.config.get("lasttime:respond"))
+                wr = int(self.config.get("wait:respond"))
+
+                if self.config.get("irc:nick") in msg:
+                    if time.time() > ltr + wr:
+                        rs.extend(talkrs)
+                        self.config.set("msg:last", talkrs[0])
+                        self.config.set("lasttime:respond", time.time())
+                    else:
+                        privrs.extend(talkrs)
+                        wait = ltr + wr - int(time.time())
+                        privrs.append("I am cooling down. I cannot respond in "
+                            "%s for another %s seconds." % (chan, wait))
 
         # Send responses
 
@@ -1588,6 +1616,34 @@ class wormgas(SingleServerIRCBot):
         # Come back in 60 seconds
         self.timer = threading.Timer(60, self._periodic, [c])
         self.timer.start()
+
+    def _talk(self, msg=None):
+        """Engage the brain, respond when appropriate
+
+        Arguments:
+            msg: the message to learn and possible reply to
+
+        Returns: a list of strings"""
+
+        # If I am not replying to anything in particular, use the last message
+        if msg is None:
+            msg = self.config.get("msg:last")
+
+        # Ignore messages with certain words
+        regex = re.compile(self.config.get("msg:ignore"))
+        result = regex.search(msg)
+        if result is not None:
+            return []
+
+        # Clean up the message before sending to the brain
+        tobrain = msg
+        # remove = self.config.get("msg:remove")
+        # tobrain = re.sub(remove, "", msg)
+        # tobrain = re.sub(self.config.get("irc:nick"), "", tobrain)
+
+        self.brain.learn(tobrain)
+
+        return [self.brain.reply(tobrain)]
 
 def main():
     bot = wormgas()
