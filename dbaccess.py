@@ -8,7 +8,8 @@ import sqlite3
 import time
 from os import path
 
-_logpath = "%s.log" % path.splitext(path.abspath(__file__))[0]
+_abspath = path.abspath(__file__)
+_logpath = "%s/wormgas.log" % path.split(_abspath)[0]
 
 def print_to_log(msg):
     """Print to the log file.

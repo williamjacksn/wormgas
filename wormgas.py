@@ -121,6 +121,7 @@ class wormgas(SingleServerIRCBot):
             self.rwdb = None
 
         self.brain = Brain(self.path + "/brain.sqlite")
+        self.reignore = re.compile(self.config.get("msg:ignore"))
 
         server = self.config.get("irc:server")
         nick = self.config.get("irc:nick")
@@ -696,17 +697,29 @@ class wormgas(SingleServerIRCBot):
     def handle_newmusic(self, nick, channel, output, station=None, force=True):
         """Check for new music and announce up to three new songs per station"""
 
+        dbaccess.print_to_log("Looking for new music, force is %s" % force)
+
         priv = self.config.get("privlevel:%s" % nick)
         if priv < 1:
+            dbaccess.print_to_log("'%s' attempted an unauthorized music check" %
+                nick)
             return True
+
+        self.config.set("lasttime:musiccheck", time.time())
 
         if station in self.channel_ids:
             sid = self.channel_ids[station]
         else:
             return(self.handle_help(nick, channel, output, topic="newmusic"))
 
+        dbaccess.print_to_log("Looking for new music on the %s" %
+            self.channel_names[sid])
+
         if force:
             self.config.set("maxid:%s" % sid, 0)
+
+        dbaccess.print_to_log("Looking for music newer than %s" %
+            self.config.get("maxid:%s" % sid))
 
         if self.rwdb:
             newmaxid = self.rwdb.get_max_song_id(sid)
@@ -1410,7 +1423,7 @@ class wormgas(SingleServerIRCBot):
 
         nick = e.source().split("!")[0]
 
-        dbaccess.print_to_log("%s joined the room" % nick)
+        dbaccess.print_to_log("'%s' joined the room" % nick)
 
         if nick == self.config.get("irc:nick"):
             # It's me!
@@ -1617,6 +1630,17 @@ class wormgas(SingleServerIRCBot):
             chan = self.config.get("irc:channel")
             self.handle_forum(nick, chan, output, force=False)
 
+        ltmc = int(self.config.get("lasttime:musiccheck"))
+        tomc = int(self.config.get("timeout:musiccheck"))
+        if int(time.time()) > ltmc + tomc:
+            dbaccess.print_to_log("Music check timeout exceeded")
+            nick = self.config.get("irc:nick")
+            chan = self.config.get("irc:channel")
+            for rchan in self.channel_ids.keys():
+                self.handle_newmusic(nick, chan, output, station=rchan,
+                    force=False)
+
+
         for r in output.rs:
             if type(r) is unicode:
                 message = r.encode("utf-8")
@@ -1641,8 +1665,7 @@ class wormgas(SingleServerIRCBot):
             msg = self.config.get("msg:last")
 
         # Ignore messages with certain words
-        regex = re.compile(self.config.get("msg:ignore"))
-        result = regex.search(msg)
+        result = self.reignore.search(msg)
         if result is not None:
             return []
 
