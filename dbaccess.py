@@ -88,7 +88,7 @@ class Config(object):
         self.ccur.execute(sql, (id,))
         for r in self.ccur:
             config_value = r[0]
-        print_to_log("[INFO] get_config(): %s = %s" % (id, config_value))
+        print_to_log("Current value of %s is %s" % (id, config_value))
         return(config_value)
 
     def set(self, id, value):
@@ -109,7 +109,7 @@ class Config(object):
         else:
             sql = "update botconfig set config_value = ? where config_id = ?"
             self.ccur.execute(sql, (value, id))
-        print_to_log("[INFO] set_config: %s = %s" % (id, value))
+        print_to_log("%s set to %s" % (id, value))
 
     def store_nick(self, nick):
         """Store this nick in user_keys for later use."""

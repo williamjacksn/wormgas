@@ -103,10 +103,10 @@ class wormgas(SingleServerIRCBot):
             "You may rely on it."]
 
 
-    station_names = ("Rainwave Network", "Game channel",  "OCR channel",
+    channel_names = ("Rainwave Network", "Game channel",  "OCR channel",
         "Covers channel", "Chiptune channel", "All channel")
 
-    station_ids = {"game": 1, "ocr": 2, "cover": 3, "chip": 4, "all": 5}
+    channel_ids = {"game": 1, "ocr": 2, "cover": 3, "chip": 4, "all": 5}
 
     def __init__(self):
         (self.path, self.file) = os.path.split(_abspath)
@@ -120,7 +120,7 @@ class wormgas(SingleServerIRCBot):
         except dbaccess.RainwaveDatabaseUnavailableError:
             self.rwdb = None
 
-        self.brain = Brain(self.path + "brain.sqlite")
+        self.brain = Brain(self.path + "/brain.sqlite")
 
         server = self.config.get("irc:server")
         nick = self.config.get("irc:nick")
@@ -173,8 +173,8 @@ class wormgas(SingleServerIRCBot):
             # Not a valid index, return the help text.
             return(self.handle_help(nick, channel, output, topic="election"))
 
-        if station in self.station_ids:
-            sid = self.station_ids.get(station, 5)
+        if station in self.channel_ids:
+            sid = self.channel_ids.get(station, 5)
         else:
             return(self.handle_help(nick, channel, output, topic="election"))
 
@@ -183,7 +183,7 @@ class wormgas(SingleServerIRCBot):
 
         # Prepend the message description to the output string.
         time = ["Current", "Future"][index]
-        result = "%s election on %s: %s" % (time, self.station_names[sid], text)
+        result = "%s election on %s: %s" % (time, self.channel_names[sid], text)
 
         if channel == PRIVMSG:
             output.privrs.append(result)
@@ -251,6 +251,8 @@ class wormgas(SingleServerIRCBot):
         """Check for new forum posts, excluding forums where the anonymous user
         has no access"""
 
+        dbaccess.print_to_log("Looking for new forum posts, force is %s" %
+            force)
         priv = self.config.get("privlevel:%s" % nick)
         if priv < 2:
             return True
@@ -259,6 +261,9 @@ class wormgas(SingleServerIRCBot):
 
         if force:
             self.config.set("maxid:forum", 0)
+
+        dbaccess.print_to_log("Looking for forum posts newer than %s" %
+            self.config.get("maxid:forum"))
 
         if self.rwdb:
             newmaxid = self.rwdb.get_max_forum_post_id()
@@ -270,6 +275,7 @@ class wormgas(SingleServerIRCBot):
             r, url = self.rwdb.get_forum_post_info()
             surl = self.shorten(url)
             output.rs.append("New on the forums! %s <%s>" % (r, surl))
+            self.config.set("maxid:forum", newmaxid)
 
         return True
 
@@ -280,8 +286,8 @@ class wormgas(SingleServerIRCBot):
         priv = self.config.get("privlevel:%s" % nick)
         rs = []
 
-        stationcodes = ("Station codes are \x02" +
-            "\x02, \x02".join(self.station_ids.keys()) + "\x02")
+        channelcodes = ("Channel codes are \x02" +
+            "\x02, \x02".join(self.channel_ids.keys()) + "\x02")
 
         if (topic is None) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
@@ -306,11 +312,11 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "election":
-            rs.append("Use \x02!election <stationcode> [<index>]\x02 to see "
-                "the candidates in an election")
-            rs.append("Short version is \x02!el<stationcode> [<index>]\x02")
+            rs.append("Use \x02!election <channel> [<index>]\x02 to see the "
+                "candidates in an election")
+            rs.append("Short version is \x02!el<channel> [<index>]\x02")
             rs.append("Index should be 0 (current) or 1 (future), default is 0")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "forum":
@@ -331,49 +337,49 @@ class wormgas(SingleServerIRCBot):
             rs.append("Use \x02!key drop\x02 to delete your key and \x02!key "
                 "show\x02 to see it")
         elif topic == "lookup":
-            rs.append("Use \x02!lookup <stationcode> song|album <text>\x02 "
+            rs.append("Use \x02!lookup <channel> song|album <text>\x02 "
                 "to search for songs or albums with <text> in the title")
-            rs.append("Short version is \x02!lu<stationcode> song|album "
+            rs.append("Short version is \x02!lu<channel> song|album "
                 "<text>\x02")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         elif topic == "lstats":
-            rs.append("Use \x02!lstats [<stationcode>]\x02 to see information "
-                "about current listeners, all stations are aggregated if you "
-                "leave off <stationcode>")
+            rs.append("Use \x02!lstats [<channel>]\x02 to see information "
+                "about current listeners, all channels are aggregated if you "
+                "leave off <channel>")
             rs.append("Use \x02!lstats chart [<num>]\x02 to see a chart of "
                 "average hourly listener activity over the last <num> days, "
                 "leave off <num> to use the default of 30")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         elif topic == "newmusic":
             if priv > 0:
-                rs.append("Use \x02!newmusic <stationcode>\x02 to announce the "
-                    "three most recently added songs on the station")
-                rs.append(stationcodes)
+                rs.append("Use \x02!newmusic <channel>\x02 to announce the "
+                    "three most recently added songs on the channel")
+                rs.append(channelcodes)
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "nowplaying":
-            rs.append("Use \x02!nowplaying <stationcode>\x02 to show what is "
+            rs.append("Use \x02!nowplaying <channel>\x02 to show what is "
                 "now playing on the radio")
-            rs.append("Short version is \x02!np<stationcode>\x02")
-            rs.append(stationcodes)
+            rs.append("Short version is \x02!np<channel>\x02")
+            rs.append(channelcodes)
         elif topic == "prevplayed":
-            rs.append("Use \x02!prevplayed <stationcode> [<index>]\x02 to show "
+            rs.append("Use \x02!prevplayed <channel> [<index>]\x02 to show "
                 "what was previously playing on the radio")
-            rs.append("Short version is \x02!pp<stationcode> [<index>]\x02")
+            rs.append("Short version is \x02!pp<channel> [<index>]\x02")
             rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
                 "numbers are further in the past")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         elif topic == "rate":
-            rs.append("Use \x02!rate <stationcode> <rating>\x02 to rate the "
+            rs.append("Use \x02!rate <channel> <rating>\x02 to rate the "
                 "currently playing song")
-            rs.append("Short version is \x02!rt<stationcode> <rating>\x02")
-            rs.append(stationcodes)
+            rs.append("Short version is \x02!rt<channel> <rating>\x02")
+            rs.append(channelcodes)
         elif topic == "request":
-            rs.append("Use \x02!request <stationcode> <song_id>\x02 to add a "
+            rs.append("Use \x02!request <channel> <song_id>\x02 to add a "
                 "song to your request queue, find the <song_id> using "
                 "\x02!lookup\x02 or \x02!unrated\x02")
-            rs.append("Short version is \x02!rq<stationcode> <song_id>\x02")
-            rs.append(stationcodes)
+            rs.append("Short version is \x02!rq<channel> <song_id>\x02")
+            rs.append(channelcodes)
         elif topic == "restart":
             if priv > 1:
                 rs.append("Use \x02!restart\x02 to restart the bot")
@@ -398,27 +404,27 @@ class wormgas(SingleServerIRCBot):
                     "<oldnick> <newnick>\x02 to reassign stats and game "
                     "history from one nick to another")
         elif topic == "stats":
-            rs.append("Use \x02!stats [<stationcode>]\x02 to show information "
-                "about the music collection, leave off <stationcode> to see "
-                "the aggregate for all stations")
-            rs.append(stationcodes)
+            rs.append("Use \x02!stats [<channel>]\x02 to show information "
+                "about the music collection, leave off <channel> to see the "
+                "aggregate for all channels")
+            rs.append(channelcodes)
         elif topic == "stop":
             if priv > 1:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "unrated":
-            rs.append("Use \x02!unrated <stationcode> [<num>]\x02 to see songs "
+            rs.append("Use \x02!unrated <channel> [<num>]\x02 to see songs "
                 "you have not rated, <num> can go up to 12, leave it off to "
                 "see just one song")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         elif topic == "ustats":
             rs.append("Use \x02!ustats [<nick>]\x02 to show user statistics "
                 "for <nick>, leave off <nick> to see your own statistics")
         elif topic == "vote":
-            rs.append("Use \x02!vote <stationcode> <index>\x02 to vote in the "
+            rs.append("Use \x02!vote <channel> <index>\x02 to vote in the "
                 "current election, find the <index> with \x02!election\x02")
-            rs.append(stationcodes)
+            rs.append(channelcodes)
         else:
             rs.append("I cannot help you with '%s'" % topic)
 
@@ -497,11 +503,11 @@ class wormgas(SingleServerIRCBot):
         if not self.rwdb:
             return ["Cannot access Rainwave database. Sorry."]
 
-        if station in self.station_ids:
-            sid = self.station_ids.get(station, 5)
+        if station in self.channel_ids:
+            sid = self.channel_ids.get(station, 5)
         else:
             return(self.handle_help(nick, channel, output, topic="lookup"))
-        st = self.station_names[sid]
+        st = self.channel_names[sid]
 
         if mode == "song":
             rows, unreported_results = self.rwdb.search_songs(sid, text)
@@ -557,8 +563,8 @@ class wormgas(SingleServerIRCBot):
 
         rs = []
 
-        sid = self.station_ids.get(station, 0)
-        st = self.station_names[sid]
+        sid = self.channel_ids.get(station, 0)
+        st = self.channel_names[sid]
 
         try:
             days = int(days)
@@ -694,8 +700,8 @@ class wormgas(SingleServerIRCBot):
         if priv < 1:
             return True
 
-        if station in self.station_ids:
-            sid = self.station_ids[station]
+        if station in self.channel_ids:
+            sid = self.channel_ids[station]
         else:
             return(self.handle_help(nick, channel, output, topic="newmusic"))
 
@@ -711,7 +717,7 @@ class wormgas(SingleServerIRCBot):
         if newmaxid > int(self.config.get("maxid:%s" % sid)):
             songs = self.rwdb.get_new_song_info(sid)
             for r, url in songs:
-                msg = "New on the %s: %s" % (self.station_names[sid], r)
+                msg = "New on the %s: %s" % (self.channel_names[sid], r)
                 if "http" in url:
                     surl = self.shorten(url)
                     msg += " <%s>" % surl
@@ -726,11 +732,11 @@ class wormgas(SingleServerIRCBot):
         """Report what is currently playing on the radio"""
 
         rs = []
-        if station in self.station_ids:
-            sid = self.station_ids[station]
+        if station in self.channel_ids:
+            sid = self.channel_ids[station]
         else:
             sid = 5
-        st = self.station_names[sid]
+        st = self.channel_names[sid]
 
         url = "http://rainwave.cc/async/%s/get" % sid
         data = self.api_call(url)
@@ -800,11 +806,11 @@ class wormgas(SingleServerIRCBot):
 
         rs = []
 
-        if station in self.station_ids:
-            sid = self.station_ids.get(station)
+        if station in self.channel_ids:
+            sid = self.channel_ids.get(station)
         else:
             return(self.handle_help(nick, channel, output, topic="prevplayed"))
-        st = self.station_names[sid]
+        st = self.channel_names[sid]
 
         try:
             index = int(index)
@@ -871,8 +877,8 @@ class wormgas(SingleServerIRCBot):
             station: station of song to rate
             rating: the rating"""
 
-        if station in self.station_ids and rating:
-            sid = self.station_ids.get(station)
+        if station in self.channel_ids and rating:
+            sid = self.channel_ids.get(station)
         else:
             return(self.handle_help(nick, channel, output, topic="rate"))
 
@@ -927,8 +933,8 @@ class wormgas(SingleServerIRCBot):
             station: the station to request on
             songid: id of song to request"""
 
-        if station in self.station_ids and songid:
-            sid = self.station_ids.get(station)
+        if station in self.channel_ids and songid:
+            sid = self.channel_ids.get(station)
         else:
             return(self.handle_help(nick, channel, output, topic="request"))
 
@@ -1176,11 +1182,11 @@ class wormgas(SingleServerIRCBot):
     def handle_stats(self, nick, channel, output, station=None):
         """Report radio statistics"""
 
-        sid = self.station_ids.get(station, 0)
+        sid = self.channel_ids.get(station, 0)
         if self.rwdb:
             songs, albums, hours = self.rwdb.get_radio_stats(sid)
             r = ("%s: %s songs in %s albums with %s hours of music." %
-                (self.station_names[sid], songs, albums, hours))
+                (self.channel_names[sid], songs, albums, hours))
         else:
             r = "The Rainwave database is unavailable."
 
@@ -1222,8 +1228,8 @@ class wormgas(SingleServerIRCBot):
     def handle_unrated(self, nick, channel, output, station=None, num=None):
         """Report unrated songs"""
 
-        if station in self.station_ids:
-            sid = self.station_ids.get(station)
+        if station in self.channel_ids:
+            sid = self.channel_ids.get(station)
         else:
             return(self.handle_help(nick, channel, output, topic="unrated"))
 
@@ -1249,7 +1255,7 @@ class wormgas(SingleServerIRCBot):
         unrated = self.rwdb.get_unrated_songs(user_id, sid, num)
         for usid, text in unrated:
             output.privrs.append("%s: %s" %
-                (self.station_names[usid], text))
+                (self.channel_names[usid], text))
 
         return True
 
@@ -1315,7 +1321,7 @@ class wormgas(SingleServerIRCBot):
             cur_chan = self.rwdb.get_current_channel(luid)
             if cur_chan is not None:
                 r = ("%s is currently listening to the %s." %
-                    (target, self.station_names[cur_chan]))
+                    (target, self.channel_names[cur_chan]))
                 rs.append(r)
         else:
             rs.append(data["error"]["text"])
@@ -1341,8 +1347,8 @@ class wormgas(SingleServerIRCBot):
     def handle_vote(self, nick, channel, output, station=None, index=None):
         """Vote in the current election"""
 
-        if station in self.station_ids and index:
-            sid = self.station_ids.get(station)
+        if station in self.channel_ids and index:
+            sid = self.channel_ids.get(station)
         else:
             return(self.handle_help(nick, channel, output, topic="vote"))
 
@@ -1403,6 +1409,8 @@ class wormgas(SingleServerIRCBot):
             e: the Event object"""
 
         nick = e.source().split("!")[0]
+
+        dbaccess.print_to_log("%s joined the room" % nick)
 
         if nick == self.config.get("irc:nick"):
             # It's me!
@@ -1597,11 +1605,14 @@ class wormgas(SingleServerIRCBot):
         # If I have not checked for forum activity for "timeout:forumcheck"
         # seconds, check now
 
+        dbaccess.print_to_log("Performing periodic tasks")
+
         output = Output("public")
 
         ltfc = int(self.config.get("lasttime:forumcheck"))
         tofc = int(self.config.get("timeout:forumcheck"))
         if int(time.time()) > ltfc + tofc:
+            dbaccess.print_to_log("Forum check timeout exceeded")
             nick = self.config.get("irc:nick")
             chan = self.config.get("irc:channel")
             self.handle_forum(nick, chan, output, force=False)
