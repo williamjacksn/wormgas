@@ -1544,6 +1544,7 @@ class wormgas(SingleServerIRCBot):
         # Send responses
 
         for r in rs:
+            r = nick + ": " + r
             if type(r) is unicode:
                 message = r.encode("utf-8")
             else:
