@@ -748,7 +748,7 @@ class wormgas(SingleServerIRCBot):
         if station in self.channel_ids:
             sid = self.channel_ids[station]
         else:
-            sid = 5
+            return(self.handle_help(nick, channel, output, topic="nowplaying"))
         st = self.channel_names[sid]
 
         url = "http://rainwave.cc/async/%s/get" % sid
