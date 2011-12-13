@@ -1070,7 +1070,7 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"^!rps record(\s(?P<target>[\w!]+))?")
+    @command_handler(r"^!rps record(\s(?P<target>\S+))?")
     def handle_rps_record(self, nick, channel, output, target=None):
         """Report RPS record for a nick"""
 
@@ -1101,7 +1101,7 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"!rps rename(\s(?P<old>\w+))?(\s(?P<new>\w+))?")
+    @command_handler(r"!rps rename(\s(?P<old>\S+))?(\s(?P<new>\S+))?")
     def handle_rps_rename(self, nick, channel, output, old=None, new=None):
         """Rename an RPS nick, useful for merging game histories"""
 
@@ -1121,7 +1121,7 @@ class wormgas(SingleServerIRCBot):
             "history.")
         return True
 
-    @command_handler(r"!rps stats(\s(?P<target>\w+))?")
+    @command_handler(r"!rps stats(\s(?P<target>\S+))?")
     def handle_rps_stats(self, nick, channel, output, target=None):
         """Get some RPS statistics for a player"""
 
@@ -1272,7 +1272,7 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"!ustats(\s(?P<target>\w+))?")
+    @command_handler(r"!ustats(\s(?P<target>.+))?")
     def handle_ustats(self, nick, channel, output, target=None):
         """Report user statistics"""
 
