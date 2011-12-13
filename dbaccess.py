@@ -467,6 +467,7 @@ class RainwaveDatabase(object):
 
             else:
                 rs.append((sid, "No more albums with unrated songs."))
+                break
 
             limit -= 1
 
