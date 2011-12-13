@@ -1674,7 +1674,8 @@ class wormgas(SingleServerIRCBot):
         tobrain = msg
         # remove = self.config.get("msg:remove")
         # tobrain = re.sub(remove, "", msg)
-        # tobrain = re.sub(self.config.get("irc:nick"), "", tobrain)
+        tobrain = tobrain.replace(self.config.get("irc:nick"), "")
+        tobrain = tobrain.replace(":", "")
 
         self.brain.learn(tobrain)
 
