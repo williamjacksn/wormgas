@@ -1233,7 +1233,7 @@ class wormgas(SingleServerIRCBot):
                 pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, stdin=subprocess.PIPE)
             self.timer.cancel()
-            self.die()
+            self.die(self.config.get("msg:quit"))
 
         return True
 
