@@ -356,11 +356,13 @@ class RainwaveDatabase(object):
         for r in rows:
             return r[0], r[1], r[2]
 
-    def get_unrated_songs(self, user_id, sid, num=None):
+    def get_unrated_songs(self, user_id, cid, num=None):
         """Get unrated songs
 
-        Returns: a list of tuples (sid, message)"""
+        Returns: a list of tuples (cid, message)"""
 
+        print_to_log("Getting unrated songs for user %s on channel %s with "
+            "limit %s" % (user_id, cid, num))
         rs = []
 
        # Get list of albums that have available unrated songs
@@ -370,9 +372,9 @@ class RainwaveDatabase(object):
             "user_id, song_rating_id, song_rating from rw_songratings where "
             "user_id = %s) as r using (song_rating_id) where song_verified is "
             "true and song_available is true and song_rating is null")
-        if sid > 0:
+        if cid > 0:
             sql += " and sid = %s"
-            self.rcur.execute(sql, (user_id, sid))
+            self.rcur.execute(sql, (user_id, cid))
         else:
             sql += " and sid < 5"
             self.rcur.execute(sql, (user_id,))
@@ -389,15 +391,15 @@ class RainwaveDatabase(object):
             "rw_songratings where user_id = %s) as r using (song_rating_id) "
             "where song_verified is true and song_available is false and "
             "song_rating is null")
-        if sid > 0:
+        if cid > 0:
             sql += " and sid = %s"
         else:
             sql += " and sid < 5"
         for a in albums_unrated_available:
             sql += " and album_id != %s"
         sql += " group by album_id order by rt desc"
-        if sid > 0:
-            params = [user_id, sid]
+        if cid > 0:
+            params = [user_id, cid]
         else:
             params = [user_id]
         params.extend(albums_unrated_available)
@@ -428,13 +430,13 @@ class RainwaveDatabase(object):
                     "using (song_rating_id) join rw_albums using (album_id) "
                     "where song_verified is true and song_available is true "
                     "and song_rating is null and album_id = %s")
-                if sid > 0:
+                if cid > 0:
                     sql += " and rw_songs.sid = %s"
                 else:
                     sql += " and rw_songs.sid < 6"
                 sql += " order by song_releasetime limit 1"
-                if sid > 0:
-                    self.rcur.execute(sql, (user_id, aa, sid))
+                if cid > 0:
+                    self.rcur.execute(sql, (user_id, aa, cid))
                 else:
                     self.rcur.execute(sql, (user_id, aa))
                 rows = self.rcur.fetchall()
@@ -451,13 +453,13 @@ class RainwaveDatabase(object):
                     "using (song_rating_id) join rw_albums using (album_id) "
                     "where song_verified is true and song_available is false "
                     "and song_rating is null and album_id = %s")
-                if sid > 0:
+                if cid > 0:
                     sql += " and rw_songs.sid = %s"
                 else:
                     sql += " and rw_songs.sid < 6"
                 sql += " order by song_releasetime limit 1"
-                if sid > 0:
-                    self.rcur.execute(sql, (user_id, au, sid))
+                if cid > 0:
+                    self.rcur.execute(sql, (user_id, au, cid))
                 else:
                     self.rcur.execute(sql, (user_id, au))
                 rows = self.rcur.fetchall()
@@ -466,8 +468,8 @@ class RainwaveDatabase(object):
                         row[1:]))
 
             else:
-                rs.append((sid, "No more albums with unrated songs."))
-                break
+                rs.append((cid, "No more albums with unrated songs."))
+                return(rs)
 
             limit -= 1
 
@@ -481,7 +483,7 @@ class RainwaveDatabase(object):
             if albums_left > 1:
                 r += "s"
             r += " with unrated songs."
-            rs.append((sid, r))
+            rs.append((cid, r))
 
         return rs
 
