@@ -20,7 +20,7 @@ def print_to_log(msg):
 
     now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
     with open(_logpath, "a") as logfile:
-        logfile.write("%s -- %s\n" % (now, msg))
+        logfile.write("%s -- %s\n" % (now, msg.encode("utf-8")))
 
 try:
     import psycopg2

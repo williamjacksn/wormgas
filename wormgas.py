@@ -1462,6 +1462,7 @@ class wormgas(SingleServerIRCBot):
 
         nick = e.source().split("!")[0]
         msg = e.arguments()[0].strip()
+        msg = unicode(msg, "utf-8")
 
         rs = []
         privrs = []
@@ -1508,6 +1509,7 @@ class wormgas(SingleServerIRCBot):
         nick = e.source().split("!")[0]
         chan = e.target()
         msg = e.arguments()[0].strip()
+        msg = unicode(msg, "utf-8")
 
         rs = []
         privrs = []
@@ -1672,8 +1674,6 @@ class wormgas(SingleServerIRCBot):
 
         # Clean up the message before sending to the brain
         tobrain = msg
-        # remove = self.config.get("msg:remove")
-        # tobrain = re.sub(remove, "", msg)
         tobrain = tobrain.replace(self.config.get("irc:nick"), "")
         tobrain = tobrain.replace(":", "")
 
