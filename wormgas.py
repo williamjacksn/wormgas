@@ -1447,6 +1447,10 @@ class wormgas(SingleServerIRCBot):
         if jr != -1:
             c.privmsg(self.config.get("irc:channel"), jr)
 
+        ja = self.config.get("joinaction:%s" % nick)
+        if ja != -1:
+            c.action(self.config.get("irc:channel"), ja)
+
         # Start the periodic tasks.
         self._periodic(c)
 
