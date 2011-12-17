@@ -7,6 +7,7 @@ https://github.com/subtlecoolness/wormgas
 import gzip
 import httplib
 import json
+import logging, logging.handlers
 import math
 import os
 import random
@@ -107,6 +108,8 @@ class wormgas(SingleServerIRCBot):
         "Covers channel", "Chiptune channel", "All channel")
 
     channel_ids = {"game": 1, "ocr": 2, "cover": 3, "chip": 4, "all": 5}
+
+    log = logging.getLogger("wormgas")
 
     def __init__(self):
         (self.path, self.file) = os.path.split(_abspath)
@@ -252,8 +255,7 @@ class wormgas(SingleServerIRCBot):
         """Check for new forum posts, excluding forums where the anonymous user
         has no access"""
 
-        dbaccess.print_to_log("Looking for new forum posts, force is %s" %
-            force)
+        self.log.info("Looking for new forum posts, force is %s" % force)
         priv = self.config.get("privlevel:%s" % nick)
         if priv < 2:
             return True
@@ -263,8 +265,8 @@ class wormgas(SingleServerIRCBot):
         if force:
             self.config.set("maxid:forum", 0)
 
-        dbaccess.print_to_log("Looking for forum posts newer than %s" %
-            self.config.get("maxid:forum"))
+        maxid = self.config.get("maxid:forum")
+        self.log.info("Looking for forum posts newer than %s" % maxid)
 
         if self.rwdb:
             newmaxid = self.rwdb.get_max_forum_post_id()
@@ -697,11 +699,11 @@ class wormgas(SingleServerIRCBot):
     def handle_newmusic(self, nick, channel, output, station=None, force=True):
         """Check for new music and announce up to three new songs per station"""
 
-        dbaccess.print_to_log("Looking for new music, force is %s" % force)
+        self.log.info("Looking for new music, force is %s" % force)
 
         priv = self.config.get("privlevel:%s" % nick)
         if priv < 1:
-            dbaccess.print_to_log("'%s' attempted an unauthorized music check" %
+            self.log.warning("'%s' attempted an unauthorized music check" %
                 nick)
             return True
 
@@ -712,14 +714,14 @@ class wormgas(SingleServerIRCBot):
         else:
             return(self.handle_help(nick, channel, output, topic="newmusic"))
 
-        dbaccess.print_to_log("Looking for new music on the %s" %
+        self.log.info("Looking for new music on the %s" %
             self.channel_names[sid])
 
         if force:
             self.config.set("maxid:%s" % sid, 0)
 
-        dbaccess.print_to_log("Looking for music newer than %s" %
-            self.config.get("maxid:%s" % sid))
+        maxid = self.config.get("maxid:%s" % sid)
+        self.log.info("Looking for music newer than %s" % maxid)
 
         if self.rwdb:
             newmaxid = self.rwdb.get_max_song_id(sid)
@@ -727,7 +729,7 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
-        if newmaxid > int(self.config.get("maxid:%s" % sid)):
+        if newmaxid > int(maxid):
             songs = self.rwdb.get_new_song_info(sid)
             for r, url in songs:
                 msg = "New on the %s: %s" % (self.channel_names[sid], r)
@@ -1423,7 +1425,7 @@ class wormgas(SingleServerIRCBot):
 
         nick = e.source().split("!")[0]
 
-        dbaccess.print_to_log("'%s' joined the room" % nick)
+        self.log.info("'%s' joined the room" % nick)
 
         if nick == self.config.get("irc:nick"):
             # It's me!
@@ -1625,14 +1627,14 @@ class wormgas(SingleServerIRCBot):
         # If I have not checked for forum activity for "timeout:forumcheck"
         # seconds, check now
 
-        dbaccess.print_to_log("Performing periodic tasks")
+        self.log.info("Performing periodic tasks")
 
         output = Output("public")
 
         ltfc = int(self.config.get("lasttime:forumcheck"))
         tofc = int(self.config.get("timeout:forumcheck"))
         if int(time.time()) > ltfc + tofc:
-            dbaccess.print_to_log("Forum check timeout exceeded")
+            self.log.info("Forum check timeout exceeded")
             nick = self.config.get("irc:nick")
             chan = self.config.get("irc:channel")
             self.handle_forum(nick, chan, output, force=False)
@@ -1640,7 +1642,7 @@ class wormgas(SingleServerIRCBot):
         ltmc = int(self.config.get("lasttime:musiccheck"))
         tomc = int(self.config.get("timeout:musiccheck"))
         if int(time.time()) > ltmc + tomc:
-            dbaccess.print_to_log("Music check timeout exceeded")
+            self.log.info("Music check timeout exceeded")
             nick = self.config.get("irc:nick")
             chan = self.config.get("irc:channel")
             for rchan in self.channel_ids.keys():
@@ -1686,6 +1688,15 @@ class wormgas(SingleServerIRCBot):
         return [self.brain.reply(tobrain)]
 
 def main():
+    log = logging.getLogger("wormgas")
+    log.setLevel(logging.DEBUG)
+    _logpath = "%s/wormgas.log" % os.path.split(_abspath)[0]
+    handler = logging.handlers.RotatingFileHandler(_logpath, maxBytes=20000000,
+        backupCount=1)
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - "
+        "%(message)s"))
+    logging.getLogger().addHandler(handler)
+
     bot = wormgas()
     bot.start()
 

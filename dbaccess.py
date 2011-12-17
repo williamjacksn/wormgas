@@ -4,29 +4,16 @@ dbaccess -- wrapper around Rainwave and Config DB calls for wormgas
 https://github.com/subtlecoolness/wormgas
 """
 
+import logging
 import sqlite3
-import time
-from os import path
 
-_abspath = path.abspath(__file__)
-_logpath = "%s/wormgas.log" % path.split(_abspath)[0]
-
-def print_to_log(msg):
-    """Print to the log file.
-
-    Arguments:
-        msg: string, the message to print to the log file (timestamp and
-             newline are not required)"""
-
-    now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-    with open(_logpath, "a") as logfile:
-        logfile.write("%s -- %s\n" % (now, msg.encode("utf-8")))
+log = logging.getLogger("wormgas")
 
 try:
     import psycopg2
 except:
     psycopg2 = None
-    print_to_log("[WARN] psycopg2 unavailable -- RW db access turned off.")
+    log.warning("psycopg2 unavailable -- RW db access turned off.")
 
 class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
@@ -89,7 +76,7 @@ class Config(object):
         self.ccur.execute(sql, (id,))
         for r in self.ccur:
             config_value = r[0]
-        print_to_log("Current value of %s is %s" % (id, config_value))
+        log.debug("Current value of %s is %s" % (id, config_value))
         return(config_value)
 
     def set(self, id, value):
@@ -110,7 +97,7 @@ class Config(object):
         else:
             sql = "update botconfig set config_value = ? where config_id = ?"
             self.ccur.execute(sql, (value, id))
-        print_to_log("%s set to %s" % (id, value))
+        log.debug("%s set to %s" % (id, value))
 
     def store_nick(self, nick):
         """Store this nick in user_keys for later use."""
@@ -361,7 +348,7 @@ class RainwaveDatabase(object):
 
         Returns: a list of tuples (cid, message)"""
 
-        print_to_log("Getting unrated songs for user %s on channel %s with "
+        log.info("Getting unrated songs for user %s on channel %s with "
             "limit %s" % (user_id, cid, num))
         rs = []
 
@@ -378,9 +365,8 @@ class RainwaveDatabase(object):
         else:
             sql += " and sid < 5"
             self.rcur.execute(sql, (user_id,))
-        rows = self.rcur.fetchall()
-        for row in rows:
-            albums_unrated_available.append(row[0])
+        for r in self.rcur:
+            albums_unrated_available.append(r[0])
 
        # Get list of albums that have unavailable unrated songs, exclude any
        # albums already in the first list
@@ -404,14 +390,14 @@ class RainwaveDatabase(object):
             params = [user_id]
         params.extend(albums_unrated_available)
         self.rcur.execute(sql, tuple(params))
-        rows = self.rcur.fetchall()
-        for r in rows:
+        for r in self.rcur:
             albums_unrated_unavailable.append(r[0])
 
         # If everything has been rated, bail out now
 
         if len(albums_unrated_available) + len(albums_unrated_unavailable) == 0:
-            return None
+            rs.append((cid, "No unrated songs."))
+            return(rs)
 
         # The number of songs returned cannot exceed the number requested or the
         # maximum allowed
