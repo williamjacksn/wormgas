@@ -520,7 +520,7 @@ class RainwaveDatabase(object):
             url = ("http://rainwave.cc/forums/viewtopic.php?p=%s#p%s" %
                 (row[3], row[3]))
             r = "%s / %s by %s" % (row[0], row[1], row[2])
-            return r, url
+            return r.decode("utf-8"), url
 
     def get_max_song_id(self, cid):
         """Return song_id of newest song on a channel"""

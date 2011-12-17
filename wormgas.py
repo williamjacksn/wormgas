@@ -1293,7 +1293,7 @@ class wormgas(SingleServerIRCBot):
             if restart == 1:
                 pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            self.timer.cancel()
+            # self.timer.cancel()
             self.die(self.config.get("msg:quit"))
         else:
             self.log.warning("%s does not have privs to use !stop" % nick)
@@ -1730,8 +1730,8 @@ class wormgas(SingleServerIRCBot):
             c.privmsg(chan, message)
 
         # Come back in 60 seconds
-        self.timer = threading.Timer(60, self._periodic, [c])
-        self.timer.start()
+        # self.timer = threading.Timer(60, self._periodic, [c])
+        # self.timer.start()
 
     def _talk(self, msg=None):
         """Engage the brain, respond when appropriate
