@@ -1299,23 +1299,29 @@ class wormgas(SingleServerIRCBot):
 
         if data["listener_detail"]:
             ld = data["listener_detail"]
+            cun = ld["username"] # canonical username
 
             # Line 1: winning/losing votes/requests
 
-            r = "%s has %s winning vote" % (target, ld["radio_winningvotes"])
-            if ld["radio_winningvotes"] != 1:
+            wvotes = ld["radio_winningvotes"]
+            lvotes = ld["radio_losingvotes"]
+            wreqs = ld["radio_winningrequests"]
+            lreqs = ld["radio_losingrequests"]
+            tvotes = ld["radio_2wkvotes"]
+            r = "%s has %s winning vote" % (cun, wvotes)
+            if wvotes != 1:
                 r += "s"
-            r += ", %s losing vote" % ld["radio_losingvotes"]
-            if ld["radio_losingvotes"] != 1:
+            r += ", %s losing vote" % lvotes
+            if lvotes != 1:
                 r += "s"
-            r += ", %s winning request" % ld["radio_winningrequests"]
-            if ld["radio_winningrequests"] != 1:
+            r += ", %s winning request" % wreqs
+            if wreqs != 1:
                 r += "s"
-            r += ", %s losing request" % ld["radio_losingrequests"]
-            if ld["radio_losingrequests"] != 1:
+            r += ", %s losing request" % lreqs
+            if lreqs != 1:
                 r += "s"
-            r += " (%s vote" % ld["radio_2wkvotes"]
-            if ld["radio_2wkvotes"] != 1:
+            r += " (%s vote" % tvotes
+            if tvotes != 1:
                 r += "s"
             r += " in the last two weeks)."
             rs.append(r)
@@ -1326,17 +1332,17 @@ class wormgas(SingleServerIRCBot):
             ocr = ld["user_station_specific"]["2"]["rating_progress"]
             cover = ld["user_station_specific"]["3"]["rating_progress"]
             chip = ld["user_station_specific"]["4"]["rating_progress"]
-            r = ("%s has rated %d%% of Game, %d%% of OCR, %d%% of Covers, %d%% "
-                "of Chiptune channel content." %
-                (target, game, ocr, cover, chip))
+            r = "%s has rated %d%% of Game" % (cun, game)
+            r += ", %d%% of OCR, %d%% of Covers" % (ocr, cover)
+            r += ", %d%% of Chiptune channel content." % chip
             rs.append(r)
 
             # Line 3: What channel are you listening to?
 
-            cur_chan = self.rwdb.get_current_channel(luid)
-            if cur_chan is not None:
-                r = ("%s is currently listening to the %s." %
-                    (target, self.channel_names[cur_chan]))
+            cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid is not None:
+                rch = self.channel_names[cur_cid]
+                r = "%s is currently listening to the %s." % (cun, rch)
                 rs.append(r)
         else:
             rs.append(data["error"]["text"])
