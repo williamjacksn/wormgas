@@ -252,7 +252,7 @@ class RainwaveDatabase(object):
             user_id = r[0]
         return user_id
 
-    def search_songs(self, sid, text, limit=10):
+    def search_songs(self, cid, text, limit=10):
         """Search for songs by title.
 
         Returns:
@@ -268,7 +268,7 @@ class RainwaveDatabase(object):
             "rw_albums using (album_id) where song_verified is true and "
             "rw_songs.sid = %s and song_title ilike %s order by "
             "album_name, song_title")
-        self.rcur.execute(sql, (sid, "%%%s%%" % text))
+        self.rcur.execute(sql, (cid, "%%%s%%" % text))
         rows = self.rcur.fetchall()
         results = []
         for row in rows[:limit]:
@@ -277,7 +277,7 @@ class RainwaveDatabase(object):
         unreported_results = max(len(rows) - limit, 0)
         return results, unreported_results
 
-    def search_albums(self, sid, text, limit=10):
+    def search_albums(self, cid, text, limit=10):
         """Search for albums by title.
 
         Returns:
@@ -291,7 +291,7 @@ class RainwaveDatabase(object):
         sql = ("select album_name, album_id from rw_albums where "
             "album_verified is true and sid = %s and album_name ilike %s "
             "order by album_name")
-        self.rcur.execute(sql, (sid, "%%%s%%" % text))
+        self.rcur.execute(sql, (cid, "%%%s%%" % text))
         rows = self.rcur.fetchall()
         results = []
         for row in rows[:limit]:
@@ -299,7 +299,7 @@ class RainwaveDatabase(object):
         unreported_results = max(len(rows) - limit, 0)
         return results, unreported_results
 
-    def get_listener_stats(self, sid):
+    def get_listener_stats(self, cid):
         """Return (registered user count, guest count) for the station."""
         regd = 0
         guest = 0
@@ -308,7 +308,7 @@ class RainwaveDatabase(object):
         self.rcur.execute(sql)
         rows = self.rcur.fetchall()
         for row in rows:
-            if sid in (0, row[0]):
+            if cid in (0, row[0]):
                 if row[1] > 1:
                     regd = regd + 1
                 else:
@@ -316,7 +316,7 @@ class RainwaveDatabase(object):
         return regd, guest
 
     def get_listener_chart_data(self, days):
-        """Yields (sid, guest_count, registered_count) tuples over the range."""
+        """Yields (cid, guest_count, registered_count) tuples over the range."""
         sql = ("select sid, extract(hour from timestamp with time zone "
             "'epoch' + lstats_time * interval '1 second') as hour, "
             "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
@@ -328,14 +328,14 @@ class RainwaveDatabase(object):
         for row in rows:
             yield row[0], row[2], row[3]
 
-    def get_radio_stats(self, sid):
+    def get_radio_stats(self, cid):
         """Return songs, albums, hours of music for one or all channel"""
         sql = ("select count(song_id), count(distinct album_id), "
             "round(sum(song_secondslong) / 3600.0, 2) from rw_songs where "
             "song_verified is true")
-        if sid > 0:
+        if cid > 0:
             sql += " and sid = %s"
-            self.rcur.execute(sql, (sid,))
+            self.rcur.execute(sql, (cid,))
         else:
             sql += " and sid < 5"
             self.rcur.execute(sql)
@@ -522,28 +522,28 @@ class RainwaveDatabase(object):
             r = "%s / %s by %s" % (row[0], row[1], row[2])
             return r, url
 
-    def get_max_song_id(self, sid):
+    def get_max_song_id(self, cid):
         """Return song_id of newest song on a channel"""
         song_id = 0
         sql = ("select max(song_id) from rw_songs where song_verified is true "
             "and sid = %s")
-        self.rcur.execute(sql, (sid,))
+        self.rcur.execute(sql, (cid,))
         rows = self.rcur.fetchall()
         for row in rows:
             song_id = row[0]
         return song_id
 
-    def get_new_song_info(self, sid):
+    def get_new_song_info(self, cid):
         """Return a list of tuples (song_info, url) for new songs on this
         channel up to three"""
 
         rs = []
-        maxid = self.config.get("maxid:%s" % sid)
+        maxid = self.config.get("maxid:%s" % cid)
         sql = ("select song_id, album_name, song_title, song_url from rw_songs "
             "join rw_albums using (album_id) where song_id > %s and "
             "song_verified is true and rw_songs.sid = %s order by song_id desc "
             "limit 3")
-        self.rcur.execute(sql, (maxid, sid))
+        self.rcur.execute(sql, (maxid, cid))
         rows = self.rcur.fetchall()
         for row in rows:
             r = "%s / %s by " % (row[1], row[2])
@@ -557,4 +557,3 @@ class RainwaveDatabase(object):
             r += ", ".join(artists)
             rs.append((r, row[3]))
         return rs
-
