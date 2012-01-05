@@ -7,6 +7,7 @@ https://github.com/subtlecoolness/wormgas
 import gzip
 import httplib
 import json
+import lxml.html
 import logging, logging.handlers
 import math
 import os
@@ -18,6 +19,7 @@ import sys
 import threading
 import time
 import urllib, urllib2
+from urlparse import urlparse
 
 import dbaccess
 from ircbot import SingleServerIRCBot
@@ -107,7 +109,18 @@ class wormgas(SingleServerIRCBot):
     channel_names = ("Rainwave Network", "Game channel",  "OCR channel",
         "Covers channel", "Chiptune channel", "All channel")
 
-    channel_ids = {"game": 1, "ocr": 2, "cover": 3, "chip": 4, "all": 5}
+    channel_ids = {
+        "rw":    1,
+        "game":  1,
+        "oc":    2,
+        "ocr":   2,
+        "vw":    3,
+        "mw":    3,
+        "cover": 3,
+        "bw":    4,
+        "chip":  4,
+        "ow":    5,
+        "all":   5}
 
     log = logging.getLogger("wormgas")
 
@@ -130,6 +143,33 @@ class wormgas(SingleServerIRCBot):
         nick = self.config.get("irc:nick")
         name = self.config.get("irc:name")
         SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
+
+    _events_not_logged = [
+        "all_raw_messages",
+        "created",
+        "endofmotd",
+        "endofnames",
+        "featurelist",
+        "luserchannels",
+        "luserclient",
+        "luserme",
+        "luserop",
+        "luserunknown",
+        "motd",
+        "motdstart",
+        "myinfo",
+        "n_global",
+        "n_local",
+        "namreply"
+    ]
+
+    def _dispatcher(self, c, e):
+        et = e.eventtype()
+        if et not in self._events_not_logged:
+            s = e.source()
+            t = e.target()
+            self.log.debug("%s, %s, %s -- %s" % (et, s, t, e.arguments()))
+        SingleServerIRCBot._dispatcher(self, c, e)
 
     @command_handler("!8ball")
     def handle_8ball(self, nick, channel, output):
@@ -791,7 +831,8 @@ class wormgas(SingleServerIRCBot):
                 art_name = art["artist_name"]
                 art_list.append(art_name)
             artt = ", ".join(art_list)
-            r = "%s: Now playing: %s / %s by %s" % (rchn, album, song, artt)
+            r = "Now playing on the %s: %s / %s by %s" % (rchn, album, song,
+                artt)
             url = np["song_url"]
             if url and "http" in url:
                 r += " <%s>" % self.shorten(url)
@@ -1498,8 +1539,6 @@ class wormgas(SingleServerIRCBot):
 
         nick = e.source().split("!")[0]
 
-        self.log.info("%s joined the room" % nick)
-
         if nick == self.config.get("irc:nick"):
             # It's me!
 
@@ -1529,9 +1568,6 @@ class wormgas(SingleServerIRCBot):
         # Start the periodic tasks.
         self._periodic(c)
 
-    def on_ping(self, c, e):
-        self.config.set("lasttime:ping", time.time())
-
     def on_privmsg(self, c, e):
         """This method is called when a message is sent directly to the bot
 
@@ -1541,7 +1577,11 @@ class wormgas(SingleServerIRCBot):
 
         nick = e.source().split("!")[0]
         msg = e.arguments()[0].strip()
-        msg = unicode(msg, "utf-8")
+        try:
+            msg = unicode(msg, "utf-8")
+        except UnicodeDecodeError:
+            self.log.exception("Cannot convert message to unicode")
+            return
 
         rs = []
         privrs = []
@@ -1588,7 +1628,11 @@ class wormgas(SingleServerIRCBot):
         nick = e.source().split("!")[0]
         chan = e.target()
         msg = e.arguments()[0].strip()
-        msg = unicode(msg, "utf-8")
+        try:
+            msg = unicode(msg, "utf-8")
+        except UnicodeDecodeError:
+            self.log.exception("Cannot convert message to unicode")
+            return
 
         rs = []
         privrs = []
@@ -1602,8 +1646,19 @@ class wormgas(SingleServerIRCBot):
                 privrs = output.privrs
                 break
 
+        # If there are no responses from the commands, look for URLs
+
         if len(rs) + len(privrs) == 0:
-            # No responses from the commands, punt to the brain
+            urls = self._find_urls(msg)
+            for url in urls:
+                title = self._get_title(url)
+                if title:
+                    self.log.info("Found a title: %s" % title)
+                    rs.append("[ %s ]" % title)
+
+        # If there are no URLs, punt to the brain
+
+        if len(rs) + len(privrs) == 0:
             talkrs = self._talk(msg)
             if len(talkrs) > 0:
                 self.config.set("msg:last", msg)
@@ -1695,6 +1750,35 @@ class wormgas(SingleServerIRCBot):
 
         result = json.loads(content)
         return(result["id"])
+
+    def _find_urls(self, text):
+        """Look for URLs in arbitrary text. Return a list of the URLs found."""
+
+        self.log.info("Looking for URLs in: %s" % text)
+
+        urls = []
+        for token in text.split():
+            o = urlparse(token)
+            if "http" in o.scheme and o.netloc:
+                url = o.geturl()
+                self.log.info("Found a URL: %s" % url)
+                urls.append(url)
+        return(urls)
+
+    def _get_title(self, url):
+        """Attempt to get the page title from a URL"""
+
+        try:
+            title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
+        except urllib2.HTTPError:
+            self.log.exception("Cannot open the URL: %s" % url)
+            return(None)
+        except urllib2.URLError:
+            self.log.exception("Cannot open the URL: %s" % url)
+            return(None)
+
+        title = " ".join(title.split())
+        return(title)
 
     def _periodic(self, c):
         # If I have not checked for forum activity for "timeout:forumcheck"

@@ -97,7 +97,7 @@ class Config(object):
         else:
             sql = "update botconfig set config_value = ? where config_id = ?"
             self.ccur.execute(sql, (value, id))
-        log.debug("%s set to %s" % (id, value))
+        log.debug("New value of %s is %s" % (id, value))
 
     def store_nick(self, nick):
         """Store this nick in user_keys for later use."""
