@@ -555,5 +555,5 @@ class RainwaveDatabase(object):
             for arow in arows:
                 artists.append(arow[0])
             r += ", ".join(artists)
-            rs.append((r, row[3]))
+            rs.append((r.decode("utf-8"), row[3]))
         return rs
