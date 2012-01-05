@@ -1770,10 +1770,7 @@ class wormgas(SingleServerIRCBot):
 
         try:
             title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
-        except urllib2.HTTPError:
-            self.log.exception("Cannot open the URL: %s" % url)
-            return(None)
-        except urllib2.URLError:
+        except (urllib2.HTTPError, urllib2.URLError):
             self.log.exception("Cannot open the URL: %s" % url)
             return(None)
 
