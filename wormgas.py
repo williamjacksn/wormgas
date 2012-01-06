@@ -941,7 +941,7 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             return True
 
-        if sched_id == int(self.config.get("pp:%s:%s" % (sid, index))):
+        if sched_id == int(self.config.get("pp:%s:%s" % (cid, index))):
             output.privrs.extend(rs)
             r = "I am cooling down. You can only use !prevplayed in "
             r += "%s once per song." % channel
