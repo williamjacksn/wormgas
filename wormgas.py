@@ -1774,7 +1774,8 @@ class wormgas(SingleServerIRCBot):
             self.log.exception("Cannot open the URL: %s" % url)
             return(None)
 
-        title = " ".join(title.split())
+        if title is not None:
+            title = " ".join(title.split())
         return(title)
 
     def _periodic(self, c):
