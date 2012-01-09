@@ -837,7 +837,10 @@ class wormgas(SingleServerIRCBot):
             if url and "http" in url:
                 r += " <%s>" % self.shorten(url)
 
-            votes = np["elec_votes"]
+            if "elec_votes" in np:
+                votes = np["elec_votes"]
+            else:
+                votes = 0
             ratings = np["song_rating_count"]
             avg = np["song_rating_avg"]
 
@@ -916,9 +919,13 @@ class wormgas(SingleServerIRCBot):
                 art_name = art["artist_name"]
                 art_list.append(art_name)
             artt = ", ".join(art_list)
-            r = "%s: Previously: %s / %s by %s" % (rchn, album, song, artt)
+            r = "Previously on the %s: %s / %s by %s" % (rchn, album, song,
+                artt)
 
-            votes = pp["elec_votes"]
+            if "elec_votes" in pp:
+                votes = pp["elec_votes"]
+            else:
+                votes = 0
             avg = pp["song_rating_avg"]
 
             r += " (%s vote" % votes
