@@ -1028,7 +1028,7 @@ class wormgas(SingleServerIRCBot):
             station: the station to request on
             songid: id of song to request"""
 
-        self.log.info("%s used !rate" % nick)
+        self.log.info("%s used !request" % nick)
 
         if rchan in self.channel_ids and songid:
             cid = self.channel_ids.get(rchan)
@@ -1545,6 +1545,7 @@ class wormgas(SingleServerIRCBot):
             e: the Event object"""
 
         nick = e.source().split("!")[0]
+        irc_chan = e.target()
 
         if nick == self.config.get("irc:nick"):
             # It's me!
@@ -1552,25 +1553,25 @@ class wormgas(SingleServerIRCBot):
             # If I recorded a ping timeout, tell everyone and clear it
             if int(self.config.get("ping_timeout")) == 1:
                 r = ("I restarted because the IRC server hadn't pinged for %s "
-                "seconds." % self.config.get("timeout:ping"))
-                c.privmsg(self.config.get("irc:channel"), r)
+                    "seconds." % self.config.get("timeout:ping"))
+                self._to_irc(c, "privmsg", irc_chan, r)
                 self.config.set("ping_timeout", 0)
 
             # If someone stopped me, call them out and clear it
             a = self.config.get("who_stopped_me")
             if a != 0:
                 r = "I was stopped by %s." % a
-                c.privmsg(self.config.get("irc:channel"), r)
+                self._to_irc(c, "privmsg", irc_chan, r)
                 self.config.set("who_stopped_me", 0)
 
         # Check for a join response
         jr = self.config.get("joinresponse:%s" % nick)
         if jr != -1:
-            c.privmsg(self.config.get("irc:channel"), jr)
+            self._to_irc(c, "privmsg", irc_chan, jr)
 
         ja = self.config.get("joinaction:%s" % nick)
         if ja != -1:
-            c.action(self.config.get("irc:channel"), ja)
+            self._to_irc(c, "action", irc_chan, ja)
 
         # Start the periodic tasks.
         self._periodic(c)
@@ -1611,18 +1612,10 @@ class wormgas(SingleServerIRCBot):
 
         channel = self.config.get("irc:channel")
         for r in rs:
-            if type(r) is unicode:
-                message = r.encode("utf-8")
-            else:
-                message = unicode(r, "utf-8").encode("utf-8")
-            c.privmsg(channel, message)
+            self._to_irc(c, "privmsg", channel, r)
 
         for privr in privrs:
-            if type(privr) is unicode:
-                message = privr.encode("utf-8")
-            else:
-                message = unicode(privr, "utf-8").encode("utf-8")
-            c.privmsg(nick, message)
+            self._to_irc(c, "privmsg", nick, privr)
 
     def on_pubmsg(self, c, e):
         """This method is called when a message is sent to the channel the bot
@@ -1688,18 +1681,10 @@ class wormgas(SingleServerIRCBot):
 
         for r in rs:
             r = nick + ": " + r
-            if type(r) is unicode:
-                message = r.encode("utf-8")
-            else:
-                message = unicode(r, "utf-8").encode("utf-8")
-            c.privmsg(chan, message)
+            self._to_irc(c, "privmsg", chan, r)
 
         for privr in privrs:
-            if type(privr) is unicode:
-                message = privr.encode("utf-8")
-            else:
-                message = unicode(privr, "utf-8").encode("utf-8")
-            c.privmsg(nick, message)
+            self._to_irc(c, "privmsg", nick, privr)
 
     def on_welcome(self, c, e):
         """This method is called when the bot first connects to the server
@@ -1710,7 +1695,7 @@ class wormgas(SingleServerIRCBot):
 
         self.config.set("lasttime:ping", time.time())
         passwd = self.config.get("irc:nickservpass")
-        c.privmsg("nickserv", "identify %s" % passwd)
+        self._to_irc(c, "privmsg", "nickserv", "identify %s" % passwd)
         c.join(self.config.get("irc:channel"))
 
     def api_call(self, url, args=None):
@@ -1785,6 +1770,22 @@ class wormgas(SingleServerIRCBot):
             title = " ".join(title.split())
         return(title)
 
+    def _to_irc(self, c, msgtype, target, msg):
+        """Send an IRC message"""
+
+        self.log.debug("Sending %s to %s -- %s" % (msgtype, target, msg))
+
+        if hasattr(c, msgtype):
+            f = getattr(c, msgtype)
+            if type(msg) is not unicode:
+                msg = unicode(msg, "utf-8")
+            try:
+                f(target, msg.encode("utf-8"))
+            except:
+                self.log.exception("Problem sending to IRC")
+        else:
+            self.log.error("Invalid message type '%s'" % msgtype)
+
     def _periodic(self, c):
         # If I have not checked for forum activity for "timeout:forumcheck"
         # seconds, check now
@@ -1812,11 +1813,7 @@ class wormgas(SingleServerIRCBot):
                     force=False)
 
         for r in output.rs:
-            if type(r) is unicode:
-                message = r.encode("utf-8")
-            else:
-                message = unicode(r, "utf-8").encode("utf-8")
-            c.privmsg(chan, message)
+            self._to_irc(c, "privmsg", chan, r)
 
         # Come back in 60 seconds
         # self.timer = threading.Timer(60, self._periodic, [c])
