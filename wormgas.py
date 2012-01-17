@@ -215,7 +215,7 @@ class wormgas(SingleServerIRCBot):
     def handle_election(self, nick, channel, output, rchan=None, index=None):
         """Show the candidates in an election"""
 
-        self.log.info("%s used !election")
+        self.log.info("%s used !election" % nick)
 
         # Make sure the index is valid.
         try:
@@ -1762,7 +1762,7 @@ class wormgas(SingleServerIRCBot):
 
         try:
             title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
-        except (urllib2.HTTPError, urllib2.URLError):
+        except (urllib2.HTTPError, urllib2.URLError, UnicodeEncodeError):
             self.log.exception("Cannot open the URL: %s" % url)
             return(None)
 
