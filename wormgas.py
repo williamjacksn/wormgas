@@ -127,8 +127,7 @@ class wormgas(SingleServerIRCBot):
     def __init__(self):
         (self.path, self.file) = os.path.split(_abspath)
 
-        self.config = dbaccess.Config()
-        self.config.open(self.path)
+        self.config = dbaccess.Config(self.path)
 
         try:
             self.rwdb = dbaccess.RainwaveDatabase(self.config)
@@ -609,7 +608,10 @@ class wormgas(SingleServerIRCBot):
             # I got between 1 and 10 results
 
             num = len(output.privrs)
-            r = "%s: Your search returned %s results." % (rchn, num)
+            r = "%s: Your search returned %s result" % (rchn, num)
+            if num > 1:
+                r += "s"
+            r += "."
             output.privrs.insert(0, r)
 
         return True
@@ -1652,7 +1654,7 @@ class wormgas(SingleServerIRCBot):
             urls = self._find_urls(msg)
             for url in urls:
                 title = self._get_title(url)
-                if title:
+                if title is not None:
                     self.log.info("Found a title: %s" % title)
                     rs.append("[ %s ]" % title)
 
@@ -1762,7 +1764,7 @@ class wormgas(SingleServerIRCBot):
 
         try:
             title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
-        except (urllib2.HTTPError, urllib2.URLError, UnicodeEncodeError):
+        except:
             self.log.exception("Cannot open the URL: %s" % url)
             return(None)
 

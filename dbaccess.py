@@ -18,17 +18,32 @@ except:
 class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
 
-    def __del__(self):
-        try:
-            self.cdbh.close()
-        except AttributeError: pass # Never opened the db; no handle to close.
-
-    def open(self, path):
-        """Open local database for reading and writing."""
+    def __init__(self, path):
         connstr = "%s/config.sqlite" % path
         self.cdbh = sqlite3.connect(connstr, isolation_level=None,
             check_same_thread=False)
         self.ccur = self.cdbh.cursor()
+
+        tables = {
+            "botconfig": "(config_id, config_value)",
+            "known_users": "(user_nick, user_userhost)",
+            "rps_log": "(timestamp, user_nick, channenge, response)",
+            "user_keys": "(user_nick, user_id, user_key)"
+        }
+
+        tsql = "select name from sqlite_master where name = ?"
+
+        for t_name, t_def in tables.iteritems():
+            self.ccur.execute(tsql, (t_name,))
+            existing = self.ccur.fetchall()
+            if len(existing) < 1:
+                csql = "create table %s %s" % (t_name, t_def)
+                self.ccur.execute(csql)
+
+    def __del__(self):
+        try:
+            self.cdbh.close()
+        except AttributeError: pass # Never opened the db; no handle to close.
 
     def handle(self, id=None, value=None):
         """View or change config values.
