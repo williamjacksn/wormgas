@@ -27,7 +27,7 @@ class Config(object):
         tables = {
             "botconfig": "(config_id, config_value)",
             "known_users": "(user_nick, user_userhost)",
-            "rps_log": "(timestamp, user_nick, channenge, response)",
+            "rps_log": "(timestamp, user_nick, challenge, response)",
             "user_keys": "(user_nick, user_id, user_key)"
         }
 
