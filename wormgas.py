@@ -228,6 +228,12 @@ class wormgas(SingleServerIRCBot):
                 nick)
             return True
 
+        # This command requires the Rainwave database
+
+        if self.rwdb is None:
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
+
         # cdg_name must be specified
 
         if cdg_name is None:
@@ -284,6 +290,12 @@ class wormgas(SingleServerIRCBot):
         if priv < 1:
             self.log.warning("%s does not have privs to use !cooldown add" %
                 nick)
+            return True
+
+        # This command requires the Rainwave database
+
+        if self.rwdb is None:
+            output.privrs.append("The Rainwave database is unavailable.")
             return True
 
         # unit_id should be numeric

@@ -45,6 +45,107 @@ class Config(object):
             self.cdbh.close()
         except AttributeError: pass # Never opened the db; no handle to close.
 
+    def add_id_to_nick(self, id, nick):
+        sql = "update user_keys set user_id = ? where user_nick = ?"
+        self.ccur.execute(sql, (id, nick))
+
+    def add_key_to_nick(self, key, nick):
+        sql = "update user_keys set user_key = ? where user_nick = ?"
+        self.ccur.execute(sql, (key, nick))
+
+    def drop_id_for_nick(self, nick):
+        sql = "update user_keys set user_id = null where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+
+    def drop_key_for_nick(self, nick):
+        sql = "update user_keys set user_key = null where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+
+    def get(self, id):
+        """Read a value from the configuration database.
+
+        Arguments:
+            id: the config_id that you want to read
+
+        Returns: the config_value, or -1 if the config_id does not exist"""
+
+        config_value = -1
+        sql = "select config_value from botconfig where config_id = ?"
+        self.ccur.execute(sql, (id,))
+        for r in self.ccur:
+            config_value = r[0]
+        log.debug("Current value of %s is %s" % (id, config_value))
+        return(config_value)
+
+    def get_id_for_nick(self, nick):
+        """Return stored Rainwave ID for nick, or None if no ID is stored."""
+        stored_id = None
+        sql = "select user_id from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_id = r[0]
+        return stored_id
+
+    def get_key_for_nick(self, nick):
+        """Return stored API key for nick, or None if no key is stored."""
+        stored_id = None
+        sql = "select user_key from user_keys where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        for r in self.ccur:
+            stored_id = r[0]
+        return stored_id
+
+    def get_rps_challenge_totals(self, nick):
+        """Returns total times a player has challenged with each option"""
+        challenge_totals = [0, 0, 0]
+        sql = "select challenge, response from rps_log where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
+        rows = self.ccur.fetchall()
+        for r in rows:
+            challenge_totals[int(r[0])] += 1
+
+        return challenge_totals
+
+    def get_rps_players(self):
+        """Get all players in the RPS history"""
+        players = []
+        sql = "select distinct user_nick from rps_log order by user_nick"
+        self.ccur.execute(sql)
+        rows = self.ccur.fetchall()
+        for r in rows:
+            players.append(r[0])
+        return players
+
+    def get_rps_record(self, nick):
+        """Get the current RPS record for a particular nick. If nick is
+        "!global", aggregate the record for all nicks.
+
+        Returns: the tuple (wins, draws, losses)"""
+
+        w = 0
+        d = 0
+        l = 0
+
+        sql = "select challenge, response from rps_log"
+        if nick != "!global":
+            sql += " where user_nick = ?"
+            self.ccur.execute(sql, (nick,))
+        else:
+            self.ccur.execute(sql)
+
+        games = self.ccur.fetchall()
+        for g in games:
+            c = int(g[0])
+            r = int(g[1])
+            if c == (r + 1) % 3:
+                w += 1
+            elif c == r:
+                d += 1
+            elif c == (r + 2) % 3:
+                l += 1
+
+        return w, d, l
+
     def handle(self, id=None, value=None):
         """View or change config values.
 
@@ -78,21 +179,21 @@ class Config(object):
 
         return(rs)
 
-    def get(self, id):
-        """Read a value from the configuration database.
+    def log_rps(self, nick, challenge, response):
+        """Record an RPS game in the database"""
+        sql = ("insert into rps_log (timestamp, user_nick, challenge, "
+            "response) values (datetime('now'), ?, ?, ?)")
+        self.ccur.execute(sql, (nick, challenge, response))
 
-        Arguments:
-            id: the config_id that you want to read
+    def rename_rps_player(self, old, new):
+        """Change the nick in RPS history, useful for merging two nicks"""
+        sql = "update rps_log set user_nick = ? where user_nick = ?"
+        self.ccur.execute(sql, (new, old))
 
-        Returns: the config_value, or -1 if the config_id does not exist"""
-
-        config_value = -1
-        sql = "select config_value from botconfig where config_id = ?"
-        self.ccur.execute(sql, (id,))
-        for r in self.ccur:
-            config_value = r[0]
-        log.debug("Current value of %s is %s" % (id, config_value))
-        return(config_value)
+    def reset_rps_record(self, nick):
+        """Reset the RPS record and delete game history for nick"""
+        sql = "delete from rps_log where user_nick = ?"
+        self.ccur.execute(sql, (nick,))
 
     def set(self, id, value):
         """Set a configuration value in the database.
@@ -125,107 +226,6 @@ class Config(object):
             sql = "insert into user_keys (user_nick) values (?)"
             self.ccur.execute(sql, (nick,))
 
-    def add_id_to_nick(self, id, nick):
-        sql = "update user_keys set user_id = ? where user_nick = ?"
-        self.ccur.execute(sql, (id, nick))
-
-    def drop_id_for_nick(self, nick):
-        sql = "update user_keys set user_id = null where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-
-    def get_id_for_nick(self, nick):
-        """Return stored Rainwave ID for nick, or None if no ID is stored."""
-        stored_id = None
-        sql = "select user_id from user_keys where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        for r in self.ccur:
-            stored_id = r[0]
-        return stored_id
-
-    def add_key_to_nick(self, key, nick):
-        sql = "update user_keys set user_key = ? where user_nick = ?"
-        self.ccur.execute(sql, (key, nick))
-
-    def drop_key_for_nick(self, nick):
-        sql = "update user_keys set user_key = null where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-
-    def get_key_for_nick(self, nick):
-        """Return stored API key for nick, or None if no key is stored."""
-        stored_id = None
-        sql = "select user_key from user_keys where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        for r in self.ccur:
-            stored_id = r[0]
-        return stored_id
-
-    def log_rps(self, nick, challenge, response):
-        """Record an RPS game in the database"""
-        sql = ("insert into rps_log (timestamp, user_nick, challenge, "
-            "response) values (datetime('now'), ?, ?, ?)")
-        self.ccur.execute(sql, (nick, challenge, response))
-
-    def get_rps_record(self, nick):
-        """Get the current RPS record for a particular nick. If nick is
-        "!global", aggregate the record for all nicks.
-
-        Returns: the tuple (wins, draws, losses)"""
-
-        w = 0
-        d = 0
-        l = 0
-
-        sql = "select challenge, response from rps_log"
-        if nick != "!global":
-            sql += " where user_nick = ?"
-            self.ccur.execute(sql, (nick,))
-        else:
-            self.ccur.execute(sql)
-
-        games = self.ccur.fetchall()
-        for g in games:
-            c = int(g[0])
-            r = int(g[1])
-            if c == (r + 1) % 3:
-                w += 1
-            elif c == r:
-                d += 1
-            elif c == (r + 2) % 3:
-                l += 1
-
-        return w, d, l
-
-    def reset_rps_record(self, nick):
-        """Reset the RPS record and delete game history for nick"""
-        sql = "delete from rps_log where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-
-    def get_rps_players(self):
-        """Get all players in the RPS history"""
-        players = []
-        sql = "select distinct user_nick from rps_log order by user_nick"
-        self.ccur.execute(sql)
-        rows = self.ccur.fetchall()
-        for r in rows:
-            players.append(r[0])
-        return players
-
-    def rename_rps_player(self, old, new):
-        """Change the nick in RPS history, useful for merging two nicks"""
-        sql = "update rps_log set user_nick = ? where user_nick = ?"
-        self.ccur.execute(sql, (new, old))
-
-    def get_rps_challenge_totals(self, nick):
-        """Returns total times a player has challenged with each option"""
-        challenge_totals = [0, 0, 0]
-        sql = "select challenge, response from rps_log where user_nick = ?"
-        self.ccur.execute(sql, (nick,))
-        rows = self.ccur.fetchall()
-        for r in rows:
-            challenge_totals[int(r[0])] += 1
-
-        return challenge_totals
-
 class RainwaveDatabaseUnavailableError(IOError):
     """Raised if the Rainwave database or PostgreSQL module is missing."""
 
@@ -238,6 +238,74 @@ class RainwaveDatabase(object):
         Args:
             config: dbaccess.Config, stores required connection params."""
         self.config = config
+
+    def add_album_to_cdg(self, album_id, cdg_name):
+        """Add all songs in an album to a cooldown group"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.add_song_to_cdg(song_id, cdg_name)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id), cdg_name)
+
+    def add_song_to_cdg(self, song_id, cdg_name):
+        """Add a song to a cooldown group, return a tuple describing the result
+        of the operation:
+
+        (0, (cid, album_name, song_title, cdg_name))
+        (1, "Error message")"""
+
+        # Get channel id for this song_id
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        # Get the cdg_id for this cdg_name
+
+        cdg_id = None
+
+        # Look for an existing, verified cooldown group
+
+        sql = ("select oac_id from rw_oa_categories where sid = %s and "
+            "oac_name = %s and oac_verified is true limit 1")
+        self.rcur.execute(sql, (cid, cdg_name))
+        for r in self.rcur.fetchall():
+            cdg_id = r[0]
+
+        # Look for an existing, unverified cooldown group
+
+        if cdg_id is None:
+            sql = ("select oac_id from rw_oa_categories where sid = %s and "
+                "oac_name = %s and oac_verified is false limit 1")
+            self.rcur.execute(sql, (cid, cdg_name))
+            for r in self.rcur.fetchall():
+                cdg_id = r[0]
+                sql = ("update rw_oa_categories set oac_verified = true where "
+                    "oac_id = %s")
+                self.rcur.execute(sql, (cdg_id,))
+
+        # Create a new cooldown group
+
+        if cdg_id is None:
+            sql = ("insert into rw_oa_categories (sid, oac_name) values "
+                "(%s, %s)")
+            self.rcur.execute(sql, (cid, cdg_name))
+            sql = ("select oac_id from rw_oa_categories where sid = %s and "
+                "oac_name = %s and oac_verified is true limit 1")
+            self.rcur.execute(sql, (cid, cdg_name))
+            for r in self.rcur.fetchall():
+                cdg_id = r[0]
+
+        sql = ("insert into rw_song_oa_cat (oac_id, song_id) values (%s, %s)")
+        self.rcur.execute(sql, (cdg_id, song_id))
+
+        song_info = self.get_song_info(song_id)
+        return 0, song_info + (cdg_name,)
 
     def connect(self):
         if not psycopg2:
@@ -257,6 +325,146 @@ class RainwaveDatabase(object):
         self.rdbh.set_isolation_level(autocommit)
         self.rcur = self.rdbh.cursor()
 
+    def drop_album_from_all_cdgs(self, album_id):
+        """Remove all songs in an album from all cooldown groups"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.drop_song_from_all_cdgs(song_id)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id))
+
+    def drop_album_from_cdg_by_name(self, album_id, cdg_name):
+        """Remove all songs in an album from a cooldown group"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.drop_song_from_cdg_by_name(song_id, cdg_name)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id), cdg_name)
+
+    def drop_empty_cdgs(self):
+        """Clean up the database by removing cooldown groups that contain
+        no songs"""
+
+        sql = ("delete from rw_oa_categories where oac_id in (select oac_id "
+            "from rw_oa_categories left join rw_song_oa_cat using (oac_id) "
+            "where song_id is null)")
+        self.rcur.execute(sql)
+
+    def drop_song_from_all_cdgs(self, song_id):
+        """Remove a song from all cooldown groups"""
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        sql = ("delete from rw_song_oa_cat where song_id = %s")
+        self.rcur.execute(sql, (song_id,))
+
+        self.drop_empty_cdgs()
+
+        return 0, self.get_song_info(song_id)
+
+    def drop_song_from_cdg_by_name(self, song_id, cdg_name):
+        """Remove a song from a cooldown group"""
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        for cdg_id in self.get_cdg_id(cid, cdg_name):
+            sql = ("delete from rw_song_oa_cat where song_id = %s and "
+                "oac_id = %s")
+            self.rcur.execute(sql, (song_id, cdg_id))
+
+        self.drop_empty_cdgs()
+
+        song_info = self.get_song_info(song_id)
+        return 0, song_info + (cdg_name,)
+
+    def get_album_cid(self, album_id):
+        """Returns the channel id for given album"""
+
+        sql = "select sid from rw_albums where album_id = %s"
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_album_name(self, album_id):
+        """Return the name of the album"""
+
+        sql = "select album_name from rw_albums where album_id = %s"
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_album_songs(self, album_id):
+        """Yields song_ids in an album"""
+
+        sql = ("select song_id from rw_songs where album_id = %s and "
+            "song_verified is true")
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def get_cdg_id(self, cid, cdg_name):
+        """Given a channel id and cooldown group name, get the cdg id"""
+
+        sql = ("select oac_id from rw_oa_categories where sid = %s and "
+            "oac_name = %s")
+        self.rcur.execute(sql, (cid, cdg_name))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def get_current_channel(self, uid):
+        """Return id of channel that uid is currently listening to, or None"""
+
+        cur_chan = None
+        sql = ("select sid from rw_listeners where list_purge is false and "
+            "user_id = %s")
+        self.rcur.execute(sql, (uid,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            cur_chan = row[0]
+        return cur_chan
+
+    def get_forum_post_info(self, post_id=None):
+        """Return a string of information and a url for a forum post, default
+        to the latest public post"""
+
+        if post_id:
+            sql = ("select forum_name, post_subject, username, post_id from "
+                "phpbb_posts join phpbb_forums using (forum_id) join "
+                "phpbb_users on (phpbb_posts.poster_id = phpbb_users.user_id) "
+                "where post_id = %s")
+            self.rcur.execute(sql, (post_id,))
+        else:
+            sql = ("select forum_name, post_subject, username, post_id from "
+            "phpbb_posts join phpbb_forums using (forum_id) join phpbb_users "
+            "on (phpbb_posts.poster_id = phpbb_users.user_id) join "
+            "phpbb_acl_groups using (forum_id) where phpbb_acl_groups.group_id "
+            "= 1 and phpbb_acl_groups.auth_role_id != 16 order by post_time "
+            "desc limit 1")
+            self.rcur.execute(sql)
+
+        rows = self.rcur.fetchall()
+        for row in rows:
+            url = ("http://rainwave.cc/forums/viewtopic.php?p=%s#p%s" %
+                (row[3], row[3]))
+            r = "%s / %s by %s" % (row[0], row[1], row[2])
+            return r.decode("utf-8"), url
+
     def get_id_for_nick(self, nick):
         """Return user_id if this nick is a registered Rainwave account."""
         user_id = None
@@ -267,52 +475,18 @@ class RainwaveDatabase(object):
             user_id = r[0]
         return user_id
 
-    def search_songs(self, cid, text, limit=10):
-        """Search for songs by title.
-
-        Returns:
-            the tuple ([song dicts], unreported results), where:
-                a song dict is: {
-                    "album_name": string
-                    "song_title": string
-                    "song_id": string
-                }
-                unreported results: int, number of results over the limit.
-        """
-        sql = ("select album_name, song_title, song_id from rw_songs join "
-            "rw_albums using (album_id) where song_verified is true and "
-            "rw_songs.sid = %s and song_title ilike %s order by "
-            "album_name, song_title")
-        self.rcur.execute(sql, (cid, "%%%s%%" % text))
+    def get_listener_chart_data(self, days):
+        """Yields (cid, guest_count, registered_count) tuples over the range."""
+        sql = ("select sid, extract(hour from timestamp with time zone "
+            "'epoch' + lstats_time * interval '1 second') as hour, "
+            "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
+            "rw_listenerstats where lstats_time > extract(epoch from "
+            "current_timestamp) - %s group by hour, sid order by sid, hour")
+        seconds = 86400 * days
+        self.rcur.execute(sql, (seconds,))
         rows = self.rcur.fetchall()
-        results = []
-        for row in rows[:limit]:
-            results.append({
-                "album_name": row[0], "song_title": row[1], "song_id": row[2]})
-        unreported_results = max(len(rows) - limit, 0)
-        return results, unreported_results
-
-    def search_albums(self, cid, text, limit=10):
-        """Search for albums by title.
-
-        Returns:
-            the tuple ([album dicts], unreported results), where:
-                an album dict is: {
-                    "album_name": string
-                    "album_id": string
-                }
-                unreported results: int, number of results over the limit.
-        """
-        sql = ("select album_name, album_id from rw_albums where "
-            "album_verified is true and sid = %s and album_name ilike %s "
-            "order by album_name")
-        self.rcur.execute(sql, (cid, "%%%s%%" % text))
-        rows = self.rcur.fetchall()
-        results = []
-        for row in rows[:limit]:
-            results.append({"album_name": row[0], "album_id": row[1]})
-        unreported_results = max(len(rows) - limit, 0)
-        return results, unreported_results
+        for row in rows:
+            yield row[0], row[2], row[3]
 
     def get_listener_stats(self, cid):
         """Return (registered user count, guest count) for the station."""
@@ -330,18 +504,52 @@ class RainwaveDatabase(object):
                     guest = guest + 1
         return regd, guest
 
-    def get_listener_chart_data(self, days):
-        """Yields (cid, guest_count, registered_count) tuples over the range."""
-        sql = ("select sid, extract(hour from timestamp with time zone "
-            "'epoch' + lstats_time * interval '1 second') as hour, "
-            "round(avg(lstats_guests), 2), round(avg(lstats_regd), 2) from "
-            "rw_listenerstats where lstats_time > extract(epoch from "
-            "current_timestamp) - %s group by hour, sid order by sid, hour")
-        seconds = 86400 * days
-        self.rcur.execute(sql, (seconds,))
+    def get_max_forum_post_id(self):
+        """Return id of latest public forum post"""
+        post_id = 0
+        sql = ("select max(post_id) from phpbb_posts join phpbb_acl_groups "
+            "using (forum_id) where group_id = 1 and auth_role_id != 16")
+        self.rcur.execute(sql)
         rows = self.rcur.fetchall()
         for row in rows:
-            yield row[0], row[2], row[3]
+            post_id = row[0]
+        return post_id
+
+    def get_max_song_id(self, cid):
+        """Return song_id of newest song on a channel"""
+        song_id = 0
+        sql = ("select max(song_id) from rw_songs where song_verified is true "
+            "and sid = %s")
+        self.rcur.execute(sql, (cid,))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            song_id = row[0]
+        return song_id
+
+    def get_new_song_info(self, cid):
+        """Return a list of tuples (song_info, url) for new songs on this
+        channel up to three"""
+
+        rs = []
+        maxid = self.config.get("maxid:%s" % cid)
+        sql = ("select song_id, album_name, song_title, song_url from rw_songs "
+            "join rw_albums using (album_id) where song_id > %s and "
+            "song_verified is true and rw_songs.sid = %s order by song_id desc "
+            "limit 3")
+        self.rcur.execute(sql, (maxid, cid))
+        rows = self.rcur.fetchall()
+        for row in rows:
+            r = "%s / %s by " % (row[1], row[2])
+            artists = []
+            sql = ("select artist_name from rw_song_artist join rw_artists "
+                "using (artist_id) where song_id = %s")
+            self.rcur.execute(sql, (row[0],))
+            arows = self.rcur.fetchall()
+            for arow in arows:
+                artists.append(arow[0])
+            r += ", ".join(artists)
+            rs.append((r.decode("utf-8"), row[3]))
+        return rs
 
     def get_radio_stats(self, cid):
         """Return songs, albums, hours of music for one or all channel"""
@@ -357,6 +565,33 @@ class RainwaveDatabase(object):
         rows = self.rcur.fetchall()
         for r in rows:
             return r[0], r[1], r[2]
+
+    def get_song_cdg_ids(self, song_id):
+        """Get ids of all cooldown groups a particular song is in"""
+
+        sql = "select oac_id from rw_song_oa_cat where song_id = %s"
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def get_song_cid(self, song_id):
+        """Returns the channel id for given song"""
+
+        sql = ("select sid from rw_songs where song_id = %s and song_verified "
+            "is true")
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_song_info(self, song_id):
+        """Return a tuple (cid, album_name, song_title) for the given song_id"""
+
+        sql = ("select rw_songs.sid, album_name, song_title from rw_songs join "
+            "rw_albums using (album_id) where song_id = %s")
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            return r
 
     def get_unrated_songs(self, user_id, cid, num=None):
         """Get unrated songs
@@ -488,271 +723,49 @@ class RainwaveDatabase(object):
 
         return rs
 
-    def get_current_channel(self, uid):
-        """Return id of channel that uid is currently listening to, or None"""
+    def search_songs(self, cid, text, limit=10):
+        """Search for songs by title.
 
-        cur_chan = None
-        sql = ("select sid from rw_listeners where list_purge is false and "
-            "user_id = %s")
-        self.rcur.execute(sql, (uid,))
+        Returns:
+            the tuple ([song dicts], unreported results), where:
+                a song dict is: {
+                    "album_name": string
+                    "song_title": string
+                    "song_id": string
+                }
+                unreported results: int, number of results over the limit.
+        """
+        sql = ("select album_name, song_title, song_id from rw_songs join "
+            "rw_albums using (album_id) where song_verified is true and "
+            "rw_songs.sid = %s and song_title ilike %s order by "
+            "album_name, song_title")
+        self.rcur.execute(sql, (cid, "%%%s%%" % text))
         rows = self.rcur.fetchall()
-        for row in rows:
-            cur_chan = row[0]
-        return cur_chan
+        results = []
+        for row in rows[:limit]:
+            results.append({
+                "album_name": row[0], "song_title": row[1], "song_id": row[2]})
+        unreported_results = max(len(rows) - limit, 0)
+        return results, unreported_results
 
-    def get_max_forum_post_id(self):
-        """Return id of latest public forum post"""
-        post_id = 0
-        sql = ("select max(post_id) from phpbb_posts join phpbb_acl_groups "
-            "using (forum_id) where group_id = 1 and auth_role_id != 16")
-        self.rcur.execute(sql)
+    def search_albums(self, cid, text, limit=10):
+        """Search for albums by title.
+
+        Returns:
+            the tuple ([album dicts], unreported results), where:
+                an album dict is: {
+                    "album_name": string
+                    "album_id": string
+                }
+                unreported results: int, number of results over the limit.
+        """
+        sql = ("select album_name, album_id from rw_albums where "
+            "album_verified is true and sid = %s and album_name ilike %s "
+            "order by album_name")
+        self.rcur.execute(sql, (cid, "%%%s%%" % text))
         rows = self.rcur.fetchall()
-        for row in rows:
-            post_id = row[0]
-        return post_id
-
-    def get_forum_post_info(self, post_id=None):
-        """Return a string of information and a url for a forum post, default
-        to the latest public post"""
-
-        if post_id:
-            sql = ("select forum_name, post_subject, username, post_id from "
-                "phpbb_posts join phpbb_forums using (forum_id) join "
-                "phpbb_users on (phpbb_posts.poster_id = phpbb_users.user_id) "
-                "where post_id = %s")
-            self.rcur.execute(sql, (post_id,))
-        else:
-            sql = ("select forum_name, post_subject, username, post_id from "
-            "phpbb_posts join phpbb_forums using (forum_id) join phpbb_users "
-            "on (phpbb_posts.poster_id = phpbb_users.user_id) join "
-            "phpbb_acl_groups using (forum_id) where phpbb_acl_groups.group_id "
-            "= 1 and phpbb_acl_groups.auth_role_id != 16 order by post_time "
-            "desc limit 1")
-            self.rcur.execute(sql)
-
-        rows = self.rcur.fetchall()
-        for row in rows:
-            url = ("http://rainwave.cc/forums/viewtopic.php?p=%s#p%s" %
-                (row[3], row[3]))
-            r = "%s / %s by %s" % (row[0], row[1], row[2])
-            return r.decode("utf-8"), url
-
-    def get_max_song_id(self, cid):
-        """Return song_id of newest song on a channel"""
-        song_id = 0
-        sql = ("select max(song_id) from rw_songs where song_verified is true "
-            "and sid = %s")
-        self.rcur.execute(sql, (cid,))
-        rows = self.rcur.fetchall()
-        for row in rows:
-            song_id = row[0]
-        return song_id
-
-    def get_new_song_info(self, cid):
-        """Return a list of tuples (song_info, url) for new songs on this
-        channel up to three"""
-
-        rs = []
-        maxid = self.config.get("maxid:%s" % cid)
-        sql = ("select song_id, album_name, song_title, song_url from rw_songs "
-            "join rw_albums using (album_id) where song_id > %s and "
-            "song_verified is true and rw_songs.sid = %s order by song_id desc "
-            "limit 3")
-        self.rcur.execute(sql, (maxid, cid))
-        rows = self.rcur.fetchall()
-        for row in rows:
-            r = "%s / %s by " % (row[1], row[2])
-            artists = []
-            sql = ("select artist_name from rw_song_artist join rw_artists "
-                "using (artist_id) where song_id = %s")
-            self.rcur.execute(sql, (row[0],))
-            arows = self.rcur.fetchall()
-            for arow in arows:
-                artists.append(arow[0])
-            r += ", ".join(artists)
-            rs.append((r.decode("utf-8"), row[3]))
-        return rs
-
-    def get_album_cid(self, album_id):
-        """Returns the channel id for given album"""
-
-        sql = "select sid from rw_albums where album_id = %s"
-        self.rcur.execute(sql, (album_id,))
-        for r in self.rcur.fetchall():
-            return r[0]
-        return None
-
-    def get_album_name(self, album_id):
-        """Return the name of the album"""
-
-        sql = "select album_name from rw_albums where album_id = %s"
-        self.rcur.execute(sql, (album_id,))
-        for r in self.rcur.fetchall():
-            return r[0]
-        return None
-
-    def get_song_cid(self, song_id):
-        """Returns the channel id for given song"""
-
-        sql = ("select sid from rw_songs where song_id = %s and song_verified "
-            "is true")
-        self.rcur.execute(sql, (song_id,))
-        for r in self.rcur.fetchall():
-            return r[0]
-        return None
-
-    def get_album_songs(self, album_id):
-        """Yields song_ids in an album"""
-
-        sql = ("select song_id from rw_songs where album_id = %s and "
-            "song_verified is true")
-        self.rcur.execute(sql, (album_id,))
-        for r in self.rcur.fetchall():
-            yield r[0]
-
-    def add_album_to_cdg(self, album_id, cdg_name):
-        """Add all songs in an album to a cooldown group"""
-
-        for song_id in self.get_album_songs(album_id):
-            self.add_song_to_cdg(song_id, cdg_name)
-
-        cid = self.get_album_cid(album_id)
-        if cid is None:
-            return 1, "Invalid album_id: %s" % album_id
-
-        return 0, (cid, self.get_album_name(album_id), cdg_name)
-
-    def add_song_to_cdg(self, song_id, cdg_name):
-        """Add a song to a cooldown group, return a tuple describing the result
-        of the operation:
-
-        (0, (cid, album_name, song_title, cdg_name))
-        (1, "Error message")"""
-
-        # Get channel id for this song_id
-
-        cid = self.get_song_cid(song_id)
-
-        if cid is None:
-            return 1, "Invalid song_id: %s" % song_id
-
-        # Get the cdg_id for this cdg_name
-
-        cdg_id = None
-
-        # Look for an existing, verified cooldown group
-
-        sql = ("select oac_id from rw_oa_categories where sid = %s and "
-            "oac_name = %s and oac_verified is true limit 1")
-        self.rcur.execute(sql, (cid, cdg_name))
-        for r in self.rcur.fetchall():
-            cdg_id = r[0]
-
-        # Look for an existing, unverified cooldown group
-
-        if cdg_id is None:
-            sql = ("select oac_id from rw_oa_categories where sid = %s and "
-                "oac_name = %s and oac_verified is false limit 1")
-            self.rcur.execute(sql, (cid, cdg_name))
-            for r in self.rcur.fetchall():
-                cdg_id = r[0]
-                sql = ("update rw_oa_categories set oac_verified = true where "
-                    "oac_id = %s")
-                self.rcur.execute(sql, (cdg_id,))
-
-        # Create a new cooldown group
-
-        if cdg_id is None:
-            sql = ("insert into rw_oa_categories (sid, oac_name) values "
-                "(%s, %s)")
-            self.rcur.execute(sql, (cid, cdg_name))
-            sql = ("select oac_id from rw_oa_categories where sid = %s and "
-                "oac_name = %s and oac_verified is true limit 1")
-            self.rcur.execute(sql, (cid, cdg_name))
-            for r in self.rcur.fetchall():
-                cdg_id = r[0]
-
-        sql = ("insert into rw_song_oa_cat (oac_id, song_id) values (%s, %s)")
-        self.rcur.execute(sql, (cdg_id, song_id))
-
-        song_info = self.get_song_info(song_id)
-        return 0, song_info + (cdg_name,)
-
-    def get_cdg_id(self, cid, cdg_name):
-        """Given a channel id and cooldown group name, get the cdg id"""
-
-        sql = ("select oac_id from rw_oa_categories where sid = %s and "
-            "oac_name = %s")
-        self.rcur.execute(sql, (cid, cdg_name))
-        for r in self.rcur.fetchall():
-            yield r[0]
-
-    def get_song_cdg_ids(self, song_id):
-        """Get ids of all cooldown groups a particular song is in"""
-
-        sql = "select oac_id from rw_song_oa_cat where song_id = %s"
-        self.rcur.execute(sql, (song_id,))
-        for r in self.rcur.fetchall():
-            yield r[0]
-
-    def drop_album_from_cdg_by_name(self, album_id, cdg_name):
-        """Remove all songs in an album from a cooldown group"""
-
-        for song_id in self.get_album_songs(album_id):
-            self.drop_song_from_cdg_by_name(song_id, cdg_name)
-
-        cid = self.get_album_cid(album_id)
-        if cid is None:
-            return 1, "Invalid album_id: %s" % album_id
-
-        return 0, (cid, self.get_album_name(album_id), cdg_name)
-
-    def drop_song_from_cdg_by_name(self, song_id, cdg_name):
-        """Remove a song from a cooldown group"""
-
-        cid = self.get_song_cid(song_id)
-
-        if cid is None:
-            return 1, "Invalid song_id: %s" % song_id
-
-        for cdg_id in self.get_cdg_id(cid, cdg_name):
-            sql = ("delete from rw_song_oa_cat where song_id = %s and "
-                "oac_id = %s")
-            self.rcur.execute(sql, (song_id, cdg_id))
-
-        song_info = self.get_song_info(song_id)
-        return 0, song_info + (cdg_name,)
-
-    def drop_album_from_all_cdgs(self, album_id):
-        """Remove all songs in an album from all cooldown groups"""
-
-        for song_id in self.get_album_songs(album_id):
-            self.drop_song_from_all_cdgs(song_id)
-
-        cid = self.get_album_cid(album_id)
-        if cid is None:
-            return 1, "Invalid album_id: %s" % album_id
-
-        return 0, (cid, self.get_album_name(album_id))
-
-    def drop_song_from_all_cdgs(self, song_id):
-        """Remove a song from all cooldown groups"""
-
-        cid = self.get_song_cid(song_id)
-
-        if cid is None:
-            return 1, "Invalid song_id: %s" % song_id
-
-        sql = ("delete from rw_song_oa_cat where song_id = %s")
-        self.rcur.execute(sql, (song_id,))
-
-        return 0, self.get_song_info(song_id)
-
-    def get_song_info(self, song_id):
-        """Return a tuple (cid, album_name, song_title) for the given song_id"""
-
-        sql = ("select rw_songs.sid, album_name, song_title from rw_songs join "
-            "rw_albums using (album_id) where song_id = %s")
-        self.rcur.execute(sql, (song_id,))
-        for r in self.rcur.fetchall():
-            return r
+        results = []
+        for row in rows[:limit]:
+            results.append({"album_name": row[0], "album_id": row[1]})
+        unreported_results = max(len(rows) - limit, 0)
+        return results, unreported_results
