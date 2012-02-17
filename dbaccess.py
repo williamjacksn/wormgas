@@ -572,3 +572,187 @@ class RainwaveDatabase(object):
             r += ", ".join(artists)
             rs.append((r.decode("utf-8"), row[3]))
         return rs
+
+    def get_album_cid(self, album_id):
+        """Returns the channel id for given album"""
+
+        sql = "select sid from rw_albums where album_id = %s"
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_album_name(self, album_id):
+        """Return the name of the album"""
+
+        sql = "select album_name from rw_albums where album_id = %s"
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_song_cid(self, song_id):
+        """Returns the channel id for given song"""
+
+        sql = ("select sid from rw_songs where song_id = %s and song_verified "
+            "is true")
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            return r[0]
+        return None
+
+    def get_album_songs(self, album_id):
+        """Yields song_ids in an album"""
+
+        sql = ("select song_id from rw_songs where album_id = %s and "
+            "song_verified is true")
+        self.rcur.execute(sql, (album_id,))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def add_album_to_cdg(self, album_id, cdg_name):
+        """Add all songs in an album to a cooldown group"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.add_song_to_cdg(song_id, cdg_name)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id), cdg_name)
+
+    def add_song_to_cdg(self, song_id, cdg_name):
+        """Add a song to a cooldown group, return a tuple describing the result
+        of the operation:
+
+        (0, (cid, album_name, song_title, cdg_name))
+        (1, "Error message")"""
+
+        # Get channel id for this song_id
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        # Get the cdg_id for this cdg_name
+
+        cdg_id = None
+
+        # Look for an existing, verified cooldown group
+
+        sql = ("select oac_id from rw_oa_categories where sid = %s and "
+            "oac_name = %s and oac_verified is true limit 1")
+        self.rcur.execute(sql, (cid, cdg_name))
+        for r in self.rcur.fetchall():
+            cdg_id = r[0]
+
+        # Look for an existing, unverified cooldown group
+
+        if cdg_id is None:
+            sql = ("select oac_id from rw_oa_categories where sid = %s and "
+                "oac_name = %s and oac_verified is false limit 1")
+            self.rcur.execute(sql, (cid, cdg_name))
+            for r in self.rcur.fetchall():
+                cdg_id = r[0]
+                sql = ("update rw_oa_categories set oac_verified = true where "
+                    "oac_id = %s")
+                self.rcur.execute(sql, (cdg_id,))
+
+        # Create a new cooldown group
+
+        if cdg_id is None:
+            sql = ("insert into rw_oa_categories (sid, oac_name) values "
+                "(%s, %s)")
+            self.rcur.execute(sql, (cid, cdg_name))
+            sql = ("select oac_id from rw_oa_categories where sid = %s and "
+                "oac_name = %s and oac_verified is true limit 1")
+            self.rcur.execute(sql, (cid, cdg_name))
+            for r in self.rcur.fetchall():
+                cdg_id = r[0]
+
+        sql = ("insert into rw_song_oa_cat (oac_id, song_id) values (%s, %s)")
+        self.rcur.execute(sql, (cdg_id, song_id))
+
+        song_info = self.get_song_info(song_id)
+        return 0, song_info + (cdg_name,)
+
+    def get_cdg_id(self, cid, cdg_name):
+        """Given a channel id and cooldown group name, get the cdg id"""
+
+        sql = ("select oac_id from rw_oa_categories where sid = %s and "
+            "oac_name = %s")
+        self.rcur.execute(sql, (cid, cdg_name))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def get_song_cdg_ids(self, song_id):
+        """Get ids of all cooldown groups a particular song is in"""
+
+        sql = "select oac_id from rw_song_oa_cat where song_id = %s"
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            yield r[0]
+
+    def drop_album_from_cdg_by_name(self, album_id, cdg_name):
+        """Remove all songs in an album from a cooldown group"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.drop_song_from_cdg_by_name(song_id, cdg_name)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id), cdg_name)
+
+    def drop_song_from_cdg_by_name(self, song_id, cdg_name):
+        """Remove a song from a cooldown group"""
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        for cdg_id in self.get_cdg_id(cid, cdg_name):
+            sql = ("delete from rw_song_oa_cat where song_id = %s and "
+                "oac_id = %s")
+            self.rcur.execute(sql, (song_id, cdg_id))
+
+        song_info = self.get_song_info(song_id)
+        return 0, song_info + (cdg_name,)
+
+    def drop_album_from_all_cdgs(self, album_id):
+        """Remove all songs in an album from all cooldown groups"""
+
+        for song_id in self.get_album_songs(album_id):
+            self.drop_song_from_all_cdgs(song_id)
+
+        cid = self.get_album_cid(album_id)
+        if cid is None:
+            return 1, "Invalid album_id: %s" % album_id
+
+        return 0, (cid, self.get_album_name(album_id))
+
+    def drop_song_from_all_cdgs(self, song_id):
+        """Remove a song from all cooldown groups"""
+
+        cid = self.get_song_cid(song_id)
+
+        if cid is None:
+            return 1, "Invalid song_id: %s" % song_id
+
+        sql = ("delete from rw_song_oa_cat where song_id = %s")
+        self.rcur.execute(sql, (song_id,))
+
+        return 0, self.get_song_info(song_id)
+
+    def get_song_info(self, song_id):
+        """Return a tuple (cid, album_name, song_title) for the given song_id"""
+
+        sql = ("select rw_songs.sid, album_name, song_title from rw_songs join "
+            "rw_albums using (album_id) where song_id = %s")
+        self.rcur.execute(sql, (song_id,))
+        for r in self.rcur.fetchall():
+            return r

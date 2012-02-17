@@ -210,6 +210,139 @@ class wormgas(SingleServerIRCBot):
             self.log.warning("%s does not have privs to use !config" % nick)
         return True
 
+    @command_handler(r"^!c(ool)?d(own)? add(\s(?P<unit>\w+))?"
+        r"(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?")
+    def handle_cooldown_add(self, nick, channel, output, unit=None,
+        unit_id=None, cdg_name=None):
+        """Add a song or album to a cooldown group."""
+
+        self.log.info("%s used !cooldown add" % nick)
+        self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
+            cdg_name))
+
+        # This command requires privlevel 1
+
+        priv = self.config.get("privlevel:%s" % nick)
+        if priv < 1:
+            self.log.warning("%s does not have privs to use !cooldown add" %
+                nick)
+            return True
+
+        # cdg_name must be specified
+
+        if cdg_name is None:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        # unit_id should be numeric
+
+        if unit_id is None:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        if unit_id.isdigit():
+            unit_id = int(unit_id)
+        else:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        # unit should be "song" or "album"
+
+        if unit == "song":
+            rcode, rval = self.rwdb.add_song_to_cdg(unit_id, cdg_name)
+            if rcode == 0:
+                rchan = self.channel_names[rval[0]]
+                rval = (rchan,) + rval[1:]
+                r = "Added %s / %s / %s to cooldown group %s" % rval
+                output.privrs.append(r)
+            else:
+                output.privrs.append(rval)
+        elif unit == "album":
+            rcode, rval = self.rwdb.add_album_to_cdg(unit_id, cdg_name)
+            if rcode == 0:
+                rchan = self.channel_names[rval[0]]
+                rval = (rchan,) + rval[1:]
+                r = "Added %s / %s to cooldown group %s" % rval
+                output.privrs.append(r)
+            else:
+                output.privrs.append(rval)
+        else:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        return True
+
+    @command_handler(r"^!c(ool)?d(own)? drop(\s(?P<unit>\w+))?"
+        r"(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?")
+    def handle_cooldown_drop(self, nick, channel, output, unit=None,
+        unit_id=None, cdg_name=None):
+        """Remove a song or album from a cooldown group"""
+
+        self.log.info("%s used !cooldown drop" % nick)
+        self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
+            cdg_name))
+
+        # This command requires privlevel 1
+
+        priv = self.config.get("privlevel:%s" % nick)
+        if priv < 1:
+            self.log.warning("%s does not have privs to use !cooldown add" %
+                nick)
+            return True
+
+        # unit_id should be numeric
+
+        if unit_id is None:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        if unit_id.isdigit():
+            unit_id = int(unit_id)
+        else:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        # unit should be "song" or "album"
+
+        if unit == "song":
+            if cdg_name is None:
+                rcode, rval = self.rwcd.drop_song_from_all_cdgs(unit_id)
+                if rcode == 0:
+                    rchan = self.channel_names[rval[0]]
+                    rval = (rchan,) + rval[1:]
+                    r = "Dropped %s / %s / %s from all cooldown groups" % rval
+                    output.privrs.append(r)
+                else:
+                    output.privrs.append(rval)
+            else:
+                rcode, rval = self.rwdb.drop_song_from_cdg_by_name(unit_id,
+                    cdg_name)
+                if rcode == 0:
+                    rchan = self.channel_names[rval[0]]
+                    rval = (rchan,) + rval[1:]
+                    r = "Dropped %s / %s / %s from cooldown group %s" % rval
+                    output.privrs.append(r)
+                else:
+                    output.privrs.append(rval)
+        elif unit == "album":
+            if cdg_name is None:
+                rcode, rval = self.rwdb.drop_album_from_all_cdgs(unit_id)
+                if rcode == 0:
+                    rchan = self.channel_names[rval[0]]
+                    rval = (rchan,) + rval[1:]
+                    r = "Dropped %s / %s from all cooldown groups" % rval
+                    output.privrs.append(r)
+                else:
+                    output.privrs.append(rval)
+            else:
+                rcode, rval = self.rwdb.drop_album_from_cdg_by_name(unit_id,
+                    cdg_name)
+                if rcode == 0:
+                    rchan = self.channel_names[rval[0]]
+                    rval = (rchan,) + rval[1:]
+                    r = "Dropped %s / %s from cooldown group %s" % rval
+                    output.privrs.append(r)
+                else:
+                    output.privrs.append(rval)
+        else:
+            return self.handle_help(nick, channel, output, topic="cooldown")
+
+        return True
+
     @command_handler(r"!el(ection\s)?(?P<rchan>\w+)?(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, rchan=None, index=None):
         """Show the candidates in an election"""
@@ -353,7 +486,7 @@ class wormgas(SingleServerIRCBot):
                 "prevplayed, rate, request, roll, rps, stats, unrated, ustats, "
                 "vote")
             if priv > 0:
-                rs.append("Level 1 administration topics: newmusic")
+                rs.append("Level 1 administration topics: cooldown, newmusic")
             if priv > 1:
                 rs.append("Level 2 administration topics: config, forum, "
                     "restart, stop")
@@ -367,6 +500,17 @@ class wormgas(SingleServerIRCBot):
                     "use a <value> of -1 to remove a setting")
                 rs.append("Leave off <id> and <value> to see a list of all "
                     "available config ids")
+            else:
+                rs.append("You are not permitted to use this command")
+        elif topic == "cooldown":
+            if priv > 0:
+                rs.append("Use \x02!cooldown add song|album <song_id|album_id> "
+                    "<cdg_name>\x02 to add a song or album to a cooldown group")
+                rs.append("Use \x02!cooldown drop song|album "
+                    "<song_id|album_id> [<cdg_name>]\x02 to remove a song or "
+                    "album from a cooldown group, leave off <cdg_name> to "
+                    "remove a song or album from all cooldown groups")
+                rs.append("Short version is \x02!cd ...\x02")
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "election":
