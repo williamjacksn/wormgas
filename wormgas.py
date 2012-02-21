@@ -494,9 +494,9 @@ class wormgas(SingleServerIRCBot):
 
         if (topic is None) or (topic == "all"):
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
-                "8ball, election, flip, id, key, lookup, lstats, nowplaying, "
-                "prevplayed, rate, request, roll, rps, stats, unrated, ustats, "
-                "vote")
+                "8ball, election, flip, history, id, key, lookup, lstats, "
+                "nowplaying, prevplayed, rate, request, roll, rps, stats, "
+                "unrated, ustats, vote")
             if priv > 0:
                 rs.append("Level 1 administration topics: cooldown, newmusic")
             if priv > 1:
@@ -539,6 +539,11 @@ class wormgas(SingleServerIRCBot):
                     "forum post in the channel")
             else:
                 rs.append("You are not permitted to use this command")
+        elif topic == "history":
+            rs.append("Use \x02!history <channel>\x02 to see the last several "
+                "songs that played on a channel")
+            rs.append("Short version is \x02!hs<channel>\x02")
+            rs.append(channelcodes)
         elif topic == "id":
             rs.append("Look up your Rainwave user id at "
                 "http://rainwave.cc/auth/ and use \x02!id add <id>\x02 to tell "
@@ -643,6 +648,30 @@ class wormgas(SingleServerIRCBot):
             rs.append("I cannot help you with '%s'" % topic)
 
         output.privrs.extend(rs)
+        return True
+
+    @command_handler(r"!history(\s(?P<rchan>\w+))?")
+    @command_handler(r"!hs(?P<rchan>\w+)?")
+    def handle_history(self, nick, channel, output, rchan=None):
+        """Show the last several songs that played on the radio"""
+
+        self.log.info("%s used !history" % nick)
+
+        if self.rwdb is None:
+            output.privrs.append("The Rainwave database is unavailable")
+            return True
+
+        if rchan in self.channel_ids:
+            cid = self.channel_ids.get(rchan)
+        else:
+            return(self.handle_help(nick, channel, output, topic="history"))
+        rchn = self.channel_names[cid]
+
+        for song in self.rwdb.get_history(cid):
+            r = "%s: %s -- %s [%s] / %s [%s]" % ((rchn,) + song)
+            output.privrs.append(r)
+
+        output.privrs.reverse()
         return True
 
     @command_handler(r"^!id(\s(?P<mode>\w+))?(\s(?P<id>\d+))?")

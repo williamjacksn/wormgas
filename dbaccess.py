@@ -465,6 +465,19 @@ class RainwaveDatabase(object):
             r = "%s / %s by %s" % (row[0], row[1], row[2])
             return r.decode("utf-8"), url
 
+    def get_history(self, cid):
+        """Yield information about the last several songs that played"""
+
+        sql = ("select timestamp with time zone 'epoch' + sched_starttime * "
+            "interval '1 second' as start, album_name, album_id, song_title, "
+            "song_id from rw_schedule join rw_elections using (sched_id) join "
+            "rw_songs using (song_id) join rw_albums using (album_id) where "
+            "elec_position = 0 and sched_used > 0 and rw_songs.sid = %s order "
+            "by start desc limit 12")
+        self.rcur.execute(sql, (cid,))
+        for r in self.rcur.fetchall():
+            yield r
+
     def get_id_for_nick(self, nick):
         """Return user_id if this nick is a registered Rainwave account."""
         user_id = None
