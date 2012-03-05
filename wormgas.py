@@ -83,44 +83,53 @@ def command_handler(command):
     return decorator
 
 class wormgas(SingleServerIRCBot):
+
     answers_8ball = [
-            "As I see it, yes.",
-            "Ask again later.",
-            "Better not tell you now.",
-            "Cannot predict now.",
-            "Concentrate and ask again.",
-            "Don't count on it.",
-            "It is certain.",
-            "It is decidedly so.",
-            "Most likely.",
-            "My reply is no.",
-            "My sources say no.",
-            "Outlook good.",
-            "Outlook not so good.",
-            "Reply hazy, try again.",
-            "Signs point to yes.",
-            "Very doubtful.",
-            "Without a doubt.",
-            "Yes.",
-            "Yes - definitely.",
-            "You may rely on it."]
+        "As I see it, yes.",
+        "Ask again later.",
+        "Better not tell you now.",
+        "Cannot predict now.",
+        "Concentrate and ask again.",
+        "Don't count on it.",
+        "It is certain.",
+        "It is decidedly so.",
+        "Most likely.",
+        "My reply is no.",
+        "My sources say no.",
+        "Outlook good.",
+        "Outlook not so good.",
+        "Reply hazy, try again.",
+        "Signs point to yes.",
+        "Very doubtful.",
+        "Without a doubt.",
+        "Yes.",
+        "Yes - definitely.",
+        "You may rely on it."
+    ]
 
-
-    channel_names = ("Rainwave Network", "Game channel",  "OCR channel",
-        "Covers channel", "Chiptune channel", "All channel")
+    channel_names = (
+        "Rainwave Network",
+        "Game channel",
+        "OCR channel",
+        "Covers channel",
+        "Chiptune channel",
+        "All channel"
+    )
 
     channel_ids = {
-        "rw":    1,
-        "game":  1,
-        "oc":    2,
-        "ocr":   2,
-        "vw":    3,
-        "mw":    3,
-        "cover": 3,
-        "bw":    4,
-        "chip":  4,
-        "ow":    5,
-        "all":   5}
+        "rw":     1,
+        "game":   1,
+        "oc":     2,
+        "ocr":    2,
+        "vw":     3,
+        "mw":     3,
+        "cover":  3,
+        "covers": 3,
+        "bw":     4,
+        "chip":   4,
+        "ow":     5,
+        "all":    5
+    }
 
     log = logging.getLogger("wormgas")
 
@@ -368,12 +377,12 @@ class wormgas(SingleServerIRCBot):
             index = 0
         if index not in [0, 1]:
             # Not a valid index, return the help text.
-            return(self.handle_help(nick, channel, output, topic="election"))
+            return self.handle_help(nick, channel, output, topic="election")
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="election"))
+            return self.handle_help(nick, channel, output, topic="election")
 
         sched_config = "el:%s:%s" % (cid, index)
         sched_id, text = self._fetch_election(index, cid)
@@ -658,13 +667,13 @@ class wormgas(SingleServerIRCBot):
         self.log.info("%s used !history" % nick)
 
         if self.rwdb is None:
-            output.privrs.append("The Rainwave database is unavailable")
+            output.privrs.append("The Rainwave database is unavailable.")
             return True
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="history"))
+            return self.handle_help(nick, channel, output, topic="history")
         rchn = self.channel_names[cid]
 
         for song in self.rwdb.get_history(cid):
@@ -703,7 +712,7 @@ class wormgas(SingleServerIRCBot):
                 r = "I do not have a user id for nick '%s'" % nick
                 output.privrs.append(r)
         else:
-            return(self.handle_help(nick, channel, output, topic="id"))
+            return self.handle_help(nick, channel, output, topic="id")
 
         return True
 
@@ -736,7 +745,7 @@ class wormgas(SingleServerIRCBot):
                 r = "I do not have an API key for nick '%s'" % nick
                 output.privrs.append(r)
         else:
-            return(self.handle_help(nick, channel, output, topic="key"))
+            return self.handle_help(nick, channel, output, topic="key")
 
         return True
 
@@ -750,12 +759,13 @@ class wormgas(SingleServerIRCBot):
         self.log.info("%s used !lookup" % nick)
 
         if not self.rwdb:
-            return ["Cannot access Rainwave database. Sorry."]
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="lookup"))
+            return self.handle_help(nick, channel, output, topic="lookup")
         rchn = self.channel_names[cid]
 
         if mode == "song":
@@ -765,7 +775,7 @@ class wormgas(SingleServerIRCBot):
             rows, unreported_results = self.rwdb.search_albums(cid, text)
             out = "%(rchan)s: %(album_name)s [%(album_id)s]"
         else:
-            return(self.handle_help(nick, channel, output, topic="lookup"))
+            return self.handle_help(nick, channel, output, topic="lookup")
 
         # If I got results, output them
 
@@ -779,8 +789,8 @@ class wormgas(SingleServerIRCBot):
             r = "%s: %s more result" % (rchn, unreported_results)
             if unreported_results > 1:
                 r += "s"
-            r += "If you do not see what you are looking for, be more specific "
-            r += "with your search."
+            r += (". If you do not see what you are looking for, be more "
+                "specific with your search.")
             output.privrs.append(r)
 
         # If I did not find anything with this search, mention that
@@ -812,7 +822,7 @@ class wormgas(SingleServerIRCBot):
         self.log.info("%s used !lstats" % nick)
 
         if not self.rwdb:
-            output.default.append("Cannot access Rainwave database. Sorry.")
+            output.default.append("The Rainwave database is unavailable.")
             return True
 
         rs = []
@@ -925,7 +935,7 @@ class wormgas(SingleServerIRCBot):
             url += ",".join(t2)
             rs.append(self.shorten(url))
         else:
-            return(self.handle_help(nick, channel, output, topic="lstats"))
+            return self.handle_help(nick, channel, output, topic="lstats")
 
         if channel == PRIVMSG:
             output.default.extend(rs)
@@ -962,7 +972,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
         else:
-            return(self.handle_help(nick, channel, output, topic="newmusic"))
+            return self.handle_help(nick, channel, output, topic="newmusic")
 
         rchn = self.channel_names[cid]
         self.log.info("Looking for new music on the %s" % rchn)
@@ -1001,7 +1011,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
         else:
-            return(self.handle_help(nick, channel, output, topic="nowplaying"))
+            return self.handle_help(nick, channel, output, topic="nowplaying")
         rchn = self.channel_names[cid]
 
         url = "http://rainwave.cc/async/%s/get" % cid
@@ -1082,7 +1092,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="prevplayed"))
+            return self.handle_help(nick, channel, output, topic="prevplayed")
         rchn = self.channel_names[cid]
 
         try:
@@ -1090,7 +1100,7 @@ class wormgas(SingleServerIRCBot):
         except TypeError:
             index = 0
         if index not in [0, 1, 2]:
-            return(self.handle_help(nick, channel, output, topic="prevplayed"))
+            return self.handle_help(nick, channel, output, topic="prevplayed")
 
         url = "http://rainwave.cc/async/%s/get" % cid
         data = self.api_call(url)
@@ -1160,7 +1170,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids and rating:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="rate"))
+            return self.handle_help(nick, channel, output, topic="rate")
 
         # Make sure this nick matches a username
 
@@ -1220,7 +1230,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids and songid:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="request"))
+            return self.handle_help(nick, channel, output, topic="request")
 
         user_id = self.config.get_id_for_nick(nick)
 
@@ -1544,7 +1554,7 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="unrated"))
+            return self.handle_help(nick, channel, output, topic="unrated")
 
         try:
             num = int(num)
@@ -1673,15 +1683,15 @@ class wormgas(SingleServerIRCBot):
         if rchan in self.channel_ids and index:
             cid = self.channel_ids.get(rchan)
         else:
-            return(self.handle_help(nick, channel, output, topic="vote"))
+            return self.handle_help(nick, channel, output, topic="vote")
 
         try:
             index = int(index)
         except TypeError, ValueError:
-            return(self.handle_help(nick, channel, output, topic="vote"))
+            return self.handle_help(nick, channel, output, topic="vote")
 
         if index not in [1, 2, 3]:
-            return(self.handle_help(nick, channel, output, topic="vote"))
+            return self.handle_help(nick, channel, output, topic="vote")
 
         user_id = self.config.get_id_for_nick(nick)
 
@@ -1905,7 +1915,7 @@ class wormgas(SingleServerIRCBot):
         gzipstream = StringIO.StringIO(gzipdata)
         result = gzip.GzipFile(fileobj=gzipstream).read()
         data = json.loads(result)
-        return(data)
+        return data
 
     def shorten(self, lurl):
         """Shorten a URL
@@ -1928,7 +1938,7 @@ class wormgas(SingleServerIRCBot):
         content = h.getresponse().read()
 
         result = json.loads(content)
-        return(result["id"])
+        return result["id"]
 
     def _find_urls(self, text):
         """Look for URLs in arbitrary text. Return a list of the URLs found."""
@@ -1942,7 +1952,7 @@ class wormgas(SingleServerIRCBot):
                 url = o.geturl()
                 self.log.info("Found a URL: %s" % url)
                 urls.append(url)
-        return(urls)
+        return urls
 
     def _get_title(self, url):
         """Attempt to get the page title from a URL"""
@@ -1951,11 +1961,11 @@ class wormgas(SingleServerIRCBot):
             title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
         except:
             self.log.exception("Cannot open the URL: %s" % url)
-            return(None)
+            return None
 
         if title is not None:
             title = " ".join(title.split())
-        return(title)
+        return title
 
     def _to_irc(self, c, msgtype, target, msg):
         """Send an IRC message"""

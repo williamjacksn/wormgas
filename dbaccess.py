@@ -451,11 +451,11 @@ class RainwaveDatabase(object):
             self.rcur.execute(sql, (post_id,))
         else:
             sql = ("select forum_name, post_subject, username, post_id from "
-            "phpbb_posts join phpbb_forums using (forum_id) join phpbb_users "
-            "on (phpbb_posts.poster_id = phpbb_users.user_id) join "
-            "phpbb_acl_groups using (forum_id) where phpbb_acl_groups.group_id "
-            "= 1 and phpbb_acl_groups.auth_role_id != 16 order by post_time "
-            "desc limit 1")
+                "phpbb_posts join phpbb_forums using (forum_id) join "
+                "phpbb_users on (phpbb_posts.poster_id = phpbb_users.user_id) "
+                "join phpbb_acl_groups using (forum_id) where "
+                "phpbb_acl_groups.group_id = 1 and auth_role_id != 16 order by "
+                "post_time desc limit 1")
             self.rcur.execute(sql)
 
         rows = self.rcur.fetchall()
