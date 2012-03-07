@@ -127,6 +127,7 @@ class wormgas(SingleServerIRCBot):
         "covers": 3,
         "bw":     4,
         "chip":   4,
+        "ch":     4,
         "ow":     5,
         "all":    5
     }
