@@ -564,6 +564,18 @@ class RainwaveDatabase(object):
             rs.append((r.decode("utf-8"), row[3]))
         return rs
 
+    def get_pending_refresh_jobs(self):
+        """Return a list of channel ids that have a pending playlist refresh
+        job"""
+
+        cids = []
+        sql = "select sid from rw_commands where command_return = 0"
+        self.rcur.execute(sql)
+        for row in self.rcur.fetchall():
+            cids.extend(row)
+
+        return cids
+
     def get_radio_stats(self, cid):
         """Return songs, albums, hours of music for one or all channel"""
         sql = ("select count(song_id), count(distinct album_id), "
@@ -578,6 +590,27 @@ class RainwaveDatabase(object):
         rows = self.rcur.fetchall()
         for r in rows:
             return r[0], r[1], r[2]
+
+    def get_running_refresh_jobs(self):
+        """Return a list of channel codes that have a running playlist refresh
+        job"""
+
+        ccodes = []
+
+        import subprocess
+        ps_cmd = ["ps","-A","-o","ni,args"]
+        p = subprocess.Popen(ps_cmd, stdout=subprocess.PIPE)
+        ps_out_str = p.communicate()[0]
+        ps_out_list = ps_out_str.splitlines()
+        for ps_out in ps_out_list:
+            ps_out = ps_out.strip()
+            ps_out_tokens = ps_out.split()
+            if (ps_out_tokens[0] == "10") and ("orpheus-" in ps_out_tokens[1]):
+                index = ps_out_tokens[1].find("orpheus-")
+                channel_code = ps_out_tokens[1][index + 8:]
+                ccodes.append(channel_code)
+
+        return ccodes
 
     def get_song_cdg_ids(self, song_id):
         """Get ids of all cooldown groups a particular song is in"""
@@ -735,6 +768,18 @@ class RainwaveDatabase(object):
             rs.append((cid, r))
 
         return rs
+
+    def request_playlist_refresh(self, cid):
+        """Request a playlist refresh for a channel"""
+
+        # If a playlist refresh is already pending, do not request a new one
+        pending = self.get_pending_refresh_jobs()
+        if cid in pending:
+            pass
+        else:
+            sql = "insert into rw_commands (sid, command_name) values (%s, %s)"
+            self.rcur.execute(sql, (int(cid), "regenplaylist"))
+        return
 
     def search_songs(self, cid, text, limit=10):
         """Search for songs by title.

@@ -129,6 +129,7 @@ class wormgas(SingleServerIRCBot):
         "chip":   4,
         "ch":     4,
         "ow":     5,
+        "omni":   5,
         "all":    5
     }
 
@@ -508,7 +509,8 @@ class wormgas(SingleServerIRCBot):
                 "nowplaying, prevplayed, rate, request, roll, rps, stats, "
                 "unrated, ustats, vote")
             if priv > 0:
-                rs.append("Level 1 administration topics: cooldown, newmusic")
+                rs.append("Level 1 administration topics: cooldown, newmusic, "
+                    "refresh")
             if priv > 1:
                 rs.append("Level 2 administration topics: config, forum, "
                     "restart, stop")
@@ -603,6 +605,15 @@ class wormgas(SingleServerIRCBot):
                 "currently playing song")
             rs.append("Short version is \x02!rt<channel> <rating>\x02")
             rs.append(channelcodes)
+        elif topic == "refresh":
+            if priv > 0:
+                rs.append("Use \x02!refresh\x02 to show pending or running "
+                    "playlist refresh jobs")
+                rs.append("Use \x02!refresh <channel>\x02 to request a "
+                    "playlist refresh for a particular channel")
+                rs.append(channelcodes)
+            else:
+                rs.append("You are not permitted to use this command")
         elif topic == "request":
             rs.append("Use \x02!request <channel> <song_id>\x02 to add a "
                 "song to your request queue, find the <song_id> using "
@@ -1214,6 +1225,42 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(data["rate_result"]["text"])
         else:
             output.privrs.append(data["error"]["text"])
+
+        return True
+
+    @command_handler(r"^!refresh(\s(?P<rchan>\w+))?")
+    def handle_refresh(self, nick, channel, output, rchan=None):
+        """See the status of or initiate a playlist refresh"""
+
+        self.log.info("%s used !refresh" % nick)
+
+        # This command requires privlevel 1
+
+        priv = self.config.get("privlevel:%s" % nick)
+        if priv < 1:
+            self.log.warning("%s does not have privs to use !refresh" % nick)
+            return True
+
+        # This command requires the Rainwave database
+
+        if self.rwdb is None:
+            output.privrs.append("The Rainwave database is unavailable.")
+            return True
+
+        if rchan in self.channel_ids:
+            cid = self.channel_ids.get(rchan)
+            self.rwdb.request_playlist_refresh(cid)
+
+        for pending in self.rwdb.get_pending_refresh_jobs():
+            output.privrs.append("Pending playlist refresh on the %s." %
+                self.channel_names[pending])
+
+        for running in self.rwdb.get_running_refresh_jobs():
+            output.privrs.append("Running playlist refresh on the %s." %
+                self.channel_names[self.channel_ids.get(running)])
+
+        if len(output.privrs) == 0:
+            output.privrs.append("No pending or running playlist refresh jobs.")
 
         return True
 
