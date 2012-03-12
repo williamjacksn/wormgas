@@ -27,10 +27,6 @@ class TestCommands(unittest.TestCase):
         self.wormgas.stop()
         os.remove(self.config_db)
 
-    def testSetUp(self):
-        """Ensure that merely constructing wormgas succeeds."""
-        pass
-
     def test8BallPublic(self):
         output = wormgas.Output("public")
         self.wormgas.handle_8ball(self.nick, self.channel, output)
@@ -44,17 +40,57 @@ class TestCommands(unittest.TestCase):
         self.assertTrue(output.privrs[0] in wormgas.wormgas.answers_8ball)
 
     def test8BallTimeout(self):
+        # 8-Ball timeout is only set if the response doesn't say 'try again'.
+        # Loop until we're sure.
         timeout_set = False
         while not timeout_set:
             output = wormgas.Output("public")
             self.wormgas.handle_8ball(self.nick, self.channel, output)
             timeout_set = "again" not in output.rs[0]
+
+        # Cooldown is set, now test it.
         output = wormgas.Output("public")
         self.wormgas.handle_8ball(self.nick, self.channel, output)
         self.assertEquals(output.rs, [])
         self.assertEquals(len(output.privrs), 2)
         self.assertTrue(output.privrs[0] in wormgas.wormgas.answers_8ball)
         self.assertTrue("cooling down" in output.privrs[1])
+
+    def testConfigNotAllowed(self):
+        output = wormgas.Output("public")
+        self.wormgas.handle_config(self.nick, self.channel, output,
+            id="test:key", value="test:value")
+        self.assertEquals(output.rs, [])
+        self.assertEquals(output.privrs, [])
+        self.assertEquals(self.wormgas.config.get("test:key"), -1)
+
+    def testConfigNew(self):
+        output = wormgas.Output("public")
+        self.wormgas.config.add_admin(self.nick)
+        self.wormgas.handle_config(self.nick, self.channel, output,
+            id="test:key", value="test:value")
+        self.assertEquals(output.rs, [])
+        self.assertEquals(output.privrs, ["test:key = test:value"])
+        self.assertEquals(self.wormgas.config.get("test:key"), "test:value")
+
+    def testConfigExisting(self):
+        output = wormgas.Output("public")
+        self.wormgas.config.add_admin(self.nick)
+        self.wormgas.config.set("test:key", "test:oldvalue")
+        self.wormgas.handle_config(self.nick, self.channel, output,
+            id="test:key", value="test:value")
+        self.assertEquals(output.rs, [])
+        self.assertEquals(output.privrs, ["test:key = test:value"])
+        self.assertEquals(self.wormgas.config.get("test:key"), "test:value")
+
+    def testConfigDelete(self):
+        output = wormgas.Output("public")
+        self.wormgas.config.add_admin(self.nick)
+        self.wormgas.handle_config(self.nick, self.channel, output,
+            id="test:key", value="-1")
+        self.assertEquals(output.rs, [])
+        self.assertEquals(output.privrs, ["test:key = -1"])
+        self.assertEquals(self.wormgas.config.get("test:key"), -1)
 
 if __name__ == "__main__":
     unittest.main()
