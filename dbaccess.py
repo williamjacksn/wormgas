@@ -22,6 +22,10 @@ class Config(object):
         # A regex that prevents matching words from being learned by the brain.
         # Special case: empty string will match no input and learn all words.
         "msg:ignore": "",
+
+        # Wait values are in seconds and represent cooldowns for specific
+        # commands.
+        "wait:8ball": 90,
     }
 
     def __init__(self, path):
