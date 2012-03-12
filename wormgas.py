@@ -134,18 +134,20 @@ class wormgas(SingleServerIRCBot):
 
     def __init__(self, config_db="config.sqlite", log_file="wormgas.log"):
         self.path, self.file = os.path.split(_abspath)
+        self.brain = Brain(self.path + "/brain.sqlite")
         self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
 
         # Set up logging.
         self.log = logging.getLogger("wormgas")
+        self.log_handler = None
         if log_file:
             self.log.setLevel(logging.DEBUG)
             logpath = "%s/%s" % (self.path, log_file)
-            handler = logging.handlers.RotatingFileHandler(
+            self.log_handler = logging.handlers.RotatingFileHandler(
                 logpath, maxBytes=20000000, backupCount=1)
-            handler.setFormatter(logging.Formatter(
+            self.log_handler.setFormatter(logging.Formatter(
                 "%(asctime)s - %(levelname)s - %(message)s"))
-            logging.getLogger().addHandler(handler)
+            logging.getLogger().addHandler(self.log_handler)
 
         # Set up Rainwave DB access if available.
         try:
@@ -154,13 +156,21 @@ class wormgas(SingleServerIRCBot):
         except dbaccess.RainwaveDatabaseUnavailableError:
             self.rwdb = None
 
-        self.brain = Brain(self.path + "/brain.sqlite")
-        self.reignore = re.compile(self.config.get("msg:ignore"))
+        # Set up ignore if the ignore list is non-empty.
+        ignore = self.config.get("msg:ignore")
+        if ignore:
+            self.reignore = re.compile(self.config.get("msg:ignore"))
 
         server = self.config.get("irc:server")
         nick = self.config.get("irc:nick")
         name = self.config.get("irc:name")
         SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
+
+    def stop(self):
+        """Save all data and shut down the bot."""
+        del self.config
+        if self.log_handler:
+            logging.getLogger().removeHandler(self.log_handler)
 
     _events_not_logged = [
         "all_raw_messages",
@@ -2085,9 +2095,10 @@ class wormgas(SingleServerIRCBot):
             msg = self.config.get("msg:last")
 
         # Ignore messages with certain words
-        result = self.reignore.search(msg)
-        if result is not None:
-            return []
+        if self.reignore:
+            result = self.reignore.search(msg)
+            if result is not None:
+                return []
 
         # Clean up the message before sending to the brain
         tobrain = msg

@@ -18,6 +18,12 @@ except:
 class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
 
+    default_bot_config = {
+        # A regex that prevents matching words from being learned by the brain.
+        # Special case: empty string will match no input and learn all words.
+        "msg:ignore": "",
+    }
+
     def __init__(self, path):
         self.cdbh = sqlite3.connect(path, isolation_level=None,
             check_same_thread=False)
@@ -32,12 +38,18 @@ class Config(object):
 
         tsql = "select name from sqlite_master where name = ?"
 
+        # Add any missing tables.
         for t_name, t_def in tables.iteritems():
             self.ccur.execute(tsql, (t_name,))
             existing = self.ccur.fetchall()
             if len(existing) < 1:
                 csql = "create table %s %s" % (t_name, t_def)
                 self.ccur.execute(csql)
+
+        # Add any missing default bot config values.
+        for key, value in self.default_bot_config.iteritems():
+            if self.get(key) == -1:
+                self.set(key, value)
 
     def __del__(self):
         try:
