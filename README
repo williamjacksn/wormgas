@@ -1,4 +1,0 @@
-wormgas -- IRC bot for Rainwave (http://rainwave.cc/)
-
-Dependencies:
- - psycopg2 (if using RW database functions)
