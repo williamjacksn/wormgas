@@ -19,8 +19,7 @@ class Config(object):
     """Connects to, retrieves from, and sets values in the local sqlite db."""
 
     def __init__(self, path):
-        connstr = "%s/config.sqlite" % path
-        self.cdbh = sqlite3.connect(connstr, isolation_level=None,
+        self.cdbh = sqlite3.connect(path, isolation_level=None,
             check_same_thread=False)
         self.ccur = self.cdbh.cursor()
 
@@ -76,6 +75,15 @@ class Config(object):
             config_value = r[0]
         log.debug("Current value of %s is %s" % (id, config_value))
         return(config_value)
+
+    def get_bot_config(self):
+        """Return a dict of all botconfig values."""
+        results = {}
+        sql = "select config_id, config_value from botconfig"
+        self.ccur.execute(sql)
+        for r in self.ccur:
+            results[r[0]] = r[1]
+        return results
 
     def get_id_for_nick(self, nick):
         """Return stored Rainwave ID for nick, or None if no ID is stored."""
