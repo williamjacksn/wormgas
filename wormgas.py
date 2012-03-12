@@ -26,6 +26,7 @@ from ircbot import SingleServerIRCBot
 from cobe.brain import Brain
 
 _abspath = os.path.abspath(__file__)
+_commands = set()
 
 PRIVMSG = "__privmsg__"
 
@@ -55,8 +56,6 @@ class Output(object):
     def default(self):
         """The default output list."""
         return self._default
-
-_commands = set()
 
 def command_handler(command):
     """Decorate a method to register as a command handler for provided regex."""
@@ -133,13 +132,22 @@ class wormgas(SingleServerIRCBot):
         "all":    5
     }
 
-    log = logging.getLogger("wormgas")
-
-    def __init__(self, config_db="config.sqlite"):
-        (self.path, self.file) = os.path.split(_abspath)
-
+    def __init__(self, config_db="config.sqlite", log_file="wormgas.log"):
+        self.path, self.file = os.path.split(_abspath)
         self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
 
+        # Set up logging.
+        self.log = logging.getLogger("wormgas")
+        if log_file:
+            self.log.setLevel(logging.DEBUG)
+            logpath = "%s/%s" % (self.path, log_file)
+            handler = logging.handlers.RotatingFileHandler(
+                logpath, maxBytes=20000000, backupCount=1)
+            handler.setFormatter(logging.Formatter(
+                "%(asctime)s - %(levelname)s - %(message)s"))
+            logging.getLogger().addHandler(handler)
+
+        # Set up Rainwave DB access if available.
         try:
             self.rwdb = dbaccess.RainwaveDatabase(self.config)
             self.rwdb.connect()
@@ -2091,19 +2099,6 @@ class wormgas(SingleServerIRCBot):
         return [self.brain.reply(tobrain)]
 
 def main():
-    log = logging.getLogger("wormgas")
-    log.setLevel(logging.DEBUG)
-    _logpath = "%s/wormgas.log" % os.path.split(_abspath)[0]
-    handler = logging.handlers.RotatingFileHandler(_logpath, maxBytes=20000000,
-        backupCount=1)
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - "
-        "%(message)s"))
-    logging.getLogger().addHandler(handler)
-
-    bot = wormgas()
-    bot.start()
-
-if __name__ == "__main__":
     try:
         pid = os.fork()
         if pid > 0:
@@ -2117,4 +2112,8 @@ if __name__ == "__main__":
         sleeptime = 0
     time.sleep(sleeptime)
 
+    bot = wormgas()
+    bot.start()
+
+if __name__ == "__main__":
     main()
