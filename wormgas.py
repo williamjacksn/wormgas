@@ -135,10 +135,10 @@ class wormgas(SingleServerIRCBot):
 
     log = logging.getLogger("wormgas")
 
-    def __init__(self):
+    def __init__(self, config_db="config.sqlite"):
         (self.path, self.file) = os.path.split(_abspath)
 
-        self.config = dbaccess.Config(self.path)
+        self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
 
         try:
             self.rwdb = dbaccess.RainwaveDatabase(self.config)
