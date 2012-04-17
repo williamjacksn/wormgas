@@ -1782,6 +1782,31 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    @command_handler(r"!whois(\s(?P<target>.+))?")
+    def handle_whois(self, nick, channel, output, target=None):
+        """Do a whois"""
+
+        self.log.info("!whois target: %s" % target)
+
+        targets = []
+        if target is not None:
+            targets.append(target)
+
+        self.connection.whois(targets)
+
+        output.privrs.append("Check the log.")
+        return True
+
+    def on_307(self, c, e):
+        """IRC event 307 is a response to a whois request where the target is a
+        registered nick"""
+
+        loginfo = {}
+        loginfo["server"] = e.source()
+        loginfo["nick"] = e.arguments()[0]
+        self.log.info("%(server)s confirms that %(nick)s is a registered nick" %
+            loginfo)
+
     def on_join(self, c, e):
         """This method is called when an IRC join event happens
 
@@ -2005,10 +2030,21 @@ class wormgas(SingleServerIRCBot):
     def _get_title(self, url):
         """Attempt to get the page title from a URL"""
 
+        ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
+        rq = urllib2.Request(url)
+        rq.add_header('user-agent', ua)
+        op = urllib2.build_opener()
+
         try:
-            title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
+            data = op.open(rq)
         except:
             self.log.exception("Cannot open the URL: %s" % url)
+            return None
+
+        try:
+            title = lxml.html.parse(data).findtext("head/title")
+        except:
+            self.log.exception("Cannot parse the page at: %s" % url)
             return None
 
         if title is not None:
