@@ -1255,7 +1255,9 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
             self.rwdb.request_playlist_refresh(cid)
