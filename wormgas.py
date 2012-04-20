@@ -381,7 +381,9 @@ class wormgas(SingleServerIRCBot):
             # Not a valid index, return the help text.
             return self.handle_help(nick, channel, output, topic="election")
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -683,7 +685,9 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -842,7 +846,9 @@ class wormgas(SingleServerIRCBot):
 
         rs = []
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         cid = self.channel_ids.get(rchan, 0)
         rchn = self.channel_names[cid]
 
@@ -985,7 +991,9 @@ class wormgas(SingleServerIRCBot):
 
         self.config.set("lasttime:musiccheck", time.time())
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
         else:
@@ -1025,7 +1033,10 @@ class wormgas(SingleServerIRCBot):
         self.log.info("%s used !nowplaying" % nick)
 
         rs = []
-        rchan = rchan.lower()
+
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
         else:
@@ -1107,7 +1118,9 @@ class wormgas(SingleServerIRCBot):
 
         rs = []
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -1186,7 +1199,9 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !rate" % nick)
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids and rating:
             cid = self.channel_ids.get(rchan)
         else:
@@ -1286,7 +1301,9 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !request" % nick)
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids and songid:
             cid = self.channel_ids.get(rchan)
         else:
@@ -1559,7 +1576,9 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !stats" % nick)
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         cid = self.channel_ids.get(rchan, 0)
         if self.rwdb:
             songs, albums, hours = self.rwdb.get_radio_stats(cid)
@@ -1612,7 +1631,9 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !unrated" % nick)
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -1742,7 +1763,9 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !vote" % nick)
 
-        rchan = rchan.lower()
+        if rchan is not None:
+            rchan = rchan.lower()
+
         if rchan in self.channel_ids and index:
             cid = self.channel_ids.get(rchan)
         else:
