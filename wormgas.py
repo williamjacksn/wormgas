@@ -1881,6 +1881,9 @@ class wormgas(SingleServerIRCBot):
         if ja != -1:
             self._to_irc(c, "action", irc_chan, ja)
 
+    def on_ping(self, c, e):
+        """This method is called when an IRC ping event happens"""
+
         # Start the periodic tasks.
         self._periodic(c)
 
