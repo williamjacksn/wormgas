@@ -1,9 +1,8 @@
 # Copyright (C) 2010 Peter Teichman
 
 import re
-import Stemmer
 import types
-
+from stemming import porter2
 
 class MegaHALTokenizer:
     """A traditional MegaHAL style tokenizer. This considers any of these
@@ -103,11 +102,12 @@ tokens."""
     def join(self, words):
         return u"".join(words)
 
-
+# Modified from original source by cpetosky on 3/11:
+#    Replaced Snowball dependency with stemming library.
+#    stemming is pure python and avoids Snowball's binary dependency.
 class CobeStemmer:
     def __init__(self, name):
-        # use the PyStemmer Snowball stemmer bindings
-        self.stemmer = Stemmer.Stemmer(name)
+        pass
 
     def stem(self, word):
         # Don't preserve case when stemming, i.e. create lowercase stems.
@@ -115,6 +115,6 @@ class CobeStemmer:
         # input words, but still generate the reply in context with the
         # generated case.
 
-        stem = self.stemmer.stemWord(word.lower())
+        stem = porter2.stem(word.lower())
 
         return stem
