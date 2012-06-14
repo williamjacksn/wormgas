@@ -1402,6 +1402,11 @@ class wormgas(SingleServerIRCBot):
     def handle_rps(self, nick, channel, output, mode=None):
         """Rock, paper, scissors"""
 
+        if mode is None:
+            return True
+        else:
+            mode = mode.lower()
+
         self.log.info("%s used !%s" % (nick, mode))
 
         rps = ["rock", "paper", "scissors"]
