@@ -391,6 +391,11 @@ class wormgas(SingleServerIRCBot):
 
         sched_config = "el:%s:%s" % (cid, index)
         sched_id, text = self._fetch_election(index, cid)
+        
+        if sched_id == 0:
+            # Something strange happened while fetching the election
+            output.default.append(text)
+            return True
 
         # Prepend the message description to the output string.
         time = ["Current", "Future"][index]
@@ -418,9 +423,14 @@ class wormgas(SingleServerIRCBot):
         using the sched_id as the cache key.
         """
 
-        data = self.api_call("http://rainwave.cc/async/%s/get" % cid)
-        elec = data["sched_next"][index]
         text = ""
+
+        data = self.api_call("http://rainwave.cc/async/%s/get" % cid)
+        try:
+            elec = data["sched_next"][index]
+        except IndexError:
+            # There is no future election?
+            return 0, "There is no election at the specified index."
 
         for i, song in enumerate(elec["song_data"], start=1):
             album = song["album_name"]
