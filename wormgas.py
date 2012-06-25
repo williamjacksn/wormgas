@@ -147,6 +147,14 @@ class wormgas(SingleServerIRCBot):
             self.rwdb = None
 
         self.brain = Brain(self.path + "/brain.sqlite")
+
+        args = sys.argv[1:]
+        for arg in args:
+            if arg.startswith("--set-"):
+                key,value = arg[6:].split("=", 1)
+                print "Setting '%s' to '%s'." % (key, value)
+                self.config.set(key, value)
+
         self.reignore = re.compile(self.config.get("msg:ignore"))
 
         server = self.config.get("irc:server")
@@ -1435,7 +1443,10 @@ class wormgas(SingleServerIRCBot):
             r+= "You lose!"
 
         w, d, l = self.config.get_rps_record(nick)
-        r += " Your current record is %s-%s-%s (w-d-l)." % (w, d, l)
+        pw = int(float(w)/float(w+d+l)*100)
+        pd = int(float(d)/float(w+d+l)*100)
+        pl = int(float(l)/float(w+d+l)*100)
+        r += " Your current record is %s-%s-%s or %s%%-%s%%-%s%% (w-d-l)." % (w, d, l, pw, pd, pl)
 
         if channel == PRIVMSG:
             output.default.append(r)
