@@ -222,8 +222,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !config" % nick)
 
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
+        if self._is_admin(nick):
             output.privrs.extend(self.config.handle(id, value))
         else:
             self.log.warning("%s does not have privs to use !config" % nick)
@@ -239,10 +238,9 @@ class wormgas(SingleServerIRCBot):
         self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
             cdg_name))
 
-        # This command requires privlevel 1
+        # This command requires administrative privileges
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !cooldown add" %
                 nick)
             return True
@@ -303,10 +301,9 @@ class wormgas(SingleServerIRCBot):
         self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
             cdg_name))
 
-        # This command requires privlevel 1
+        # This command requires administrative privileges
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !cooldown add" %
                 nick)
             return True
@@ -433,7 +430,7 @@ class wormgas(SingleServerIRCBot):
 
         text = ""
 
-        data = self.api_call("http://rainwave.cc/async/%s/get" % cid)
+        data = self._api_call("http://rainwave.cc/async/%s/get" % cid)
         try:
             elec = data["sched_next"][index]
         except IndexError:
@@ -485,8 +482,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("Looking for new forum posts, force is %s" % force)
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 2:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !forum" % nick)
             return True
 
@@ -506,7 +502,7 @@ class wormgas(SingleServerIRCBot):
 
         if newmaxid > int(self.config.get("maxid:forum")):
             r, url = self.rwdb.get_forum_post_info()
-            surl = self.shorten(url)
+            surl = self._shorten(url)
             output.rs.append("New on the forums! %s <%s>" % (r, surl))
             self.config.set("maxid:forum", newmaxid)
 
@@ -518,7 +514,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !help" % nick)
 
-        priv = self.config.get("privlevel:%s" % nick)
+        is_admin = self._is_admin(nick)
         rs = []
 
         channelcodes = ("Channel codes are \x02" +
@@ -529,16 +525,13 @@ class wormgas(SingleServerIRCBot):
                 "8ball, election, flip, history, id, key, lookup, lstats, "
                 "nowplaying, prevplayed, rate, request, roll, rps, stats, "
                 "unrated, ustats, vote")
-            if priv > 0:
-                rs.append("Level 1 administration topics: cooldown, newmusic, "
-                    "refresh")
-            if priv > 1:
-                rs.append("Level 2 administration topics: config, forum, "
-                    "restart, stop")
+            if is_admin:
+                rs.append("Administration topics: config, cooldown, forum, "
+                    "newmusic, refresh, restart, stop")
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
         elif topic == "config":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!config [<id>] [<value>]\x02 to display or "
                     "change configuration settings")
                 rs.append("Leave off <value> to see the current setting, or "
@@ -548,7 +541,7 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append("You are not permitted to use this command")
         elif topic == "cooldown":
-            if priv > 0:
+            if is_admin:
                 rs.append("Use \x02!cooldown add song|album <song_id|album_id> "
                     "<cdg_name>\x02 to add a song or album to a cooldown group")
                 rs.append("Use \x02!cooldown drop song|album "
@@ -567,7 +560,7 @@ class wormgas(SingleServerIRCBot):
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "forum":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!forum\x02 to announce the most recent "
                     "forum post in the channel")
             else:
@@ -603,7 +596,7 @@ class wormgas(SingleServerIRCBot):
                 "leave off <num> to use the default of 30")
             rs.append(channelcodes)
         elif topic == "newmusic":
-            if priv > 0:
+            if is_admin:
                 rs.append("Use \x02!newmusic <channel>\x02 to announce the "
                     "three most recently added songs on the channel")
                 rs.append(channelcodes)
@@ -627,7 +620,7 @@ class wormgas(SingleServerIRCBot):
             rs.append("Short version is \x02!rt<channel> <rating>\x02")
             rs.append(channelcodes)
         elif topic == "refresh":
-            if priv > 0:
+            if is_admin:
                 rs.append("Use \x02!refresh\x02 to show pending or running "
                     "playlist refresh jobs")
                 rs.append("Use \x02!refresh <channel>\x02 to request a "
@@ -642,7 +635,7 @@ class wormgas(SingleServerIRCBot):
             rs.append("Short version is \x02!rq<channel> <song_id>\x02")
             rs.append(channelcodes)
         elif topic == "restart":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!restart\x02 to restart the bot")
             else:
                 rs.append("You are not permitted to use this command")
@@ -660,17 +653,17 @@ class wormgas(SingleServerIRCBot):
                 "your game history, there is no confirmation and this cannot "
                 "be undone")
             rs.append("Use \x02!rps who\x02 to see a list of known players")
-            if priv > 1:
-                rs.append("Level 2 administrators can use \x02!rps rename "
-                    "<oldnick> <newnick>\x02 to reassign stats and game "
-                    "history from one nick to another")
+            if is_admin:
+                rs.append("Administrators can use \x02!rps rename <oldnick> "
+                    "<newnick>\x02 to reassign stats and game history from one "
+                    "nick to another")
         elif topic == "stats":
             rs.append("Use \x02!stats [<channel>]\x02 to show information "
                 "about the music collection, leave off <channel> to see the "
                 "aggregate for all channels")
             rs.append(channelcodes)
         elif topic == "stop":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
             else:
                 rs.append("You are not permitted to use this command")
@@ -973,7 +966,7 @@ class wormgas(SingleServerIRCBot):
             for i in range(10):
                 t2.append(t1)
             url += ",".join(t2)
-            rs.append(self.shorten(url))
+            rs.append(self._shorten(url))
         else:
             return self.handle_help(nick, channel, output, topic="lstats")
 
@@ -1002,8 +995,7 @@ class wormgas(SingleServerIRCBot):
         r += ", force is %s" % force
         self.log.info(r)
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !newmusic" % nick)
             return True
 
@@ -1037,7 +1029,7 @@ class wormgas(SingleServerIRCBot):
             for r, url in songs:
                 msg = "New on the %s: %s" % (rchn, r)
                 if "http" in url:
-                    msg += " <%s>" % self.shorten(url)
+                    msg += " <%s>" % self._shorten(url)
                 output.rs.append(msg)
             self.config.set("maxid:%s" % cid, newmaxid)
 
@@ -1062,7 +1054,7 @@ class wormgas(SingleServerIRCBot):
         rchn = self.channel_names[cid]
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         sched_id = data["sched_current"]["sched_id"]
         sched_type = data["sched_current"]["sched_type"]
         if sched_type in (0, 4):
@@ -1079,7 +1071,7 @@ class wormgas(SingleServerIRCBot):
                 artt)
             url = np["song_url"]
             if url and "http" in url:
-                r += " <%s>" % self.shorten(url)
+                r += " <%s>" % self._shorten(url)
 
             if "elec_votes" in np:
                 votes = np["elec_votes"]
@@ -1153,7 +1145,7 @@ class wormgas(SingleServerIRCBot):
             return self.handle_help(nick, channel, output, topic="prevplayed")
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         sched_id = data["sched_history"][index]["sched_id"]
         sched_type = data["sched_history"][index]["sched_type"]
         if sched_type in (0, 4):
@@ -1252,7 +1244,7 @@ class wormgas(SingleServerIRCBot):
         # Get the song_id
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         song_id = data["sched_current"]["song_data"][0]["song_id"]
 
         # Try the rate
@@ -1260,7 +1252,7 @@ class wormgas(SingleServerIRCBot):
         url = "http://rainwave.cc/async/%s/rate" % cid
         args = {"user_id": user_id, "key": key, "song_id": song_id,
             "rating": rating}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["rate_result"]:
             output.privrs.append(data["rate_result"]["text"])
@@ -1275,10 +1267,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !refresh" % nick)
 
-        # This command requires privlevel 1
-
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !refresh" % nick)
             return True
 
@@ -1349,7 +1338,7 @@ class wormgas(SingleServerIRCBot):
 
         url = "http://rainwave.cc/async/%s/request" % cid
         args = {"user_id": user_id, "key": key, "song_id": songid}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["request_result"]:
             output.privrs.append(data["request_result"]["text"])
@@ -1364,8 +1353,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !restart" % nick)
 
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
+        if self._is_admin(nick):
             self.config.set("restart_on_stop", 1)
             self.handle_stop(nick, channel, output)
         else:
@@ -1505,7 +1493,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !rps rename" % nick)
 
-        if self.config.get("privlevel:%s" % nick) > 1 and old and new:
+        if self._is_admin(nick) and old and new:
             self.config.rename_rps_player(old, new)
             r = "I assigned the RPS game history for %s to %s." % (old, new)
             output.privrs.append(r)
@@ -1636,8 +1624,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !stop" % nick)
 
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
+        if self._is_admin(nick):
             self.config.set("who_stopped_me", nick)
             restart = int(self.config.get("restart_on_stop"))
             self.config.set("restart_on_stop", 0)
@@ -1714,9 +1701,9 @@ class wormgas(SingleServerIRCBot):
         key = self.config.get("api:key")
         url = "http://rainwave.cc/async/1/listener_detail"
         args = {"user_id": uid, "key": key, "listener_uid": luid}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
-        if data["listener_detail"]:
+        if "listener_detail" in data:
             ld = data["listener_detail"]
             cun = ld["username"] # canonical username
 
@@ -1828,7 +1815,7 @@ class wormgas(SingleServerIRCBot):
         # Get the elec_entry_id
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         voteindex = index - 1
         song_data = data["sched_next"][0]["song_data"]
         elec_entry_id = song_data[voteindex]["elec_entry_id"]
@@ -1837,7 +1824,7 @@ class wormgas(SingleServerIRCBot):
 
         url = "http://rainwave.cc/async/%s/vote" % cid
         args = {"user_id": user_id, "key": key, "elec_entry_id": elec_entry_id}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["vote_result"]:
             output.privrs.append(data["vote_result"]["text"])
@@ -1845,31 +1832,6 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(data["error"]["text"])
 
         return True
-
-    @command_handler(r"!whois(\s(?P<target>.+))?")
-    def handle_whois(self, nick, channel, output, target=None):
-        """Do a whois"""
-
-        self.log.info("!whois target: %s" % target)
-
-        targets = []
-        if target is not None:
-            targets.append(target)
-
-        self.connection.whois(targets)
-
-        output.privrs.append("Check the log.")
-        return True
-
-    def on_307(self, c, e):
-        """IRC event 307 is a response to a whois request where the target is a
-        registered nick"""
-
-        loginfo = {}
-        loginfo["server"] = e.source()
-        loginfo["nick"] = e.arguments()[0]
-        self.log.info("%(server)s confirms that %(nick)s is a registered nick" %
-            loginfo)
 
     def on_join(self, c, e):
         """This method is called when an IRC join event happens
@@ -2035,7 +1997,7 @@ class wormgas(SingleServerIRCBot):
         self._to_irc(c, "privmsg", "nickserv", "identify %s" % passwd)
         c.join(self.config.get("irc:channel"))
 
-    def api_call(self, url, args=None):
+    def _api_call(self, url, args=None):
         """Make a call to the Rainwave API
 
         Arguments:
@@ -2056,29 +2018,6 @@ class wormgas(SingleServerIRCBot):
         result = gzip.GzipFile(fileobj=gzipstream).read()
         data = json.loads(result)
         return data
-
-    def shorten(self, lurl):
-        """Shorten a URL
-
-        Arguments:
-            lurl: The long url
-
-        Returns: a string, the short url"""
-
-        body = json.dumps({"longUrl": lurl})
-        headers = {}
-        headers["content-type"] = "application/json"
-        ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
-        headers["user-agent"] = ua
-
-        h = httplib.HTTPSConnection("www.googleapis.com")
-        gkey = self.config.get("googleapikey")
-        gurl = "/urlshortener/v1/url?key=%s" % gkey
-        h.request("POST", gurl, body, headers)
-        content = h.getresponse().read()
-
-        result = json.loads(content)
-        return result["id"]
 
     def _find_urls(self, text):
         """Look for URLs in arbitrary text. Return a list of the URLs found."""
@@ -2118,21 +2057,20 @@ class wormgas(SingleServerIRCBot):
             title = " ".join(title.split())
         return title
 
-    def _to_irc(self, c, msgtype, target, msg):
-        """Send an IRC message"""
+    def _is_admin(self, nick):
+        """Check whether a nick has privileges to use administrative commands"""
+        
+        channel = self.config.get("irc:channel").encode('ascii')
+        if channel in self.channels:
+            chan = self.channels[channel]
+            if nick in chan.owners():
+                return True
+            elif nick in chan.opers():
+                return True
+            elif nick in chan.halfops():
+                return True
 
-        self.log.debug("Sending %s to %s -- %s" % (msgtype, target, msg))
-
-        if hasattr(c, msgtype):
-            f = getattr(c, msgtype)
-            if type(msg) is not unicode:
-                msg = unicode(msg, "utf-8")
-            try:
-                f(target, msg.encode("utf-8"))
-            except:
-                self.log.exception("Problem sending to IRC")
-        else:
-            self.log.error("Invalid message type '%s'" % msgtype)
+        return False
 
     def _periodic(self, c):
         # If I have not checked for forum activity for "timeout:forumcheck"
@@ -2167,6 +2105,32 @@ class wormgas(SingleServerIRCBot):
         # self.timer = threading.Timer(60, self._periodic, [c])
         # self.timer.start()
 
+    def _shorten(self, lurl):
+        """Shorten a URL
+
+        Arguments:
+            lurl: The long url
+
+        Returns: a string, the short url"""
+
+        body = json.dumps({"longUrl": lurl})
+        headers = {}
+        headers["content-type"] = "application/json"
+        ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
+        headers["user-agent"] = ua
+
+        h = httplib.HTTPSConnection("www.googleapis.com")
+        gkey = self.config.get("googleapikey")
+        gurl = "/urlshortener/v1/url?key=%s" % gkey
+        h.request("POST", gurl, body, headers)
+        content = h.getresponse().read()
+
+        result = json.loads(content)
+        if "id" in result:
+            return result["id"]
+        
+        return ""
+
     def _talk(self, msg=None):
         """Engage the brain, respond when appropriate
 
@@ -2192,6 +2156,22 @@ class wormgas(SingleServerIRCBot):
         self.brain.learn(tobrain)
 
         return [self.brain.reply(tobrain)]
+
+    def _to_irc(self, c, msgtype, target, msg):
+        """Send an IRC message"""
+
+        self.log.debug("Sending %s to %s -- %s" % (msgtype, target, msg))
+
+        if hasattr(c, msgtype):
+            f = getattr(c, msgtype)
+            if type(msg) is not unicode:
+                msg = unicode(msg, "utf-8")
+            try:
+                f(target, msg.encode("utf-8"))
+            except:
+                self.log.exception("Problem sending to IRC")
+        else:
+            self.log.error("Invalid message type '%s'" % msgtype)
 
 def main():
     log = logging.getLogger("wormgas")
