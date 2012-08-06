@@ -1373,7 +1373,7 @@ class wormgas(SingleServerIRCBot):
             dice = 1
 
         try:
-            sides = min(int(sides), 100)
+            sides = max(min(int(sides), 100), 1)
         except TypeError:
             sides = 20
 
