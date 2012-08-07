@@ -116,6 +116,15 @@ class wormgas(SingleServerIRCBot):
         "All channel"
     )
 
+    channel_codes = (
+        None,
+        "game",
+        "ocr",
+        "cover",
+        "chip",
+        "all"
+    )
+
     channel_ids = {
         "rw":     1,
         "game":   1,
@@ -371,7 +380,8 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"!el(ection\s)?(?P<rchan>\w+)?(\s(?P<index>\d))?")
+    @command_handler(r"!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?")
+    @command_handler(r"!el(?P<rchan>\w+)?(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, rchan=None, index=None):
         """Show the candidates in an election"""
 
@@ -394,7 +404,7 @@ class wormgas(SingleServerIRCBot):
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="election")
 
@@ -713,7 +723,7 @@ class wormgas(SingleServerIRCBot):
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="history")
 
@@ -809,15 +819,20 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
+        if rchan in ("song", "album"):
+            text = mode + " " + text
+            mode = rchan
+            rchan = None
+
         if rchan is not None:
-	        rchan = rchan.lower()
+            rchan = rchan.lower()
         else:
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="lookup")
 
@@ -1075,13 +1090,13 @@ class wormgas(SingleServerIRCBot):
 
         if rchan is not None:
             rchan = rchan.lower()
-	else:
+        else:
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="nowplaying")
 
@@ -1174,7 +1189,7 @@ class wormgas(SingleServerIRCBot):
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="prevplayed")
 
@@ -1256,22 +1271,23 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !rate" % nick)
 
-        if rchan is not None:
-            rchan = rchan.lower()
-        else:
+        if rchan is None:
+            return self.handle_help(nick, channel, output, topic="rate")
+
+        rchan = rchan.lower()
+
+        if rchan not in self.channel_ids:
+            rating = rchan
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="rate")
-
-        if rchan in self.channel_ids and rating:
-            cid = self.channel_ids.get(rchan)
-        else:
-            return self.handle_help(nick, channel, output, topic="rate")
+        
+        cid = self.channel_ids.get(rchan)
 
         # Make sure this nick matches a username
 
@@ -1364,22 +1380,26 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !request" % nick)
 
-        if rchan is not None:
-            rchan = rchan.lower()
+        if rchan is None:
+            if songid is None:
+                return self.handle_help(nick, channel, output, topic="request")
+            rchan = 0
         else:
+            rchan = rchan.lower()
+            if songid is None:
+                songid = rchan
+
+        if rchan not in self.channel_ids:
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
-			luid = self.rwdb.get_id_for_nick(nick)
+                luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="request")
-
-        if rchan in self.channel_ids and songid:
-            cid = self.channel_ids.get(rchan)
-        else:
-            return self.handle_help(nick, channel, output, topic="request")
+        
+        cid = self.channel_ids.get(rchan)
 
         user_id = self.config.get_id_for_nick(nick)
 
@@ -1709,26 +1729,28 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !unrated" % nick)
 
-        if rchan is not None:
-            rchan = rchan.lower()
+        if rchan is None:
+            return self.handle_help(nick, channel, output, topic="unrated")
         else:
+            rchan = rchan.lower()
+
+        if rchan not in self.channel_ids:
+            if num is None:
+                num = rchan
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="unrated")
-
-        if rchan in self.channel_ids:
-            cid = self.channel_ids.get(rchan)
-        else:
-            return self.handle_help(nick, channel, output, topic="unrated")
+        
+        cid = self.channel_ids.get(rchan)
 
         try:
             num = int(num)
-        except TypeError, ValueError:
+        except:
             num = 1
 
         user_id = self.config.get_id_for_nick(nick)
@@ -1850,26 +1872,30 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !vote" % nick)
 
-        if rchan is not None:
-            rchan = rchan.lower()
+        if rchan is None:
+            if index is None:
+                return self.handle_help(nick, channel, output, topic="vote")
+            rchan = 0
         else:
+            rchan = rchan.lower()
+            if index is None:
+                index = rchan
+
+        if rchan not in self.channel_ids:
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
             cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid is not None:
-                rchan = self.channel_names[cur_cid]
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="vote")
-
-        if rchan in self.channel_ids and index:
-            cid = self.channel_ids.get(rchan)
-        else:
-            return self.handle_help(nick, channel, output, topic="vote")
+        
+        cid = self.channel_ids.get(rchan)
 
         try:
             index = int(index)
-        except TypeError, ValueError:
+        except:
             return self.handle_help(nick, channel, output, topic="vote")
 
         if index not in [1, 2, 3]:
