@@ -1889,7 +1889,11 @@ class wormgas(SingleServerIRCBot):
             if cur_cid is not None:
                 rchan = self.channel_codes[cur_cid]
             else:
-                return self.handle_help(nick, channel, output, topic="vote")
+                output.privrs.append("Either you are not tuned in or your IRC "
+                    "nick does not match your forum username. Tune in to a "
+                    "channel or link your Rainwave account to this IRC nick "
+                    "using \x02!id\x02.")
+                return True
         
         cid = self.channel_ids.get(rchan)
 
