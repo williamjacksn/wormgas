@@ -175,7 +175,6 @@ class wormgas(SingleServerIRCBot):
         "all_raw_messages",
         "created",
         "endofmotd",
-        "endofnames",
         "featurelist",
         "luserchannels",
         "luserclient",
@@ -186,8 +185,7 @@ class wormgas(SingleServerIRCBot):
         "motdstart",
         "myinfo",
         "n_global",
-        "n_local",
-        "namreply"
+        "n_local"
     ]
 
     def _dispatcher(self, c, e):
@@ -2213,7 +2211,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("Performing periodic tasks")
 
-        nick = self.config.get("nick")
+        nick = self.config.get("irc:nick")
         chan = self.config.get("irc:channel")
         output = Output("public")
 

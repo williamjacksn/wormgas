@@ -148,9 +148,15 @@ class SingleServerIRCBot(SimpleIRCClient):
 
         ch = e.arguments()[1]
         for nick in e.arguments()[2].split():
-            if nick[0] == "@":
+            if nick[0] == "~":
+                nick = nick[1:]
+                self.channels[ch].set_mode("q", nick)
+            elif nick[0] == "@":
                 nick = nick[1:]
                 self.channels[ch].set_mode("o", nick)
+            elif nick[0] == "%":
+                nick = nick[1:]
+                self.channels[ch].set_mode("h", nick)
             elif nick[0] == "+":
                 nick = nick[1:]
                 self.channels[ch].set_mode("v", nick)
