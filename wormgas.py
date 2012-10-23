@@ -525,6 +525,8 @@ class wormgas(SingleServerIRCBot):
         channelcodes = ("Channel codes are \x02" +
             "\x02, \x02".join(self.channel_ids.keys()) + "\x02")
         notpermitted = "You are not permitted to use this command"
+        wiki = ("More help is available at "
+            "https://github.com/subtlecoolness/wormgas/wiki")
 
         if topic in ["all", None]:
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
@@ -534,6 +536,7 @@ class wormgas(SingleServerIRCBot):
             if is_admin:
                 rs.append("Administration topics: cooldown, forum, newmusic, "
                     "refresh, restart, set, stop, unset")
+            rs.append(wiki)
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
         elif topic in ["cooldown", "cd"]:
@@ -692,6 +695,7 @@ class wormgas(SingleServerIRCBot):
             rs.append(channelcodes)
         else:
             rs.append("I cannot help you with '%s'" % topic)
+            rs.append(wiki)
 
         output.privrs.extend(rs)
         return True
