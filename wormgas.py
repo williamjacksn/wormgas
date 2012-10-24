@@ -1106,7 +1106,7 @@ class wormgas(SingleServerIRCBot):
                 else:
                     return self.handle_help(nick, channel, output, topic="nowplaying")
             else:
-               	return self.handle_help(nick, channel, output, topic="nowplaying")
+                return self.handle_help(nick, channel, output, topic="nowplaying")
 
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
