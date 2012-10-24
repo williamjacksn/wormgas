@@ -6,9 +6,9 @@ from collections import defaultdict
 configValues =	[
 					["msg:ignore",          ""],
 					["irc:server",          "irc.synirc.org"],
+					["irc:channel",         "#rainwave"],
 					["irc:nick",            "wormgas"],
 					["irc:name",            "wormgas"],
-					["irc:channel",         "#rainwave"],
 					["lasttime:forumcheck", ""],
 					["lasttime:msg",        ""],
 					["lasttime:musiccheck", ""],
@@ -83,7 +83,9 @@ def main():
 	reconfigure = False
 	conn = sqlite3.connect('config.sqlite')
 	cursor = conn.cursor()
-
+	
+	cursor.execute("CREATE TABLE IF NOT EXISTS botconfig (config_id, config_value)")
+	
 	if(len(sys.argv) > 1):
 		try:
 			opts, args = getopt.getopt(sys.argv[1:], "hair", ["help", "automatic", "interactive", "reconfigure"])
