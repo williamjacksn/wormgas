@@ -25,8 +25,6 @@ import dbaccess
 from ircbot import SingleServerIRCBot
 from cobe.brain import Brain
 
-import pprint
-
 _abspath = os.path.abspath(__file__)
 
 PRIVMSG = "__privmsg__"
@@ -2328,7 +2326,6 @@ def main():
 
     bot = wormgas()
     bot.start()
-    pprint(bot)
 
 if __name__ == "__main__":
     try:
