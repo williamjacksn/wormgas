@@ -4,5 +4,6 @@ try:
 	import pip
 except Exception :
 	print("Please install pip (refer to your package manager)")
+	exit()
 
-print("Ok")
+print("Installing the dependencies...")
