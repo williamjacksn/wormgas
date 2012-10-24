@@ -143,11 +143,9 @@ def main():
 				else:
 					print(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + currentConf[1] + '''"''' + colors[shell]["normal"] + '''. Ignoring.''')
 			else:
-				s = ''
-				while s == '' :
-					s = raw_input("Setting " + conf[0] + " : ")
-					if s == '' :
-						print("Please enter some value.")
+				s = raw_input("Setting " + conf[0] + " : ")
+				if s == '' :
+					s = raw_input("You are entering an empty value. Correct it or press [Enter] to confirm : ")
 				print('''Configuring ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' to ''' + colors[shell]["green"] + '''"''' + s + '''"''' + colors[shell]["normal"])
 				setConfig(conf[0], s)
 	
