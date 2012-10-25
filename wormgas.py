@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 """
 wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 https://github.com/subtlecoolness/wormgas
