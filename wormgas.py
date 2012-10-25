@@ -385,10 +385,11 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None;
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
