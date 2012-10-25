@@ -385,7 +385,7 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            cur_cid = None;
+            cur_cid = None
             if self.rwdb:
                 luid = self.config.get_id_for_nick(nick)
                 if not luid:
@@ -716,10 +716,11 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
@@ -826,10 +827,11 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
@@ -1091,10 +1093,11 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
@@ -1185,10 +1188,11 @@ class wormgas(SingleServerIRCBot):
         if rchan:
             rchan = rchan.lower()
         else:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
@@ -1280,10 +1284,11 @@ class wormgas(SingleServerIRCBot):
 
         if rchan not in self.channel_ids:
             rating = rchan
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
-            if self.rwdb :
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
@@ -1913,10 +1918,11 @@ class wormgas(SingleServerIRCBot):
                 index = rchan
 
         if rchan not in self.channel_ids:
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = None
             if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
                 cur_cid = self.rwdb.get_current_channel(luid)
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
