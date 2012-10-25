@@ -34,18 +34,13 @@ colors =    {
                         },
             }
 
-def usage(name):
+def usage(self, name):
     print("usage: " + name + " [option]\nWhere option is one of the following:\n\t-h, --help: display this message\n\t-a, --automatic (default): automatic configuration, doesn't ask for anything\n\t-i, --interactive: interactive configuration, will as for not yet configured values\n\t-r, --reconfigure: can be used to re-enter values. Can be used in conjunction with automatic or interactive options.")
     sys.exit()
 
-def get_config(config_id, config_value):
-    # global variable to store the database cursor.
-    global cursor
+def get_config(cursor, config_id, config_value):
     # make sure the cursor variable is correctly set.
-    try:
-        if not isinstance(cursor, sqlite3.Cursor):
-            raise NameError
-    except NameError:
+    if not isinstance(cursor, sqlite3.Cursor):
         print("No connection to the database")
         return False
     # poll for the asked config entry
@@ -53,25 +48,20 @@ def get_config(config_id, config_value):
     # fetch any results in 'item'
     return cursor.fetchone()
 
-def set_config(config_id, config_value):
-    # global variable to store the database cursor.
-    global cursor
-    # make sure the cursor variable is correctly set.
-    try:
-        if not isinstance(cursor, sqlite3.Cursor):
-            raise NameError
-    except NameError:
+def set_config(cursor, config_id, config_value):
+    if not isinstance(cursor, sqlite3.Cursor):
         print("No connection to the database")
         return False
-    if get_config(config_id, config_value) != None:
+    if get_config(cursor, config_id, config_value) != None:
         # modify
         cursor.execute('UPDATE botconfig SET config_value="' + config_value + '" WHERE config_id="' + config_id + '";')
     else:
         # add
         cursor.execute('INSERT INTO botconfig VALUES ("' + config_id + '", "' + config_value + '");')
+	return True
 
 def main():
-    global cursor, config_values, colors
+    global config_values, colors
     # get the shell value from the system
     shell = getenv("SHELL").split("/").pop()
     # if the shell color aren't defined, fallback to fallback. :D
@@ -90,7 +80,7 @@ def main():
             opts, args = getopt.getopt(sys.argv[1:], "hair", ["help", "automatic", "interactive", "reconfigure"])
         except getopt.GetoptError, err:
             # print help information and exit:
-            print str(err) # will print something like "option -a not recognized"
+            print(str(err)) # will print something like "option -a not recognized"
             usage(sys.argv[0])
             sys.exit(2)
         for o, a in opts:
@@ -115,28 +105,28 @@ def main():
 
     if automatic:
         for conf_id, conf_value in config_values.items():
-            current_conf = get_config(conf_id, conf_value)
+            current_conf = get_config(cursor, conf_id, conf_value)
             if current_conf is not None:
                 sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf_id + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + current_conf[1] + '''"''' + colors[shell]["normal"] + '''.''')
                 if reconfigure:
                     print(''' Reconfiguring to ''' + colors[shell]["green"] + '''"''' + conf_value + '''"''' + colors[shell]["normal"])
-                    set_config(conf_id, conf_value)
+                    set_config(cursor, conf_id, conf_value)
                 else:
                     print(" Ignoring.")
             else:
                 print('''Configuring ''' + colors[shell]["cyan"] + conf_id + colors[shell]["normal"] + ''' to ''' + colors[shell]["green"] + '''"''' + conf_value + '''"''' + colors[shell]["normal"])
-                set_config(conf_id, conf_value)
+                set_config(cursor, conf_id, conf_value)
 
     if interactive:
         for conf_id, conf_value in config_values.items():
-            current_conf = get_config(conf_id, conf_value)
+            current_conf = get_config(cursor, conf_id, conf_value)
             if current_conf is not None:
                 if reconfigure:
                     s = raw_input("Setting " + conf_id + " [" + current_conf[1] + "]: ")
                     sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf_id + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + current_conf[1] + '''"''' + colors[shell]["normal"] + '''.''')
                     if s is not "":
                         print(''' Reconfiguring to ''' + colors[shell]["green"] + '''"''' + s + '''"''' + colors[shell]["normal"])
-                        set_config(conf_id, s)
+                        set_config(cursor, conf_id, s)
                     else:
                         print(" Ignoring.")
                 else:
@@ -146,7 +136,7 @@ def main():
                 if s == '':
                     s = raw_input("You are entering an empty value. Correct it or press [Enter] to confirm: ")
                 print('''Configuring ''' + colors[shell]["cyan"] + conf_id + colors[shell]["normal"] + ''' to ''' + colors[shell]["green"] + '''"''' + s + '''"''' + colors[shell]["normal"])
-                set_config(conf_id, s)
+                set_config(cursor, conf_id, s)
     
     conn.commit()
     conn.close()
