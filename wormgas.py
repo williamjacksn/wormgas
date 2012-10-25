@@ -388,12 +388,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="election")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="election")
 
@@ -720,12 +718,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="history")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="history")
 
@@ -832,12 +828,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="lookup")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="lookup")
 
@@ -1099,12 +1093,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="nowplaying")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="nowplaying")
 
@@ -1195,12 +1187,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="prevplayed")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="prevplayed")
 
@@ -1292,12 +1282,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb :
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    return self.handle_help(nick, channel, output, topic="rate")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 return self.handle_help(nick, channel, output, topic="rate")
         
@@ -1927,15 +1915,10 @@ class wormgas(SingleServerIRCBot):
             luid = self.config.get_id_for_nick(nick)
             if not luid and self.rwdb:
                 luid = self.rwdb.get_id_for_nick(nick)
-            if luid != None :
+            if self.rwdb:
                 cur_cid = self.rwdb.get_current_channel(luid)
-                if cur_cid:
-                    rchan = self.channel_codes[cur_cid]
-                else:
-                    output.privrs.append("Either you are not tuned in or your IRC "
-                        "nick does not match your forum username. Tune in to a "
-                        "channel or link your Rainwave account to this IRC nick "
-                        "using \x02!id\x02.")
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
             else:
                 output.privrs.append("Either you are not tuned in or your IRC "
                     "nick does not match your forum username. Tune in to a "
