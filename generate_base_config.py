@@ -2,66 +2,38 @@
 import getopt, sys, sqlite3
 from os import getenv
 
-config_values = {
-                    "msg:ignore":          "",
-                    "irc:server":          "irc.synirc.org",
-                    "irc:channel":         "#rainwave",
-                    "irc:nick":            "wormgas",
-                    "irc:name":            "wormgas",
-                    "lasttime:forumcheck": "",
-                    "lasttime:msg":        "",
-                    "lasttime:musiccheck": "",
-                    "msg:last":            "",
-                    "timeout:chat":        "",
-                    "timeout:forumcheck":  "",
-                    "timeout:musiccheck":  "",
-                }
-
-colors =    {
-                # To add a new supported shell, just add a new dict entry with its name (the name of the binary) and some values for the colors.
-                "bash": {
-                            "red"       : "\033[1;31m",
-                            "cyan"      : "\033[0;36m",
-                            "green"     : "\033[0;32m",
-                            "normal"    : "\033[0m",
-                        },
-                # default fallback. No colors to avoid compatibility problems with unknown shells. So unless the shell is explicitely supported, no colors.
-                None:   {
-                            "red"       : "",
-                            "cyan"      : "",
-                            "green"     : "",
-                            "normal"    : "",
-                        },
-            }
-
-def usage(self, name):
-    print("usage: " + name + " [option]\nWhere option is one of the following:\n\t-h, --help: display this message\n\t-a, --automatic (default): automatic configuration, doesn't ask for anything\n\t-i, --interactive: interactive configuration, will as for not yet configured values\n\t-r, --reconfigure: can be used to re-enter values. Can be used in conjunction with automatic or interactive options.")
-    sys.exit()
-
-def get_config(cursor, config_id, config_value):
-    # make sure the cursor variable is correctly set.
-    if not isinstance(cursor, sqlite3.Cursor):
-        print("No connection to the database")
-        return False
-    # poll for the asked config entry
-    cursor.execute('SELECT * FROM botconfig WHERE config_id = "' + config_id + '";')
-    # fetch any results in 'item'
-    return cursor.fetchone()
-
-def set_config(cursor, config_id, config_value):
-    if not isinstance(cursor, sqlite3.Cursor):
-        print("No connection to the database")
-        return False
-    if get_config(cursor, config_id, config_value) != None:
-        # modify
-        cursor.execute('UPDATE botconfig SET config_value="' + config_value + '" WHERE config_id="' + config_id + '";')
-    else:
-        # add
-        cursor.execute('INSERT INTO botconfig VALUES ("' + config_id + '", "' + config_value + '");')
-	return True
-
 def main():
-    global config_values, colors
+    config_values = {
+                        "msg:ignore":          "",
+                        "irc:server":          "irc.synirc.org",
+                        "irc:channel":         "#rainwave",
+                        "irc:nick":            "wormgas",
+                        "irc:name":            "wormgas",
+                        "lasttime:forumcheck": "",
+                        "lasttime:msg":        "",
+                        "lasttime:musiccheck": "",
+                        "msg:last":            "",
+                        "timeout:chat":        "",
+                        "timeout:forumcheck":  "",
+                        "timeout:musiccheck":  "",
+                    }
+
+    colors =    {
+                    # To add a new supported shell, just add a new dict entry with its name (the name of the binary) and some values for the colors.
+                    "bash": {
+                                "red"       : "\033[1;31m",
+                                "cyan"      : "\033[0;36m",
+                                "green"     : "\033[0;32m",
+                                "normal"    : "\033[0m",
+                            },
+                    # default fallback. No colors to avoid compatibility problems with unknown shells. So unless the shell is explicitely supported, no colors.
+                    None:   {
+                                "red"       : "",
+                                "cyan"      : "",
+                                "green"     : "",
+                                "normal"    : "",
+                            },
+                }
     # get the shell value from the system
     shell = getenv("SHELL").split("/").pop()
     # if the shell color aren't defined, fallback to fallback. :D
@@ -140,6 +112,32 @@ def main():
     
     conn.commit()
     conn.close()
+
+def usage(self, name):
+    print("usage: " + name + " [option]\nWhere option is one of the following:\n\t-h, --help: display this message\n\t-a, --automatic (default): automatic configuration, doesn't ask for anything\n\t-i, --interactive: interactive configuration, will as for not yet configured values\n\t-r, --reconfigure: can be used to re-enter values. Can be used in conjunction with automatic or interactive options.")
+    sys.exit()
+
+def get_config(cursor, config_id, config_value):
+    # make sure the cursor variable is correctly set.
+    if not isinstance(cursor, sqlite3.Cursor):
+        print("No connection to the database")
+        return False
+    # poll for the asked config entry
+    cursor.execute('SELECT * FROM botconfig WHERE config_id = "' + config_id + '";')
+    # fetch any results in 'item'
+    return cursor.fetchone()
+
+def set_config(cursor, config_id, config_value):
+    if not isinstance(cursor, sqlite3.Cursor):
+        print("No connection to the database")
+        return False
+    if get_config(cursor, config_id, config_value) != None:
+        # modify
+        cursor.execute('UPDATE botconfig SET config_value="' + config_value + '" WHERE config_id="' + config_id + '";')
+    else:
+        # add
+        cursor.execute('INSERT INTO botconfig VALUES ("' + config_id + '", "' + config_value + '");')
+	return True
 
 if __name__ == "__main__":
     main()
