@@ -8,7 +8,7 @@ Pull requests welcome.
 Dependencies:
 
 * [Python][python] >= 2.6
-* [lxml][lxml] >= 2.3
+* [lxml][lxml] >= 2.3 (if you use pip: `pip install lxml`)
 * [stemming][stemming] >= 1.0
 * [psycopg][psycopg] >= 2.4 (if using RW database functions)
 
