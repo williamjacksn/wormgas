@@ -1,9 +1,8 @@
 #!/usr/bin/env python2
 import getopt, sys, sqlite3
 from os import getenv
-from collections import defaultdict
 
-configValues =	[
+config_values =	[
 					["msg:ignore",          ""],
 					["irc:server",          "irc.synirc.org"],
 					["irc:channel",         "#rainwave"],
@@ -39,7 +38,7 @@ def usage(name):
 	print("usage : " + name + " [option]\nWhere option is one of the following:\n\t-h, --help : display this message\n\t-a, --automatic (default) : automatic configuration, doesn't ask for anything\n\t-i, --interactive : interactive configuration, will as for not yet configured values\n\t-r, --reconfigure : can be used to re-enter values. Can be used in conjunction with automatic or interactive options.")
 	sys.exit()
 
-def getConfig(config_id, config_value):
+def get_config(config_id, config_value):
 	# global variable to store the database cursor.
 	global cursor
 	# make sure the cursor variable is correctly set.
@@ -54,7 +53,7 @@ def getConfig(config_id, config_value):
 	# fetch any results in 'item'
 	return cursor.fetchone()
 
-def setConfig(config_id, config_value):
+def set_config(config_id, config_value):
 	# global variable to store the database cursor.
 	global cursor
 	# make sure the cursor variable is correctly set.
@@ -64,7 +63,7 @@ def setConfig(config_id, config_value):
 	except NameError:
 		print("No connection to the database")
 		return False
-	if getConfig(config_id, config_value) != None:
+	if get_config(config_id, config_value) != None:
 		# modify
 		cursor.execute('''UPDATE botconfig SET config_value="''' + config_value + '''" WHERE config_id="''' + config_id + '''";''')
 	else:
@@ -72,7 +71,7 @@ def setConfig(config_id, config_value):
 		cursor.execute('''INSERT INTO botconfig VALUES ("''' + config_id + '''", "''' + config_value + '''");''')
 
 def main():
-	global cursor, configValues, colors
+	global cursor, config_values, colors
 	# get the shell value from the system
 	shell = getenv("SHELL").split("/").pop()
 	# if the shell color aren't defined, fallback to fallback. :D
@@ -115,39 +114,39 @@ def main():
 		automatic = True
 
 	if automatic :
-		for conf in configValues:
-			currentConf = getConfig(conf[0], conf[1])
-			if currentConf != None :
-				sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + currentConf[1] + '''"''' + colors[shell]["normal"] + '''.''')
+		for conf in config_values:
+			current_conf = get_config(conf[0], conf[1])
+			if current_conf != None :
+				sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + current_conf[1] + '''"''' + colors[shell]["normal"] + '''.''')
 				if reconfigure :
 					print(''' Reconfiguring to ''' + colors[shell]["green"] + '''"''' + conf[1] + '''"''' + colors[shell]["normal"])
-					setConfig(conf[0], conf[1])
+					set_config(conf[0], conf[1])
 				else:
 					print(" Ignoring.")
 			else:
 				print('''Configuring ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' to ''' + colors[shell]["green"] + '''"''' + conf[1] + '''"''' + colors[shell]["normal"])
-				setConfig(conf[0], conf[1])
+				set_config(conf[0], conf[1])
 
 	if interactive :
-		for conf in configValues:
-			currentConf = getConfig(conf[0], conf[1])
-			if currentConf != None :
+		for conf in config_values:
+			current_conf = get_config(conf[0], conf[1])
+			if current_conf != None :
 				if reconfigure :
-					s = raw_input("Setting " + conf[0] + " [" + currentConf[1] + "] : ")
-					sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + currentConf[1] + '''"''' + colors[shell]["normal"] + '''.''')
+					s = raw_input("Setting " + conf[0] + " [" + current_conf[1] + "] : ")
+					sys.stdout.write(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + current_conf[1] + '''"''' + colors[shell]["normal"] + '''.''')
 					if s != "" :
 						print(''' Reconfiguring to ''' + colors[shell]["green"] + '''"''' + s + '''"''' + colors[shell]["normal"])
-						setConfig(conf[0], s)
+						set_config(conf[0], s)
 					else :
 						print(" Ignoring.")
 				else:
-					print(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + currentConf[1] + '''"''' + colors[shell]["normal"] + '''. Ignoring.''')
+					print(colors[shell]["red"] + '''[WARNING]''' + colors[shell]["normal"] + ''' ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' already configured to ''' + colors[shell]["green"] + '''"''' + current_conf[1] + '''"''' + colors[shell]["normal"] + '''. Ignoring.''')
 			else:
 				s = raw_input("Setting " + conf[0] + " : ")
 				if s == '' :
 					s = raw_input("You are entering an empty value. Correct it or press [Enter] to confirm : ")
 				print('''Configuring ''' + colors[shell]["cyan"] + conf[0] + colors[shell]["normal"] + ''' to ''' + colors[shell]["green"] + '''"''' + s + '''"''' + colors[shell]["normal"])
-				setConfig(conf[0], s)
+				set_config(conf[0], s)
 	
 	conn.commit()
 	conn.close()
