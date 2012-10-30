@@ -72,14 +72,6 @@ class Config(object):
             self.cdbh.close()
         except AttributeError: pass # Never opened the db; no handle to close.
 
-    def add_admin(self, nick):
-        """Add admin rights to the provided nick."""
-        self.set("privlevel:%s" % nick, 2)
-
-    def add_moderator(self, nick):
-        """Add moderator rights to the provided nick."""
-        self.set("privlevel:%s" % nick, 1)
-
     def add_id_to_nick(self, id, nick):
         sql = "update user_keys set user_id = ? where user_nick = ?"
         self.ccur.execute(sql, (id, nick))
@@ -224,12 +216,6 @@ class Config(object):
 
         return(rs)
 
-    def is_admin(self, nick):
-        return self.get("privlevel:%s" % nick) >= 2
-
-    def is_moderator(self, nick):
-        return self.get("privlevel:%s" % nick) >= 1
-
     def log_rps(self, nick, challenge, response):
         """Record an RPS game in the database"""
         sql = ("insert into rps_log (timestamp, user_nick, challenge, "
@@ -245,10 +231,6 @@ class Config(object):
         """Reset the RPS record and delete game history for nick"""
         sql = "delete from rps_log where user_nick = ?"
         self.ccur.execute(sql, (nick,))
-
-    def remove_rights(self, nick):
-        """Remove admin or moderator rights from the provided nick."""
-        self.set("privlevel:%s" % nick, -1)
 
     def set(self, id, value):
         """Set a configuration value in the database.
