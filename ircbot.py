@@ -148,9 +148,15 @@ class SingleServerIRCBot(SimpleIRCClient):
 
         ch = e.arguments()[1]
         for nick in e.arguments()[2].split():
-            if nick[0] == "@":
+            if nick[0] == "~":
+                nick = nick[1:]
+                self.channels[ch].set_mode("q", nick)
+            elif nick[0] == "@":
                 nick = nick[1:]
                 self.channels[ch].set_mode("o", nick)
+            elif nick[0] == "%":
+                nick = nick[1:]
+                self.channels[ch].set_mode("h", nick)
             elif nick[0] == "+":
                 nick = nick[1:]
                 self.channels[ch].set_mode("v", nick)
@@ -316,7 +322,9 @@ class Channel:
 
     def __init__(self):
         self.userdict = IRCDict()
+        self.ownerdict = IRCDict()
         self.operdict = IRCDict()
+        self.halfopdict = IRCDict()
         self.voiceddict = IRCDict()
         self.modes = {}
 
@@ -324,9 +332,17 @@ class Channel:
         """Returns an unsorted list of the channel's users."""
         return self.userdict.keys()
 
+    def owners(self):
+        """Returns an unsorted list of the channel's owners"""
+        return self.ownerdict.keys()
+
     def opers(self):
         """Returns an unsorted list of the channel's operators."""
         return self.operdict.keys()
+
+    def halfops(self):
+        """Returns an unsorted list of the channel's half-operators"""
+        return self.halfopdict.keys()
 
     def voiced(self):
         """Returns an unsorted list of the persons that have voice
@@ -337,9 +353,17 @@ class Channel:
         """Check whether the channel has a user."""
         return nick in self.userdict
 
+    def is_owner(self, nick):
+        """Check whether a user has owner status in the channel."""
+        return nick in self.ownerdict
+
     def is_oper(self, nick):
         """Check whether a user has operator status in the channel."""
         return nick in self.operdict
+
+    def is_halfop(self, nick):
+        """Check whether a user has half-operator status in the channel"""
+        return nick in self.halfopdict
 
     def is_voiced(self, nick):
         """Check whether a user has voice mode set in the channel."""
@@ -372,8 +396,12 @@ class Channel:
 
             value -- Value
         """
-        if mode == "o":
+        if mode == "q":
+            self.ownerdict[value] = 1
+        elif mode == "o":
             self.operdict[value] = 1
+        elif mode == "h":
+            self.halfopdict[value] = 1
         elif mode == "v":
             self.voiceddict[value] = 1
         else:
@@ -389,8 +417,12 @@ class Channel:
             value -- Value
         """
         try:
-            if mode == "o":
+            if mode == "q":
+                del self.ownerdict[value]
+            elif mode == "o":
                 del self.operdict[value]
+            elif mode == "h":
+                del self.halfopdict[value]
             elif mode == "v":
                 del self.voiceddict[value]
             else:

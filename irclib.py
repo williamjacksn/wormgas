@@ -1323,7 +1323,8 @@ def parse_channel_modes(mode_string):
 
     The function returns a list of lists with three members: sign,
     mode and argument.  The sign is \"+\" or \"-\".  The argument is
-    None if mode isn't one of \"b\", \"k\", \"l\", \"v\" or \"o\".
+    None if mode isn't one of \"b\", \"h\", \"k\", \"l\", \"o\", \"q\",
+    or \"v\".
 
     Example:
 
@@ -1331,7 +1332,7 @@ def parse_channel_modes(mode_string):
     [['+', 'a', None], ['+', 'b', 'foo'], ['-', 'c', None]]
     """
 
-    return _parse_modes(mode_string, "bklvo")
+    return _parse_modes(mode_string, "bhkloqv")
 
 def _parse_modes(mode_string, unary_modes=""):
     """[Internal]"""

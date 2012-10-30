@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 https://github.com/subtlecoolness/wormgas
@@ -61,7 +61,7 @@ def command_handler(command):
     """Decorate a method to register as a command handler for provided regex."""
     def decorator(func):
         # Compile the command into a regex.
-        regex = re.compile(command)
+        regex = re.compile(command, re.I)
 
         def wrapped(self, nick, msg, channel, output):
             """Command with stored regex that will execute if it matches msg."""
@@ -115,6 +115,15 @@ class wormgas(SingleServerIRCBot):
         "All channel"
     )
 
+    channel_codes = (
+        None,
+        "game",
+        "ocr",
+        "cover",
+        "chip",
+        "all"
+    )
+
     channel_ids = {
         "rw":     1,
         "game":   1,
@@ -156,8 +165,16 @@ class wormgas(SingleServerIRCBot):
         except dbaccess.RainwaveDatabaseUnavailableError:
             self.rwdb = None
 
+        args = sys.argv[1:]
+        for arg in args:
+            if arg.startswith("--set-"):
+                key,value = arg[6:].split("=", 1)
+                print "Setting '%s' to '%s'." % (key, value)
+                self.config.set(key, value)
+
         # Set up ignore if the ignore list is non-empty.
         ignore = self.config.get("msg:ignore")
+        self.reignore = None
         if ignore:
             self.reignore = re.compile(self.config.get("msg:ignore"))
 
@@ -169,6 +186,7 @@ class wormgas(SingleServerIRCBot):
     def stop(self):
         """Save all data and shut down the bot."""
         del self.config
+        del self.brain
         if self.log_handler:
             logging.getLogger().removeHandler(self.log_handler)
 
@@ -176,7 +194,6 @@ class wormgas(SingleServerIRCBot):
         "all_raw_messages",
         "created",
         "endofmotd",
-        "endofnames",
         "featurelist",
         "luserchannels",
         "luserclient",
@@ -187,8 +204,7 @@ class wormgas(SingleServerIRCBot):
         "motdstart",
         "myinfo",
         "n_global",
-        "n_local",
-        "namreply"
+        "n_local"
     ]
 
     def _dispatcher(self, c, e):
@@ -212,8 +228,8 @@ class wormgas(SingleServerIRCBot):
             return True
 
         # Otherwise, check for the cooldown and respond accordingly.
-        ltb = int(self.config.get("lasttime:8ball"))
-        wb = int(self.config.get("wait:8ball"))
+        ltb = int(self.config.get("lasttime:8ball") or 0)
+        wb = int(self.config.get("wait:8ball") or 0)
         if ltb < time.time() - wb:
             output.default.append(result)
             if "again" not in result:
@@ -226,19 +242,6 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append(r)
         return True
 
-    @command_handler(r"^!config(\s(?P<id>\S+))?(\s(?P<value>.+))?")
-    def handle_config(self, nick, channel, output, id=None, value=None):
-        """View and set config items"""
-
-        self.log.info("%s used !config" % nick)
-
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
-            output.privrs.extend(self.config.handle(id, value))
-        else:
-            self.log.warning("%s does not have privs to use !config" % nick)
-        return True
-
     @command_handler(r"^!c(ool)?d(own)? add(\s(?P<unit>\w+))?"
         r"(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?")
     def handle_cooldown_add(self, nick, channel, output, unit=None,
@@ -249,10 +252,9 @@ class wormgas(SingleServerIRCBot):
         self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
             cdg_name))
 
-        # This command requires privlevel 1
+        # This command requires administrative privileges
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !cooldown add" %
                 nick)
             return True
@@ -313,10 +315,9 @@ class wormgas(SingleServerIRCBot):
         self.log.info("unit: %s, unit_id: %s, cdg_name: %s" % (unit, unit_id,
             cdg_name))
 
-        # This command requires privlevel 1
+        # This command requires administrative privileges
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !cooldown add" %
                 nick)
             return True
@@ -384,7 +385,8 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
-    @command_handler(r"!el(ection\s)?(?P<rchan>\w+)?(\s(?P<index>\d))?")
+    @command_handler(r"!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?")
+    @command_handler(r"!el(?P<rchan>\w+)?(\s(?P<index>\d))?")
     def handle_election(self, nick, channel, output, rchan=None, index=None):
         """Show the candidates in an election"""
 
@@ -399,6 +401,20 @@ class wormgas(SingleServerIRCBot):
             # Not a valid index, return the help text.
             return self.handle_help(nick, channel, output, topic="election")
 
+        if rchan:
+            rchan = rchan.lower()
+        else:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="election")
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -406,6 +422,11 @@ class wormgas(SingleServerIRCBot):
 
         sched_config = "el:%s:%s" % (cid, index)
         sched_id, text = self._fetch_election(index, cid)
+        
+        if sched_id == 0:
+            # Something strange happened while fetching the election
+            output.default.append(text)
+            return True
 
         # Prepend the message description to the output string.
         time = ["Current", "Future"][index]
@@ -433,9 +454,14 @@ class wormgas(SingleServerIRCBot):
         using the sched_id as the cache key.
         """
 
-        data = self.api_call("http://rainwave.cc/async/%s/get" % cid)
-        elec = data["sched_next"][index]
         text = ""
+
+        data = self._api_call("http://rainwave.cc/async/%s/get" % cid)
+        try:
+            elec = data["sched_next"][index]
+        except IndexError:
+            # There is no future election?
+            return 0, "There is no election at the specified index."
 
         for i, song in enumerate(elec["song_data"], start=1):
             album = song["album_name"]
@@ -462,8 +488,8 @@ class wormgas(SingleServerIRCBot):
             output.default.append(result)
             return True
 
-        ltf = int(self.config.get("lasttime:flip"))
-        wf = int(self.config.get("wait:flip"))
+        ltf = int(self.config.get("lasttime:flip") or 0)
+        wf = int(self.config.get("wait:flip") or 0)
         if ltf < time.time() - wf:
             output.default.append(result)
             self.config.set("lasttime:flip", time.time())
@@ -482,17 +508,16 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("Looking for new forum posts, force is %s" % force)
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 2:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !forum" % nick)
             return True
 
         self.config.set("lasttime:forumcheck", time.time())
 
         if force:
-            self.config.set("maxid:forum", 0)
+            self.config.unset("maxid:forum")
 
-        maxid = self.config.get("maxid:forum")
+        maxid = self.config.get("maxid:forum") or 0
         self.log.info("Looking for forum posts newer than %s" % maxid)
 
         if self.rwdb:
@@ -501,9 +526,9 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
-        if newmaxid > int(self.config.get("maxid:forum")):
+        if newmaxid > int(self.config.get("maxid:forum") or 0):
             r, url = self.rwdb.get_forum_post_info()
-            surl = self.shorten(url)
+            surl = self._shorten(url)
             output.rs.append("New on the forums! %s <%s>" % (r, surl))
             self.config.set("maxid:forum", newmaxid)
 
@@ -515,37 +540,28 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !help" % nick)
 
-        priv = self.config.get("privlevel:%s" % nick)
+        is_admin = self._is_admin(nick)
         rs = []
 
         channelcodes = ("Channel codes are \x02" +
             "\x02, \x02".join(self.channel_ids.keys()) + "\x02")
+        notpermitted = "You are not permitted to use this command"
+        wiki = ("More help is available at "
+            "https://github.com/subtlecoolness/wormgas/wiki")
 
-        if (topic is None) or (topic == "all"):
+        if topic in ["all", None]:
             rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
                 "8ball, election, flip, history, id, key, lookup, lstats, "
                 "nowplaying, prevplayed, rate, request, roll, rps, stats, "
                 "unrated, ustats, vote")
-            if priv > 0:
-                rs.append("Level 1 administration topics: cooldown, newmusic, "
-                    "refresh")
-            if priv > 1:
-                rs.append("Level 2 administration topics: config, forum, "
-                    "restart, stop")
+            if is_admin:
+                rs.append("Administration topics: cooldown, forum, newmusic, "
+                    "refresh, restart, set, stop, unset")
+            rs.append(wiki)
         elif topic == "8ball":
             rs.append("Use \x02!8ball\x02 to ask a question of the magic 8ball")
-        elif topic == "config":
-            if priv > 1:
-                rs.append("Use \x02!config [<id>] [<value>]\x02 to display or "
-                    "change configuration settings")
-                rs.append("Leave off <value> to see the current setting, or "
-                    "use a <value> of -1 to remove a setting")
-                rs.append("Leave off <id> and <value> to see a list of all "
-                    "available config ids")
-            else:
-                rs.append("You are not permitted to use this command")
-        elif topic == "cooldown":
-            if priv > 0:
+        elif topic in ["cooldown", "cd"]:
+            if is_admin:
                 rs.append("Use \x02!cooldown add song|album <song_id|album_id> "
                     "<cdg_name>\x02 to add a song or album to a cooldown group")
                 rs.append("Use \x02!cooldown drop song|album "
@@ -554,8 +570,8 @@ class wormgas(SingleServerIRCBot):
                     "remove a song or album from all cooldown groups")
                 rs.append("Short version is \x02!cd ...\x02")
             else:
-                rs.append("You are not permitted to use this command")
-        elif topic == "election":
+                rs.append(notpermitted)
+        elif topic in ["election", "el"]:
             rs.append("Use \x02!election <channel> [<index>]\x02 to see the "
                 "candidates in an election")
             rs.append("Short version is \x02!el<channel> [<index>]\x02")
@@ -564,12 +580,12 @@ class wormgas(SingleServerIRCBot):
         elif topic == "flip":
             rs.append("Use \x02!flip\x02 to flip a coin")
         elif topic == "forum":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!forum\x02 to announce the most recent "
                     "forum post in the channel")
             else:
-                rs.append("You are not permitted to use this command")
-        elif topic == "history":
+                rs.append(notpermitted)
+        elif topic in ["history", "hs"]:
             rs.append("Use \x02!history <channel>\x02 to see the last several "
                 "songs that played on a channel")
             rs.append("Short version is \x02!hs<channel>\x02")
@@ -585,7 +601,7 @@ class wormgas(SingleServerIRCBot):
                 "\x02!key add <key>\x02 to tell me about it")
             rs.append("Use \x02!key drop\x02 to delete your key and \x02!key "
                 "show\x02 to see it")
-        elif topic == "lookup":
+        elif topic in ["lookup", "lu"]:
             rs.append("Use \x02!lookup <channel> song|album <text>\x02 "
                 "to search for songs or albums with <text> in the title")
             rs.append("Short version is \x02!lu<channel> song|album "
@@ -600,49 +616,49 @@ class wormgas(SingleServerIRCBot):
                 "leave off <num> to use the default of 30")
             rs.append(channelcodes)
         elif topic == "newmusic":
-            if priv > 0:
+            if is_admin:
                 rs.append("Use \x02!newmusic <channel>\x02 to announce the "
                     "three most recently added songs on the channel")
                 rs.append(channelcodes)
             else:
-                rs.append("You are not permitted to use this command")
-        elif topic == "nowplaying":
+                rs.append(notpermitted)
+        elif topic in ["nowplaying", "np"]:
             rs.append("Use \x02!nowplaying <channel>\x02 to show what is "
                 "now playing on the radio")
             rs.append("Short version is \x02!np<channel>\x02")
             rs.append(channelcodes)
-        elif topic == "prevplayed":
+        elif topic in ["prevplayed", "pp"]:
             rs.append("Use \x02!prevplayed <channel> [<index>]\x02 to show "
                 "what was previously playing on the radio")
             rs.append("Short version is \x02!pp<channel> [<index>]\x02")
             rs.append("Index should be one of (0, 1, 2), 0 is default, higher "
                 "numbers are further in the past")
             rs.append(channelcodes)
-        elif topic == "rate":
+        elif topic in ["rate", "rt"]:
             rs.append("Use \x02!rate <channel> <rating>\x02 to rate the "
                 "currently playing song")
             rs.append("Short version is \x02!rt<channel> <rating>\x02")
             rs.append(channelcodes)
         elif topic == "refresh":
-            if priv > 0:
+            if is_admin:
                 rs.append("Use \x02!refresh\x02 to show pending or running "
                     "playlist refresh jobs")
                 rs.append("Use \x02!refresh <channel>\x02 to request a "
                     "playlist refresh for a particular channel")
                 rs.append(channelcodes)
             else:
-                rs.append("You are not permitted to use this command")
-        elif topic == "request":
+                rs.append(notpermitted)
+        elif topic in ["request", "rq"]:
             rs.append("Use \x02!request <channel> <song_id>\x02 to add a "
                 "song to your request queue, find the <song_id> using "
                 "\x02!lookup\x02 or \x02!unrated\x02")
             rs.append("Short version is \x02!rq<channel> <song_id>\x02")
             rs.append(channelcodes)
         elif topic == "restart":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!restart\x02 to restart the bot")
             else:
-                rs.append("You are not permitted to use this command")
+                rs.append(notpermitted)
         elif topic == "roll":
             rs.append("Use \x02!roll [#d^]\x02 to roll a ^-sided die # times")
         elif topic == "rps":
@@ -657,34 +673,50 @@ class wormgas(SingleServerIRCBot):
                 "your game history, there is no confirmation and this cannot "
                 "be undone")
             rs.append("Use \x02!rps who\x02 to see a list of known players")
-            if priv > 1:
-                rs.append("Level 2 administrators can use \x02!rps rename "
-                    "<oldnick> <newnick>\x02 to reassign stats and game "
-                    "history from one nick to another")
+            if is_admin:
+                rs.append("Administrators can use \x02!rps rename <oldnick> "
+                    "<newnick>\x02 to reassign stats and game history from one "
+                    "nick to another")
+        elif topic == "set":
+            if is_admin:
+                rs.append("Use \x02!set [<id>] [<value>]\x02 to display or "
+                    "change configuration settings")
+                rs.append("Leave off <value> to see the current setting")
+                rs.append("Leave off <id> and <value> to see a list of all "
+                    "available config ids")
+            else:
+                rs.append(notpermitted)
         elif topic == "stats":
             rs.append("Use \x02!stats [<channel>]\x02 to show information "
                 "about the music collection, leave off <channel> to see the "
                 "aggregate for all channels")
             rs.append(channelcodes)
         elif topic == "stop":
-            if priv > 1:
+            if is_admin:
                 rs.append("Use \x02!stop\x02 to shut down the bot")
             else:
-                rs.append("You are not permitted to use this command")
+                rs.append(notpermitted)
         elif topic == "unrated":
             rs.append("Use \x02!unrated <channel> [<num>]\x02 to see songs "
                 "you have not rated, <num> can go up to 12, leave it off to "
                 "see just one song")
             rs.append(channelcodes)
+        elif topic == "unset":
+            if is_admin:
+                rs.append("Use \x02!unset <id>\x02 to remove a configuration "
+                    "setting")
+            else:
+                rs.append(notpermitted)
         elif topic == "ustats":
             rs.append("Use \x02!ustats [<nick>]\x02 to show user statistics "
                 "for <nick>, leave off <nick> to see your own statistics")
-        elif topic == "vote":
+        elif topic in ["vote", "vt"]:
             rs.append("Use \x02!vote <channel> <index>\x02 to vote in the "
                 "current election, find the <index> with \x02!election\x02")
             rs.append(channelcodes)
         else:
             rs.append("I cannot help you with '%s'" % topic)
+            rs.append(wiki)
 
         output.privrs.extend(rs)
         return True
@@ -699,6 +731,20 @@ class wormgas(SingleServerIRCBot):
         if self.rwdb is None:
             output.privrs.append("The Rainwave database is unavailable.")
             return True
+
+        if rchan:
+            rchan = rchan.lower()
+        else:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="history")
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
@@ -792,6 +838,25 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("The Rainwave database is unavailable.")
             return True
 
+        if rchan in ("song", "album"):
+            text = mode + " " + text
+            mode = rchan
+            rchan = None
+
+        if rchan:
+            rchan = rchan.lower()
+        else:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="lookup")
+
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
         else:
@@ -856,6 +921,9 @@ class wormgas(SingleServerIRCBot):
             return True
 
         rs = []
+
+        if rchan:
+            rchan = rchan.lower()
 
         cid = self.channel_ids.get(rchan, 0)
         rchn = self.channel_names[cid]
@@ -963,7 +1031,7 @@ class wormgas(SingleServerIRCBot):
             for i in range(10):
                 t2.append(t1)
             url += ",".join(t2)
-            rs.append(self.shorten(url))
+            rs.append(self._shorten(url))
         else:
             return self.handle_help(nick, channel, output, topic="lstats")
 
@@ -971,8 +1039,8 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             return True
 
-        ltls = int(self.config.get("lasttime:lstats"))
-        wls = int(self.config.get("wait:lstats"))
+        ltls = int(self.config.get("lasttime:lstats") or 0)
+        wls = int(self.config.get("wait:lstats") or 0)
         if ltls < time.time() - wls:
             output.default.extend(rs)
             self.config.set("lasttime:lstats", time.time())
@@ -992,12 +1060,14 @@ class wormgas(SingleServerIRCBot):
         r += ", force is %s" % force
         self.log.info(r)
 
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !newmusic" % nick)
             return True
 
         self.config.set("lasttime:musiccheck", time.time())
+
+        if rchan:
+            rchan = rchan.lower()
 
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
@@ -1008,9 +1078,9 @@ class wormgas(SingleServerIRCBot):
         self.log.info("Looking for new music on the %s" % rchn)
 
         if force:
-            self.config.set("maxid:%s" % cid, 0)
+            self.config.unset("maxid:%s" % cid)
 
-        maxid = self.config.get("maxid:%s" % cid)
+        maxid = self.config.get("maxid:%s" % cid) or 0
         self.log.info("Looking for music newer than %s" % maxid)
 
         if self.rwdb:
@@ -1024,20 +1094,35 @@ class wormgas(SingleServerIRCBot):
             for r, url in songs:
                 msg = "New on the %s: %s" % (rchn, r)
                 if "http" in url:
-                    msg += " <%s>" % self.shorten(url)
+                    msg += " <%s>" % self._shorten(url)
                 output.rs.append(msg)
             self.config.set("maxid:%s" % cid, newmaxid)
 
         return True
 
-    @command_handler(r"!nowplaying\s(?P<rchan>\w+)")
-    @command_handler(r"!np(?P<rchan>\w+)")
+    @command_handler(r"!nowplaying(\s(?P<rchan>\w+))?")
+    @command_handler(r"!np(?P<rchan>\w+)?")
     def handle_nowplaying(self, nick, channel, output, rchan=None):
         """Report what is currently playing on the radio"""
 
         self.log.info("%s used !nowplaying" % nick)
 
         rs = []
+
+        if rchan:
+            rchan = rchan.lower()
+        else:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="nowplaying")
+
         if rchan in self.channel_ids:
             cid = self.channel_ids[rchan]
         else:
@@ -1045,7 +1130,7 @@ class wormgas(SingleServerIRCBot):
         rchn = self.channel_names[cid]
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         sched_id = data["sched_current"]["sched_id"]
         sched_type = data["sched_current"]["sched_type"]
         if sched_type in (0, 4):
@@ -1062,7 +1147,7 @@ class wormgas(SingleServerIRCBot):
                 artt)
             url = np["song_url"]
             if url and "http" in url:
-                r += " <%s>" % self.shorten(url)
+                r += " <%s>" % self._shorten(url)
 
             if "elec_votes" in np:
                 votes = np["elec_votes"]
@@ -1094,7 +1179,7 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             return True
 
-        if sched_id == int(self.config.get("np:%s" % cid)):
+        if sched_id == int(self.config.get("np:%s" % cid) or 0):
             output.privrs.extend(rs)
             r = "I am cooling down. You can only use !nowplaying in "
             r += "%s once per song." % channel
@@ -1106,7 +1191,7 @@ class wormgas(SingleServerIRCBot):
         return True
 
     @command_handler(r"!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?")
-    @command_handler(r"!pp(?P<rchan>\w+)(\s(?P<index>\d))?")
+    @command_handler(r"!pp(?P<rchan>\w+)?(\s(?P<index>\d))?")
     def handle_prevplayed(self, nick, channel, output, rchan=None, index=0):
         """Report what was previously playing on the radio
 
@@ -1118,6 +1203,20 @@ class wormgas(SingleServerIRCBot):
         self.log.info("%s used !prevplayed" % nick)
 
         rs = []
+
+        if rchan:
+            rchan = rchan.lower()
+        else:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="prevplayed")
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
@@ -1133,7 +1232,7 @@ class wormgas(SingleServerIRCBot):
             return self.handle_help(nick, channel, output, topic="prevplayed")
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         sched_id = data["sched_history"][index]["sched_id"]
         sched_type = data["sched_history"][index]["sched_type"]
         if sched_type in (0, 4):
@@ -1197,10 +1296,25 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !rate" % nick)
 
-        if rchan in self.channel_ids and rating:
-            cid = self.channel_ids.get(rchan)
-        else:
+        if rchan is None:
             return self.handle_help(nick, channel, output, topic="rate")
+
+        rchan = rchan.lower()
+
+        if rchan not in self.channel_ids:
+            rating = rchan
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="rate")
+        
+        cid = self.channel_ids.get(rchan)
 
         # Make sure this nick matches a username
 
@@ -1229,7 +1343,7 @@ class wormgas(SingleServerIRCBot):
         # Get the song_id
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         song_id = data["sched_current"]["song_data"][0]["song_id"]
 
         # Try the rate
@@ -1237,7 +1351,7 @@ class wormgas(SingleServerIRCBot):
         url = "http://rainwave.cc/async/%s/rate" % cid
         args = {"user_id": user_id, "key": key, "song_id": song_id,
             "rating": rating}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["rate_result"]:
             output.privrs.append(data["rate_result"]["text"])
@@ -1252,10 +1366,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !refresh" % nick)
 
-        # This command requires privlevel 1
-
-        priv = self.config.get("privlevel:%s" % nick)
-        if priv < 1:
+        if not self._is_admin(nick):
             self.log.warning("%s does not have privs to use !refresh" % nick)
             return True
 
@@ -1264,6 +1375,9 @@ class wormgas(SingleServerIRCBot):
         if self.rwdb is None:
             output.privrs.append("The Rainwave database is unavailable.")
             return True
+
+        if rchan:
+            rchan = rchan.lower()
 
         if rchan in self.channel_ids:
             cid = self.channel_ids.get(rchan)
@@ -1293,10 +1407,26 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !request" % nick)
 
-        if rchan in self.channel_ids and songid:
-            cid = self.channel_ids.get(rchan)
+        if rchan is None:
+            if songid is None:
+                return self.handle_help(nick, channel, output, topic="request")
+            rchan = 0
         else:
-            return self.handle_help(nick, channel, output, topic="request")
+            rchan = rchan.lower()
+            if songid is None:
+                songid = rchan
+
+        if rchan not in self.channel_ids:
+            luid = self.config.get_id_for_nick(nick)
+            if not luid and self.rwdb:
+                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="request")
+        
+        cid = self.channel_ids.get(rchan)
 
         user_id = self.config.get_id_for_nick(nick)
 
@@ -1320,7 +1450,7 @@ class wormgas(SingleServerIRCBot):
 
         url = "http://rainwave.cc/async/%s/request" % cid
         args = {"user_id": user_id, "key": key, "song_id": songid}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["request_result"]:
             output.privrs.append(data["request_result"]["text"])
@@ -1335,8 +1465,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !restart" % nick)
 
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
+        if self._is_admin(nick):
             self.config.set("restart_on_stop", 1)
             self.handle_stop(nick, channel, output)
         else:
@@ -1356,7 +1485,7 @@ class wormgas(SingleServerIRCBot):
             dice = 1
 
         try:
-            sides = min(int(sides), 100)
+            sides = max(min(int(sides), 100), 1)
         except TypeError:
             sides = 20
 
@@ -1373,8 +1502,8 @@ class wormgas(SingleServerIRCBot):
             output.default.append(r)
             return True
 
-        ltr = int(self.config.get("lasttime:roll"))
-        wr = int(self.config.get("wait:roll"))
+        ltr = int(self.config.get("lasttime:roll") or 0)
+        wr = int(self.config.get("wait:roll") or 0)
         if ltr < time.time() - wr:
             output.default.append(r)
             self.config.set("lasttime:roll", time.time())
@@ -1390,6 +1519,11 @@ class wormgas(SingleServerIRCBot):
     @command_handler(r"!(?P<mode>rock|paper|scissors)")
     def handle_rps(self, nick, channel, output, mode=None):
         """Rock, paper, scissors"""
+
+        if mode is None:
+            return True
+        else:
+            mode = mode.lower()
 
         self.log.info("%s used !%s" % (nick, mode))
 
@@ -1409,14 +1543,17 @@ class wormgas(SingleServerIRCBot):
             r+= "You lose!"
 
         w, d, l = self.config.get_rps_record(nick)
-        r += " Your current record is %s-%s-%s (w-d-l)." % (w, d, l)
+        pw = int(float(w)/float(w+d+l)*100)
+        pd = int(float(d)/float(w+d+l)*100)
+        pl = int(float(l)/float(w+d+l)*100)
+        r += " Your current record is %s-%s-%s or %s%%-%s%%-%s%% (w-d-l)." % (w, d, l, pw, pd, pl)
 
         if channel == PRIVMSG:
             output.default.append(r)
             return True
 
-        ltr = int(self.config.get("lasttime:rps"))
-        wr = int(self.config.get("wait:rps"))
+        ltr = int(self.config.get("lasttime:rps") or 0)
+        wr = int(self.config.get("wait:rps") or 0)
         if ltr < time.time() - wr:
             output.default.append(r)
             self.config.set("lasttime:rps", time.time())
@@ -1449,8 +1586,8 @@ class wormgas(SingleServerIRCBot):
             output.default.append(r)
             return True
 
-        ltr = int(self.config.get("lasttime:rps"))
-        wr = int(self.config.get("wait:rps"))
+        ltr = int(self.config.get("lasttime:rps") or 0)
+        wr = int(self.config.get("wait:rps") or 0)
         if ltr < time.time() - wr:
             output.default.append(r)
             self.config.set("lasttime:rps", time.time())
@@ -1468,7 +1605,7 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !rps rename" % nick)
 
-        if self.config.get("privlevel:%s" % nick) > 1 and old and new:
+        if self._is_admin(nick) and old and new:
             self.config.rename_rps_player(old, new)
             r = "I assigned the RPS game history for %s to %s." % (old, new)
             output.privrs.append(r)
@@ -1511,8 +1648,8 @@ class wormgas(SingleServerIRCBot):
             output.default.append(r)
             return True
 
-        ltr = int(self.config.get("lasttime:rps"))
-        wr = int(self.config.get("wait:rps"))
+        ltr = int(self.config.get("lasttime:rps") or 0)
+        wr = int(self.config.get("wait:rps") or 0)
         if ltr < time.time() - wr:
             output.default.append(r)
             self.config.set("lasttime:rps", time.time())
@@ -1533,7 +1670,7 @@ class wormgas(SingleServerIRCBot):
         rs = []
         players = self.config.get_rps_players()
 
-        mlnl = int(self.config.get("maxlength:nicklist"))
+        mlnl = int(self.config.get("maxlength:nicklist") or 0)
         while len(players) > mlnl:
             plist = players[:mlnl]
             players[:mlnl] = []
@@ -1546,8 +1683,8 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             return True
 
-        ltr = int(self.config.get("lasttime:rps"))
-        wr = int(self.config.get("wait:rps"))
+        ltr = int(self.config.get("lasttime:rps") or 0)
+        wr = int(self.config.get("wait:rps") or 0)
         if ltr < time.time() - wr:
             output.default.extend(rs)
             self.config.set("lasttime:rps", time.time())
@@ -1559,11 +1696,27 @@ class wormgas(SingleServerIRCBot):
 
         return True
 
+    @command_handler(r"^!set(\s(?P<id>\S+))?(\s(?P<value>.+))?")
+    def handle_set(self, nick, channel, output, id=None, value=None):
+        """View and set bot configuration"""
+        
+        self.log.info("%s used !set" % nick)
+        
+        if self._is_admin(nick):
+            output.privrs.extend(self.config.handle(id, value))
+            return True
+        else:
+            self.log.warning("%s does not have privs to use !set" % nick)
+            return self.handle_help(nick, channel, output, topic="set")
+
     @command_handler(r"!stats(\s(?P<rchan>\w+))?")
     def handle_stats(self, nick, channel, output, rchan=None):
         """Report radio statistics"""
 
         self.log.info("%s used !stats" % nick)
+
+        if rchan:
+            rchan = rchan.lower()
 
         cid = self.channel_ids.get(rchan, 0)
         if self.rwdb:
@@ -1577,8 +1730,8 @@ class wormgas(SingleServerIRCBot):
             output.default.append(r)
             return True
 
-        lts = int(self.config.get("lasttime:stats"))
-        ws = int(self.config.get("wait:stats"))
+        lts = int(self.config.get("lasttime:stats") or 0)
+        ws = int(self.config.get("wait:stats") or 0)
         if lts < time.time() - ws:
             output.default.append(r)
             self.config.set("lasttime:stats", time.time())
@@ -1596,12 +1749,10 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !stop" % nick)
 
-        priv = int(self.config.get("privlevel:%s" % nick))
-        if priv > 1:
+        if self._is_admin(nick):
             self.config.set("who_stopped_me", nick)
-            restart = int(self.config.get("restart_on_stop"))
-            self.config.set("restart_on_stop", 0)
-            if restart == 1:
+            if self.config.get("restart_on_stop"):
+                self.config.unset("restart_on_stop")
                 pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, stdin=subprocess.PIPE)
             # self.timer.cancel()
@@ -1617,14 +1768,28 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !unrated" % nick)
 
-        if rchan in self.channel_ids:
-            cid = self.channel_ids.get(rchan)
-        else:
+        if rchan is None:
             return self.handle_help(nick, channel, output, topic="unrated")
+        else:
+            rchan = rchan.lower()
+
+        if rchan not in self.channel_ids:
+            if num is None:
+                num = rchan
+            luid = self.config.get_id_for_nick(nick)
+            if not luid and self.rwdb:
+                luid = self.rwdb.get_id_for_nick(nick)
+            cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                return self.handle_help(nick, channel, output, topic="unrated")
+        
+        cid = self.channel_ids.get(rchan)
 
         try:
             num = int(num)
-        except TypeError, ValueError:
+        except:
             num = 1
 
         user_id = self.config.get_id_for_nick(nick)
@@ -1647,6 +1812,22 @@ class wormgas(SingleServerIRCBot):
             output.privrs.append("%s: %s" % (uchn, text))
 
         return True
+
+    @command_handler(r"^!unset(\s(?P<id>\S+))?")
+    def handle_unset(self, nick, channel, output, id=None):
+        """Unset a configuration item"""
+        
+        self.log.info("%s used !unset" % nick)
+        
+        if self._is_admin(nick):
+            if id:
+                self.config.unset(id)
+                output.privrs.append("%s has been unset" % id)
+                return True
+        else:
+            self.log.warning("%s does not have privs to use !unset" % nick)
+
+        return self.handle_help(nick, channel, output, topic="unset")
 
     @command_handler(r"!ustats(\s(?P<target>.+))?")
     def handle_ustats(self, nick, channel, output, target=None):
@@ -1671,9 +1852,9 @@ class wormgas(SingleServerIRCBot):
         key = self.config.get("api:key")
         url = "http://rainwave.cc/async/1/listener_detail"
         args = {"user_id": uid, "key": key, "listener_uid": luid}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
-        if data["listener_detail"]:
+        if "listener_detail" in data:
             ld = data["listener_detail"]
             cun = ld["username"] # canonical username
 
@@ -1716,7 +1897,7 @@ class wormgas(SingleServerIRCBot):
             # Line 3: What channel are you listening to?
 
             cur_cid = self.rwdb.get_current_channel(luid)
-            if cur_cid is not None:
+            if cur_cid:
                 rch = self.channel_names[cur_cid]
                 r = "%s is currently listening to the %s." % (cun, rch)
                 rs.append(r)
@@ -1727,8 +1908,8 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             return True
 
-        ltu = int(self.config.get("lasttime:ustats"))
-        wu = int(self.config.get("wait:ustats"))
+        ltu = int(self.config.get("lasttime:ustats") or 0)
+        wu = int(self.config.get("wait:ustats") or 0)
         if ltu < time.time() - wu:
             output.default.extend(rs)
             self.config.set("lasttime:ustats", time.time())
@@ -1746,14 +1927,36 @@ class wormgas(SingleServerIRCBot):
 
         self.log.info("%s used !vote" % nick)
 
-        if rchan in self.channel_ids and index:
-            cid = self.channel_ids.get(rchan)
+        if rchan is None:
+            if index is None:
+                return self.handle_help(nick, channel, output, topic="vote")
+            rchan = 0
         else:
-            return self.handle_help(nick, channel, output, topic="vote")
+            rchan = rchan.lower()
+            if index is None:
+                index = rchan
+
+        if rchan not in self.channel_ids:
+            cur_cid = None
+            if self.rwdb:
+                luid = self.config.get_id_for_nick(nick)
+                if not luid:
+                    luid = self.rwdb.get_id_for_nick(nick)
+                cur_cid = self.rwdb.get_current_channel(luid)
+            if cur_cid:
+                rchan = self.channel_codes[cur_cid]
+            else:
+                output.privrs.append("Either you are not tuned in or your IRC "
+                    "nick does not match your forum username. Tune in to a "
+                    "channel or link your Rainwave account to this IRC nick "
+                    "using \x02!id\x02.")
+                return True
+        
+        cid = self.channel_ids.get(rchan)
 
         try:
             index = int(index)
-        except TypeError, ValueError:
+        except:
             return self.handle_help(nick, channel, output, topic="vote")
 
         if index not in [1, 2, 3]:
@@ -1782,7 +1985,7 @@ class wormgas(SingleServerIRCBot):
         # Get the elec_entry_id
 
         url = "http://rainwave.cc/async/%s/get" % cid
-        data = self.api_call(url)
+        data = self._api_call(url)
         voteindex = index - 1
         song_data = data["sched_next"][0]["song_data"]
         elec_entry_id = song_data[voteindex]["elec_entry_id"]
@@ -1791,7 +1994,7 @@ class wormgas(SingleServerIRCBot):
 
         url = "http://rainwave.cc/async/%s/vote" % cid
         args = {"user_id": user_id, "key": key, "elec_entry_id": elec_entry_id}
-        data = self.api_call(url, args)
+        data = self._api_call(url, args)
 
         if data["vote_result"]:
             output.privrs.append(data["vote_result"]["text"])
@@ -1814,27 +2017,30 @@ class wormgas(SingleServerIRCBot):
             # It's me!
 
             # If I recorded a ping timeout, tell everyone and clear it
-            if int(self.config.get("ping_timeout")) == 1:
+            if self.config.get("ping_timeout"):
                 r = ("I restarted because the IRC server hadn't pinged for %s "
                     "seconds." % self.config.get("timeout:ping"))
                 self._to_irc(c, "privmsg", irc_chan, r)
-                self.config.set("ping_timeout", 0)
+                self.config.unset("ping_timeout")
 
             # If someone stopped me, call them out and clear it
             a = self.config.get("who_stopped_me")
-            if a != 0:
+            if a:
                 r = "I was stopped by %s." % a
                 self._to_irc(c, "privmsg", irc_chan, r)
-                self.config.set("who_stopped_me", 0)
+                self.config.unset("who_stopped_me")
 
         # Check for a join response
         jr = self.config.get("joinresponse:%s" % nick)
-        if jr != -1:
+        if jr:
             self._to_irc(c, "privmsg", irc_chan, jr)
 
         ja = self.config.get("joinaction:%s" % nick)
-        if ja != -1:
+        if ja:
             self._to_irc(c, "action", irc_chan, ja)
+
+    def on_ping(self, c, e):
+        """This method is called when an IRC ping event happens"""
 
         # Start the periodic tasks.
         self._periodic(c)
@@ -1915,7 +2121,7 @@ class wormgas(SingleServerIRCBot):
             urls = self._find_urls(msg)
             for url in urls:
                 title = self._get_title(url)
-                if title is not None:
+                if title:
                     self.log.info("Found a title: %s" % title)
                     rs.append("[ %s ]" % title)
 
@@ -1926,8 +2132,8 @@ class wormgas(SingleServerIRCBot):
             if len(talkrs) > 0:
                 self.config.set("msg:last", msg)
                 self.config.set("lasttime:msg", time.time())
-                ltr = int(self.config.get("lasttime:respond"))
-                wr = int(self.config.get("wait:respond"))
+                ltr = int(self.config.get("lasttime:respond") or 0)
+                wr = int(self.config.get("wait:respond") or 0)
 
                 if self.config.get("irc:nick") in msg:
                     if time.time() > ltr + wr:
@@ -1961,7 +2167,7 @@ class wormgas(SingleServerIRCBot):
         self._to_irc(c, "privmsg", "nickserv", "identify %s" % passwd)
         c.join(self.config.get("irc:channel"))
 
-    def api_call(self, url, args=None):
+    def _api_call(self, url, args=None):
         """Make a call to the Rainwave API
 
         Arguments:
@@ -1983,7 +2189,98 @@ class wormgas(SingleServerIRCBot):
         data = json.loads(result)
         return data
 
-    def shorten(self, lurl):
+    def _find_urls(self, text):
+        """Look for URLs in arbitrary text. Return a list of the URLs found."""
+
+        self.log.info("Looking for URLs in: %s" % text)
+
+        urls = []
+        for token in text.split():
+            o = urlparse(token)
+            if "http" in o.scheme and o.netloc:
+                url = o.geturl()
+                self.log.info("Found a URL: %s" % url)
+                urls.append(url)
+        return urls
+
+    def _get_title(self, url):
+        """Attempt to get the page title from a URL"""
+
+        ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
+        rq = urllib2.Request(url)
+        rq.add_header('user-agent', ua)
+        op = urllib2.build_opener()
+
+        try:
+            data = op.open(rq)
+        except:
+            self.log.exception("Cannot open the URL: %s" % url)
+            return None
+
+        try:
+            title = lxml.html.parse(data).findtext("head/title")
+        except:
+            self.log.exception("Cannot parse the page at: %s" % url)
+            return None
+
+        if title:
+            title = " ".join(title.split())
+        return title
+
+    def _is_admin(self, nick):
+        """Check whether a nick has privileges to use administrative commands"""
+        
+        channel = self.config.get("irc:channel").encode('ascii')
+        if channel in self.channels:
+            chan = self.channels[channel]
+            if nick in chan.owners():
+                return True
+            elif nick in chan.opers():
+                return True
+            elif nick in chan.halfops():
+                return True
+
+        return False
+
+    def _periodic(self, c):
+        # If I have not checked for forum activity for "timeout:forumcheck"
+        # seconds, check now
+
+        self.log.info("Performing periodic tasks")
+
+        nick = self.config.get("irc:nick")
+        chan = self.config.get("irc:channel")
+        output = Output("public")
+
+        ltfc = int(self.config.get("lasttime:forumcheck") or 0)
+        tofc = int(self.config.get("timeout:forumcheck") or 0)
+        if int(time.time()) > ltfc + tofc:
+            self.log.info("Forum check timeout exceeded")
+            self.handle_forum(nick, chan, output, force=False)
+
+        ltmc = int(self.config.get("lasttime:musiccheck") or 0)
+        tomc = int(self.config.get("timeout:musiccheck") or 0)
+        if int(time.time()) > ltmc + tomc:
+            self.log.info("Music check timeout exceeded")
+            for rchan in self.channel_ids.keys():
+                self.handle_newmusic(nick, chan, output, rchan=rchan,
+                    force=False)
+
+        ltm = int(self.config.get("lasttime:msg") or 0)
+        toc = int(self.config.get("timeout:chat") or 0)
+        if int(time.time()) > ltm + toc:
+            self.log.info("Chat timeout exceeded, keep the conversation moving")
+            talkrs = self._talk()
+            for talkr in talkrs:
+                self.config.set("msg:last", talkr)
+                self.config.set("lasttime:msg", time.time())
+                self.config.set("lasttime:respond", time.time())
+                output.rs.append(talkr)
+
+        for r in output.rs:
+            self._to_irc(c, "privmsg", chan, r)
+
+    def _shorten(self, lurl):
         """Shorten a URL
 
         Arguments:
@@ -2004,34 +2301,39 @@ class wormgas(SingleServerIRCBot):
         content = h.getresponse().read()
 
         result = json.loads(content)
-        return result["id"]
+        if "id" in result:
+            return result["id"]
+        
+        return ""
 
-    def _find_urls(self, text):
-        """Look for URLs in arbitrary text. Return a list of the URLs found."""
+    def _talk(self, msg=None):
+        """Engage the brain, respond when appropriate
 
-        self.log.info("Looking for URLs in: %s" % text)
+        Arguments:
+            msg: the message to learn and possible reply to
 
-        urls = []
-        for token in text.split():
-            o = urlparse(token)
-            if "http" in o.scheme and o.netloc:
-                url = o.geturl()
-                self.log.info("Found a URL: %s" % url)
-                urls.append(url)
-        return urls
+        Returns: a list of strings"""
 
-    def _get_title(self, url):
-        """Attempt to get the page title from a URL"""
+        # If I am not replying to anything in particular, use the last message
+        if msg is None:
+            msg = self.config.get("msg:last")
+        if msg is None:
+            return []
 
-        try:
-            title = lxml.html.parse(urllib2.urlopen(url)).findtext("head/title")
-        except:
-            self.log.exception("Cannot open the URL: %s" % url)
-            return None
+        # Ignore messages with certain words
+        if self.reignore:
+            result = self.reignore.search(msg)
+            if result is not None:
+                return []
 
-        if title is not None:
-            title = " ".join(title.split())
-        return title
+        # Clean up the message before sending to the brain
+        tobrain = msg
+        tobrain = tobrain.replace(self.config.get("irc:nick"), "")
+        tobrain = tobrain.replace(":", "")
+
+        self.brain.learn(tobrain)
+
+        return [self.brain.reply(tobrain)]
 
     def _to_irc(self, c, msgtype, target, msg):
         """Send an IRC message"""
@@ -2048,66 +2350,6 @@ class wormgas(SingleServerIRCBot):
                 self.log.exception("Problem sending to IRC")
         else:
             self.log.error("Invalid message type '%s'" % msgtype)
-
-    def _periodic(self, c):
-        # If I have not checked for forum activity for "timeout:forumcheck"
-        # seconds, check now
-
-        self.log.info("Performing periodic tasks")
-
-        output = Output("public")
-
-        ltfc = int(self.config.get("lasttime:forumcheck"))
-        tofc = int(self.config.get("timeout:forumcheck"))
-        if int(time.time()) > ltfc + tofc:
-            self.log.info("Forum check timeout exceeded")
-            nick = self.config.get("irc:nick")
-            chan = self.config.get("irc:channel")
-            self.handle_forum(nick, chan, output, force=False)
-
-        ltmc = int(self.config.get("lasttime:musiccheck"))
-        tomc = int(self.config.get("timeout:musiccheck"))
-        if int(time.time()) > ltmc + tomc:
-            self.log.info("Music check timeout exceeded")
-            nick = self.config.get("irc:nick")
-            chan = self.config.get("irc:channel")
-            for rchan in self.channel_ids.keys():
-                self.handle_newmusic(nick, chan, output, rchan=rchan,
-                    force=False)
-
-        for r in output.rs:
-            self._to_irc(c, "privmsg", chan, r)
-
-        # Come back in 60 seconds
-        # self.timer = threading.Timer(60, self._periodic, [c])
-        # self.timer.start()
-
-    def _talk(self, msg=None):
-        """Engage the brain, respond when appropriate
-
-        Arguments:
-            msg: the message to learn and possible reply to
-
-        Returns: a list of strings"""
-
-        # If I am not replying to anything in particular, use the last message
-        if msg is None:
-            msg = self.config.get("msg:last")
-
-        # Ignore messages with certain words
-        if self.reignore:
-            result = self.reignore.search(msg)
-            if result is not None:
-                return []
-
-        # Clean up the message before sending to the brain
-        tobrain = msg
-        tobrain = tobrain.replace(self.config.get("irc:nick"), "")
-        tobrain = tobrain.replace(":", "")
-
-        self.brain.learn(tobrain)
-
-        return [self.brain.reply(tobrain)]
 
 def main():
     try:

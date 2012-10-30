@@ -56,41 +56,37 @@ class TestCommands(unittest.TestCase):
         self.assertTrue(output.privrs[0] in wormgas.wormgas.answers_8ball)
         self.assertTrue("cooling down" in output.privrs[1])
 
-    def testConfigNotAllowed(self):
+    def testSetNotAllowed(self):
         output = wormgas.Output("public")
-        self.wormgas.handle_config(self.nick, self.channel, output,
+        self.wormgas.handle_set(self.nick, self.channel, output,
             id="test:key", value="test:value")
         self.assertEquals(output.rs, [])
-        self.assertEquals(output.privrs, [])
-        self.assertEquals(self.wormgas.config.get("test:key"), -1)
+        self.assertEquals(self.wormgas.config.get("test:key"), None)
 
-    def testConfigNew(self):
+    def testSetNew(self):
         output = wormgas.Output("public")
-        self.wormgas.config.add_admin(self.nick)
-        self.wormgas.handle_config(self.nick, self.channel, output,
+        self.wormgas._is_admin = lambda nick: nick is self.nick
+        self.wormgas.handle_set(self.nick, self.channel, output,
             id="test:key", value="test:value")
         self.assertEquals(output.rs, [])
-        self.assertEquals(output.privrs, ["test:key = test:value"])
         self.assertEquals(self.wormgas.config.get("test:key"), "test:value")
 
-    def testConfigExisting(self):
+    def testSetExisting(self):
         output = wormgas.Output("public")
-        self.wormgas.config.add_admin(self.nick)
+        self.wormgas._is_admin = lambda nick: nick is self.nick
         self.wormgas.config.set("test:key", "test:oldvalue")
-        self.wormgas.handle_config(self.nick, self.channel, output,
+        self.wormgas.handle_set(self.nick, self.channel, output,
             id="test:key", value="test:value")
         self.assertEquals(output.rs, [])
-        self.assertEquals(output.privrs, ["test:key = test:value"])
         self.assertEquals(self.wormgas.config.get("test:key"), "test:value")
 
-    def testConfigDelete(self):
+    def testUnset(self):
         output = wormgas.Output("public")
-        self.wormgas.config.add_admin(self.nick)
-        self.wormgas.handle_config(self.nick, self.channel, output,
-            id="test:key", value="-1")
+        self.wormgas._is_admin = lambda nick: nick is self.nick
+        self.wormgas.handle_unset(self.nick, self.channel, output,
+            id="test:key")
         self.assertEquals(output.rs, [])
-        self.assertEquals(output.privrs, ["test:key = -1"])
-        self.assertEquals(self.wormgas.config.get("test:key"), -1)
+        self.assertEquals(self.wormgas.config.get("test:key"), None)
 
 if __name__ == "__main__":
     unittest.main()

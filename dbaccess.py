@@ -23,6 +23,18 @@ class Config(object):
         # Special case: empty string will match no input and learn all words.
         "msg:ignore": "",
 
+        # IRC channel the bot should join.
+        "irc:channel": "#testgas",
+
+        # IRC "real name" the bot should use.
+        "irc:name": "wormgas",
+
+        # IRC nick the bot should use.
+        "irc:nick": "testgas",
+
+        # IRC network URL.
+        "irc:server": "irc.synirc.net",
+
         # Wait values are in seconds and represent cooldowns for specific
         # commands.
         "wait:8ball": 90,
@@ -52,7 +64,7 @@ class Config(object):
 
         # Add any missing default bot config values.
         for key, value in self.default_bot_config.iteritems():
-            if self.get(key) == -1:
+            if self.get(key) == None:
                 self.set(key, value)
 
     def __del__(self):
@@ -90,15 +102,15 @@ class Config(object):
         Arguments:
             id: the config_id that you want to read
 
-        Returns: the config_value, or -1 if the config_id does not exist"""
+        Returns: the config_value, or None if the config_id does not exist"""
 
-        config_value = -1
+        config_value = None
         sql = "select config_value from botconfig where config_id = ?"
         self.ccur.execute(sql, (id,))
         for r in self.ccur:
             config_value = r[0]
         log.debug("Current value of %s is %s" % (id, config_value))
-        return(config_value)
+        return config_value
 
     def get_bot_config(self):
         """Return a dict of all botconfig values."""
@@ -202,6 +214,7 @@ class Config(object):
             self.ccur.execute(sql)
             for r in self.ccur:
                 cids.append(r[0])
+            cids.sort()
             mlcl = int(self.get("maxlength:configlist"))
             while len(cids) > mlcl:
                 clist = cids[:mlcl]
@@ -245,10 +258,7 @@ class Config(object):
             value: the value to set it to"""
 
         cur_config_value = self.get(id)
-        if value in (-1, "-1"):
-            sql = "delete from botconfig where config_id = ?"
-            self.ccur.execute(sql, (id,))
-        elif cur_config_value in (-1, "-1"):
+        if cur_config_value is None:
             sql = ("insert into botconfig (config_id, config_value) values "
                 "(?, ?)")
             self.ccur.execute(sql, (id, value))
@@ -267,6 +277,16 @@ class Config(object):
         if not stored_nick:
             sql = "insert into user_keys (user_nick) values (?)"
             self.ccur.execute(sql, (nick,))
+    
+    def unset(self, id):
+        """Unset (remove) a configuration value from the database.
+        
+        Arguments:
+            id: the config_id to unset"""
+        
+        sql = "delete from botconfig where config_id = ?"
+        self.ccur.execute(sql, (id,))
+        log.debug("Unset %s" % id)
 
 class RainwaveDatabaseUnavailableError(IOError):
     """Raised if the Rainwave database or PostgreSQL module is missing."""

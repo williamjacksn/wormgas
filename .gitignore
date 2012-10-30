@@ -1,4 +1,4 @@
 *.log
 *.pyc
-*.sqlite
+*.sqlite*
 .DS_Store
