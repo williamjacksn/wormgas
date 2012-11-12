@@ -37,7 +37,14 @@ class Config(object):
 
         # Wait values are in seconds and represent cooldowns for specific
         # commands.
-        "wait:8ball": 90,
+        "wait:8ball": 180,
+        "wait:flip": 60,
+        "wait:lstats": 2,
+        "wait:respond": 300,
+        "wait:roll": 90,
+        "wait:rps": 180,
+        "wait:stats": 300,
+        "wait:ustats": 180
     }
 
     def __init__(self, path):
@@ -259,13 +266,13 @@ class Config(object):
         if not stored_nick:
             sql = "insert into user_keys (user_nick) values (?)"
             self.ccur.execute(sql, (nick,))
-    
+
     def unset(self, id):
         """Unset (remove) a configuration value from the database.
-        
+
         Arguments:
             id: the config_id to unset"""
-        
+
         sql = "delete from botconfig where config_id = ?"
         self.ccur.execute(sql, (id,))
         log.debug("Unset %s" % id)
