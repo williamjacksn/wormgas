@@ -36,6 +36,7 @@ class TestCommands(unittest.TestCase):
     def test8BallPrivate(self):
         output = wormgas.Output("private")
         self.wormgas.handle_8ball(self.nick, wormgas.PRIVMSG, output)
+        self.assertEquals(len(output.rs), 0)
         self.assertEquals(len(output.privrs), 1)
         self.assertTrue(output.privrs[0] in wormgas.wormgas.answers_8ball)
 
@@ -54,6 +55,27 @@ class TestCommands(unittest.TestCase):
         self.assertEquals(output.rs, [])
         self.assertEquals(len(output.privrs), 2)
         self.assertTrue(output.privrs[0] in wormgas.wormgas.answers_8ball)
+        self.assertTrue("cooling down" in output.privrs[1])
+
+    def testFlipPublic(self):
+        output = wormgas.Output("public")
+        self.wormgas.handle_flip(self.nick, self.channel, output)
+        self.assertEquals(len(output.rs), 1)
+
+    def testFlipPrivate(self):
+        output = wormgas.Output("private")
+        self.wormgas.handle_flip(self.nick, wormgas.PRIVMSG, output)
+        self.assertEquals(len(output.rs), 0)
+        self.assertEquals(len(output.privrs), 1)
+
+    def testFlipTimeout(self):
+        output = wormgas.Output("public")
+        self.wormgas.handle_flip(self.nick, self.channel, output)
+        # Cooldown is set, now test it.
+        output = wormgas.Output("public")
+        self.wormgas.handle_flip(self.nick, self.channel, output)
+        self.assertEquals(output.rs, [])
+        self.assertEquals(len(output.privrs), 2)
         self.assertTrue("cooling down" in output.privrs[1])
 
     def testSetNotAllowed(self):
