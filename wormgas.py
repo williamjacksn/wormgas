@@ -832,7 +832,7 @@ class wormgas(SingleServerIRCBot):
             return
 
         if rchan in ("song", "album"):
-            text = mode + " " + text
+            text = mode + " " + str(text)
             mode = rchan
             rchan = None
 
@@ -848,6 +848,7 @@ class wormgas(SingleServerIRCBot):
             if cur_cid:
                 rchan = self.channel_codes[cur_cid]
             else:
+                output.privrs.append("I cannot determine the channel")
                 self.handle_help(nick, channel, output, topic="lookup")
                 return
 
