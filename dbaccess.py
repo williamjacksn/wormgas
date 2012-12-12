@@ -469,6 +469,16 @@ class RainwaveDatabase(object):
         for r in self.rcur.fetchall():
             yield r[0]
 
+    def get_all_otps(self):
+        """Yields all Oneshots currently on the schedule"""
+
+        sql = ("select rw_schedule.sid, sched_id, album_name, song_title from "
+            "rw_schedule join rw_oneshot using (sched_id) join rw_songs using "
+            "(song_id) join rw_albums using (album_id) where sched_used <> 2")
+        self.rcur.execute(sql)
+        for r in self.rcur.fetchall():
+            yield r
+
     def get_cdg_id(self, cid, cdg_name):
         """Given a channel id and cooldown group name, get the cdg id"""
 

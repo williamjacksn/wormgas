@@ -1178,6 +1178,17 @@ class wormgas(SingleServerIRCBot):
             output.default.extend(rs)
             self.config.set("np:%s" % cid, sched_id)
 
+    @command_handler(r"^!otp")
+    def handle_otp(self, nick, channel, output):
+        self.log.info("%s used !otp" % nick)
+        if not self._is_admin(nick):
+            self.log.warning("%s does not have privs to use !otp" % nick)
+            return
+
+        for o in self.rwdb.get_all_otps():
+            r = "%s [%s] %s / %s" % (self.channel_names[o[0]], o[1], o[2], o[3])
+            output.default.append(r)
+
     @command_handler(r"!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?")
     @command_handler(r"!pp(?P<rchan>\w+)?(\s(?P<index>\d))?")
     def handle_prevplayed(self, nick, channel, output, rchan=None, index=0):
