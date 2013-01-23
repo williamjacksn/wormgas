@@ -108,7 +108,6 @@ class Config(object):
 		self.ccur.execute(sql, (id,))
 		for r in self.ccur:
 			config_value = r[0]
-		log.debug("Current value of %s is %s" % (id, config_value))
 		return config_value
 
 	def get_bot_config(self):
@@ -254,7 +253,6 @@ class Config(object):
 		else:
 			sql = "update botconfig set config_value = ? where config_id = ?"
 			self.ccur.execute(sql, (value, id))
-		log.debug("New value of %s is %s" % (id, value))
 
 	def store_nick(self, nick):
 		"""Store this nick in user_keys for later use."""
@@ -275,7 +273,6 @@ class Config(object):
 
 		sql = "delete from botconfig where config_id = ?"
 		self.ccur.execute(sql, (id,))
-		log.debug("Unset %s" % id)
 
 class RainwaveDatabaseUnavailableError(IOError):
 	"""Raised if the Rainwave database or PostgreSQL module is missing."""
