@@ -2186,7 +2186,7 @@ class wormgas(SingleServerIRCBot):
 		# Is this nick in the Rainwave database?
 		db_id = self.rwdb.get_id_for_nick(nick)
 		if db_id:
-			return self.rwdb.get_current_channel(rb_id)
+			return self.rwdb.get_current_channel(db_id)
 
 		return None
 
