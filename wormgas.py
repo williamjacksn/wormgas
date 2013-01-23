@@ -2098,6 +2098,30 @@ class wormgas(SingleServerIRCBot):
 		for privr in privrs:
 			self._to_irc(c, "privmsg", nick, privr)
 
+	def on_topic(self, c, e):
+		"""This method is called when the topic is set
+
+		Arguments:
+			c: the Connection object associated with this event
+			e: the Event object"""
+
+		nickmask = e.source()
+		nick = nickmask.split("!")[0]
+		new_topic = e.arguments()[0]
+		m = "%s changed the topic to: %s" % (nick, new_topic)
+
+		nicks_to_match = (self.config.get("funnytopic:nicks") or "").split()
+		if nick in nicks_to_match:
+			forum_id = self.config.get("funnytopic:forum_id")
+			if forum_id is None:
+				self.log.warning("Please !set funnytopic:forum_id")
+				return
+			topic_id = self.config.get("funnytopic:topic_id")
+			if topic_id is None:
+				self.log.warning("Please !set funnytopic:topic_id")
+				return
+			self._post_to_forum(forum_id, topic_id, m)
+
 	def on_welcome(self, c, e):
 		"""This method is called when the bot first connects to the server
 
@@ -2241,6 +2265,33 @@ class wormgas(SingleServerIRCBot):
 
 		for r in output.rs:
 			self._to_irc(c, "privmsg", chan, r)
+
+	def _post_to_forum(self, forum_id, topic_id, m):
+		"""Post a message to the phpBB forum
+
+		Arguments:
+			forum_id: phpBB forum id where the message should be sent
+			topic_id: phpBB topic id where the message should be sent (cannot create
+				new topics)
+			m: message to be sent"""
+
+		url = self.config.get("funnytopic:url")
+		if url is None:
+			self.log.warning("Please !set funnytopic:url")
+			return
+
+		u = self.config.get("funnytopic:username")
+		if u is None:
+			self.log.warning("Please !set funnytopic:username")
+			return
+
+		p = self.config.get("funnytopic:password")
+		if p is None:
+			self.log.warning("Please !set funnytopic:password")
+			return
+
+		post_data = {"u": u, "p": p, "f": forum_id, "t": topic_id, "m": m}
+		urllib2.urlopen(url, urllib.urlencode(post_data))
 
 	def _shorten(self, lurl):
 		"""Shorten a URL
