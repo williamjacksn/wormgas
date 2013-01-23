@@ -126,20 +126,20 @@ class wormgas(SingleServerIRCBot):
 	)
 
 	channel_ids = {
-		"rw":			1,
-		"game":		1,
-		"oc":			2,
-		"ocr":		2,
-		"vw":			3,
-		"mw":			3,
-		"cover":	3,
+		"rw":     1,
+		"game":   1,
+		"oc":     2,
+		"ocr":    2,
+		"vw":     3,
+		"mw":     3,
+		"cover":  3,
 		"covers": 3,
-		"bw":			4,
-		"chip":		4,
-		"ch":			4,
-		"ow":			5,
-		"omni":		5,
-		"all":		5
+		"bw":     4,
+		"chip":   4,
+		"ch":     4,
+		"ow":     5,
+		"omni":   5,
+		"all":    5
 	}
 
 	def __init__(self, config_db="config.sqlite", log_file="wormgas.log"):
