@@ -2282,6 +2282,8 @@ class wormgas(SingleServerIRCBot):
 			self.log.warning("Please !set funnytopic:password")
 			return
 
+		m = m.replace("<", "&lt;").replace(">", "&gt;")
+
 		post_data = {"u": u, "p": p, "f": forum_id, "t": topic_id, "m": m}
 		urllib2.urlopen(url, urllib.urlencode(post_data))
 
