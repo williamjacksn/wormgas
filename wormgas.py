@@ -1959,13 +1959,6 @@ class wormgas(SingleServerIRCBot):
 		if nick == self.config.get("irc:nick"):
 			# It's me!
 
-			# If I recorded a ping timeout, tell everyone and clear it
-			if self.config.get("ping_timeout"):
-				r = ("I restarted because the IRC server hadn't pinged for %s "
-					"seconds." % self.config.get("timeout:ping"))
-				self._to_irc(c, "privmsg", irc_chan, r)
-				self.config.unset("ping_timeout")
-
 			# If someone stopped me, call them out and clear it
 			a = self.config.get("who_stopped_me")
 			if a:
@@ -2129,7 +2122,6 @@ class wormgas(SingleServerIRCBot):
 			c: the Connection object associated with this event
 			e: the Event object"""
 
-		self.config.set("lasttime:ping", time.time())
 		passwd = self.config.get("irc:nickservpass")
 		self._to_irc(c, "privmsg", "nickserv", "identify %s" % passwd)
 		c.join(self.config.get("irc:channel"))
