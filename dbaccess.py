@@ -95,15 +95,16 @@ class Config(object):
 		sql = "update user_keys set user_key = null where user_nick = ?"
 		self.ccur.execute(sql, (nick,))
 
-	def get(self, id):
+	def get(self, id, default=None):
 		"""Read a value from the configuration database.
 
 		Arguments:
 			id: the config_id that you want to read
+			default: the return value if the config_id does not exist
 
-		Returns: the config_value, or None if the config_id does not exist"""
+		Returns: the config_value, or default if the config_id does not exist"""
 
-		config_value = None
+		config_value = default
 		sql = "select config_value from botconfig where config_id = ?"
 		self.ccur.execute(sql, (id,))
 		for r in self.ccur:
