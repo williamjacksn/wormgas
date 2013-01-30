@@ -174,10 +174,10 @@ class wormgas(SingleServerIRCBot):
 				self.config.set(key, value)
 
 		# Set up ignore if the ignore list is non-empty.
-		ignore = self.config.get("msg:ignore")
+		ignore = self.config.get("msg:ignore", "")
 		self.reignore = None
 		if ignore:
-			self.reignore = re.compile(self.config.get("msg:ignore"))
+			self.reignore = re.compile(ignore)
 
 		server = self.config.get("irc:server")
 		nick = self.config.get("irc:nick")
@@ -229,8 +229,8 @@ class wormgas(SingleServerIRCBot):
 			return
 
 		# Otherwise, check for the cooldown and respond accordingly.
-		ltb = int(self.config.get("lasttime:8ball") or 0)
-		wb = int(self.config.get("wait:8ball") or 0)
+		ltb = int(self.config.get("lasttime:8ball", 0))
+		wb = int(self.config.get("wait:8ball", 0))
 		if ltb < time.time() - wb:
 			output.default.append(result)
 			if "again" not in result:
@@ -479,8 +479,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(result)
 			return
 
-		ltf = int(self.config.get("lasttime:flip") or 0)
-		wf = int(self.config.get("wait:flip") or 0)
+		ltf = int(self.config.get("lasttime:flip", 0))
+		wf = int(self.config.get("wait:flip", 0))
 		if ltf < time.time() - wf:
 			output.default.append(result)
 			self.config.set("lasttime:flip", time.time())
@@ -507,7 +507,7 @@ class wormgas(SingleServerIRCBot):
 		if force:
 			self.config.unset("maxid:forum")
 
-		maxid = self.config.get("maxid:forum") or 0
+		maxid = self.config.get("maxid:forum", 0)
 		self.log.info("Looking for forum posts newer than %s" % maxid)
 
 		if self.rwdb:
@@ -516,7 +516,7 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append("The Rainwave database is unavailable.")
 			return
 
-		if newmaxid > int(self.config.get("maxid:forum") or 0):
+		if newmaxid > int(self.config.get("maxid:forum", 0)):
 			r, url = self.rwdb.get_forum_post_info()
 			surl = self._shorten(url)
 			output.rs.append("New on the forums! %s <%s>" % (r, surl))
@@ -1012,8 +1012,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.extend(rs)
 			return
 
-		ltls = int(self.config.get("lasttime:lstats") or 0)
-		wls = int(self.config.get("wait:lstats") or 0)
+		ltls = int(self.config.get("lasttime:lstats", 0))
+		wls = int(self.config.get("wait:lstats", 0))
 		if ltls < time.time() - wls:
 			output.default.extend(rs)
 			self.config.set("lasttime:lstats", time.time())
@@ -1052,7 +1052,7 @@ class wormgas(SingleServerIRCBot):
 		if force:
 			self.config.unset("maxid:%s" % cid)
 
-		maxid = self.config.get("maxid:%s" % cid) or 0
+		maxid = self.config.get("maxid:%s" % cid, 0)
 		self.log.info("Looking for music newer than %s" % maxid)
 
 		if self.rwdb:
@@ -1146,7 +1146,7 @@ class wormgas(SingleServerIRCBot):
 			output.default.extend(rs)
 			return
 
-		if sched_id == int(self.config.get("np:%s" % cid) or 0):
+		if sched_id == int(self.config.get("np:%s" % cid, 0)):
 			output.privrs.extend(rs)
 			r = "I am cooling down. You can only use !nowplaying in "
 			r += "%s once per song." % channel
@@ -1465,8 +1465,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(r)
 			return
 
-		ltr = int(self.config.get("lasttime:roll") or 0)
-		wr = int(self.config.get("wait:roll") or 0)
+		ltr = int(self.config.get("lasttime:roll", 0))
+		wr = int(self.config.get("wait:roll", 0))
 		if ltr < time.time() - wr:
 			output.default.append(r)
 			self.config.set("lasttime:roll", time.time())
@@ -1513,8 +1513,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(r)
 			return
 
-		ltr = int(self.config.get("lasttime:rps") or 0)
-		wr = int(self.config.get("wait:rps") or 0)
+		ltr = int(self.config.get("lasttime:rps", 0))
+		wr = int(self.config.get("wait:rps", 0))
 		if ltr < time.time() - wr:
 			output.default.append(r)
 			self.config.set("lasttime:rps", time.time())
@@ -1545,8 +1545,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(r)
 			return
 
-		ltr = int(self.config.get("lasttime:rps") or 0)
-		wr = int(self.config.get("wait:rps") or 0)
+		ltr = int(self.config.get("lasttime:rps", 0))
+		wr = int(self.config.get("wait:rps", 0))
 		if ltr < time.time() - wr:
 			output.default.append(r)
 			self.config.set("lasttime:rps", time.time())
@@ -1602,8 +1602,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(r)
 			return
 
-		ltr = int(self.config.get("lasttime:rps") or 0)
-		wr = int(self.config.get("wait:rps") or 0)
+		ltr = int(self.config.get("lasttime:rps", 0))
+		wr = int(self.config.get("wait:rps", 0))
 		if ltr < time.time() - wr:
 			output.default.append(r)
 			self.config.set("lasttime:rps", time.time())
@@ -1622,7 +1622,7 @@ class wormgas(SingleServerIRCBot):
 		rs = []
 		players = self.config.get_rps_players()
 
-		mlnl = int(self.config.get("maxlength:nicklist") or 0)
+		mlnl = int(self.config.get("maxlength:nicklist", 10))
 		while len(players) > mlnl:
 			plist = players[:mlnl]
 			players[:mlnl] = []
@@ -1635,8 +1635,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.extend(rs)
 			return
 
-		ltr = int(self.config.get("lasttime:rps") or 0)
-		wr = int(self.config.get("wait:rps") or 0)
+		ltr = int(self.config.get("lasttime:rps", 0))
+		wr = int(self.config.get("wait:rps", 0))
 		if ltr < time.time() - wr:
 			output.default.extend(rs)
 			self.config.set("lasttime:rps", time.time())
@@ -1679,8 +1679,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append(r)
 			return
 
-		lts = int(self.config.get("lasttime:stats") or 0)
-		ws = int(self.config.get("wait:stats") or 0)
+		lts = int(self.config.get("lasttime:stats", 0))
+		ws = int(self.config.get("wait:stats", 0))
 		if lts < time.time() - ws:
 			output.default.append(r)
 			self.config.set("lasttime:stats", time.time())
@@ -1702,7 +1702,7 @@ class wormgas(SingleServerIRCBot):
 				self.config.unset("restart_on_stop")
 				pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
 					stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-			self.die(self.config.get("msg:quit"))
+			self.die(self.config.get("msg:quit", ""))
 		else:
 			self.log.warning("%s does not have privs to use !stop" % nick)
 
@@ -1791,8 +1791,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.append("I do not recognize the username '%s'." % target)
 			return
 
-		uid = self.config.get("api:user_id")
-		key = self.config.get("api:key")
+		uid = self.config.get("api:user_id", 0)
+		key = self.config.get("api:key", 0)
 		url = "http://rainwave.cc/async/1/listener_detail"
 		args = {"user_id": uid, "key": key, "listener_uid": luid}
 		data = self._api_call(url, args)
@@ -1851,8 +1851,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.extend(rs)
 			return
 
-		ltu = int(self.config.get("lasttime:ustats") or 0)
-		wu = int(self.config.get("wait:ustats") or 0)
+		ltu = int(self.config.get("lasttime:ustats", 0))
+		wu = int(self.config.get("wait:ustats", 0))
 		if ltu < time.time() - wu:
 			output.default.extend(rs)
 			self.config.set("lasttime:ustats", time.time())
@@ -2068,8 +2068,8 @@ class wormgas(SingleServerIRCBot):
 			if len(talkrs) > 0:
 				self.config.set("msg:last", msg)
 				self.config.set("lasttime:msg", time.time())
-				ltr = int(self.config.get("lasttime:respond") or 0)
-				wr = int(self.config.get("wait:respond") or 0)
+				ltr = int(self.config.get("lasttime:respond", 0))
+				wr = int(self.config.get("wait:respond", 0))
 
 				if self.config.get("irc:nick") in msg:
 					if time.time() > ltr + wr:
@@ -2103,7 +2103,7 @@ class wormgas(SingleServerIRCBot):
 		new_topic = e.arguments()[0]
 		m = "%s changed the topic to: %s" % (nick, new_topic)
 
-		nicks_to_match = (self.config.get("funnytopic:nicks") or "").split()
+		nicks_to_match = self.config.get("funnytopic:nicks", "").split()
 		if nick in nicks_to_match:
 			forum_id = self.config.get("funnytopic:forum_id")
 			if forum_id is None:
@@ -2231,21 +2231,21 @@ class wormgas(SingleServerIRCBot):
 		chan = self.config.get("irc:channel")
 		output = Output("public")
 
-		ltfc = int(self.config.get("lasttime:forumcheck") or 0)
-		tofc = int(self.config.get("timeout:forumcheck") or 0)
+		ltfc = int(self.config.get("lasttime:forumcheck", 0))
+		tofc = int(self.config.get("timeout:forumcheck", 3600))
 		if int(time.time()) > ltfc + tofc:
 			self.log.info("Forum check timeout exceeded")
 			self.handle_forum(nick, chan, output, force=False)
 
-		ltmc = int(self.config.get("lasttime:musiccheck") or 0)
-		tomc = int(self.config.get("timeout:musiccheck") or 0)
+		ltmc = int(self.config.get("lasttime:musiccheck", 0))
+		tomc = int(self.config.get("timeout:musiccheck", 3600))
 		if int(time.time()) > ltmc + tomc:
 			self.log.info("Music check timeout exceeded")
 			for rchan in self.channel_ids.keys():
 				self.handle_newmusic(nick, chan, output, rchan=rchan, force=False)
 
-		ltm = int(self.config.get("lasttime:msg") or 0)
-		toc = int(self.config.get("timeout:chat") or 0)
+		ltm = int(self.config.get("lasttime:msg", 0))
+		toc = int(self.config.get("timeout:chat", 3600))
 		if int(time.time()) > ltm + toc:
 			self.log.info("Chat timeout exceeded, keep the conversation moving")
 			talkrs = self._talk()

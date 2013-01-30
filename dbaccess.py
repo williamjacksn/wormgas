@@ -214,7 +214,7 @@ class Config(object):
 			for r in self.ccur:
 				cids.append(r[0])
 			cids.sort()
-			mlcl = int(self.get("maxlength:configlist"))
+			mlcl = int(self.get("maxlength:configlist", 10))
 			while len(cids) > mlcl:
 				clist = cids[:mlcl]
 				cids[0:mlcl] = []
@@ -603,7 +603,7 @@ class RainwaveDatabase(object):
 		channel up to three"""
 
 		rs = []
-		maxid = self.config.get("maxid:%s" % cid)
+		maxid = self.config.get("maxid:%s" % cid, 0)
 		sql = ("select song_id, album_name, song_title, song_url from rw_songs "
 			"join rw_albums using (album_id) where song_id > %s and "
 			"song_verified is true and rw_songs.sid = %s order by song_id desc "
@@ -757,7 +757,7 @@ class RainwaveDatabase(object):
 		# The number of songs returned cannot exceed the number requested or the
 		# maximum allowed
 
-		limit = min(num, int(self.config.get("maxlength:unrated")))
+		limit = min(num, int(self.config.get("maxlength:unrated", 12)))
 
 		while limit > 0:
 
