@@ -1322,7 +1322,7 @@ class wormgas(SingleServerIRCBot):
 			"rating": rating}
 		data = self._api_call(url, args)
 
-		if data["rate_result"]:
+		if "rate_result" in data:
 			output.privrs.append(data["rate_result"]["text"])
 		else:
 			output.privrs.append(data["error"]["text"])
