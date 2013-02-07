@@ -31,10 +31,11 @@ class CollectionOfNamedLists:
 		return self.data.keys()
 
 	def items(self, name):
-		"""Yield all items in a list"""
+		"""Return a list by name"""
 		if name in self.data:
-			for item in self.data[name]:
-				yield item
+			return self.data[name]
+		else:
+			return []
 
 	def add(self, name, item):
 		"""Add an item to a ist"""

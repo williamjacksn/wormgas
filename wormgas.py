@@ -24,6 +24,7 @@ from urlparse import urlparse
 import dbaccess
 from ircbot import SingleServerIRCBot
 from cobe.brain import Brain
+from CollectionOfNamedLists import CollectionOfNamedLists
 
 _abspath = os.path.abspath(__file__)
 _commands = set()
@@ -146,6 +147,7 @@ class wormgas(SingleServerIRCBot):
 		self.path, self.file = os.path.split(_abspath)
 		self.brain = Brain(self.path + "/brain.sqlite")
 		self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
+		self.ph = CollectionOfNamedLists("%s/ph.json" % self.path)
 
 		# Set up logging.
 		self.log = logging.getLogger("wormgas")
@@ -1166,6 +1168,209 @@ class wormgas(SingleServerIRCBot):
 			r = "%s [%s] %s / %s" % (self.channel_names[o[0]], o[1], o[2], o[3])
 			output.default.append(r)
 
+	@command_handler(r"^!ph (addalbum|aa) (?P<album_id>\d+)")
+	def handle_ph_addalbum(self, nick, channel, output, album_id):
+		"""Add all songs from an album to this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph addalbum" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+				output.privrs.append("The Rainwave database is unavailable")
+				return
+
+		for song_id in self.rwdb.get_album_songs(album_id):
+			song_id = int(song_id)
+			self.handle_ph_addsong(nick, channel, output, song_id)
+
+	@command_handler(r"^!ph (addsong|add|as) (?P<song_id>\d+)")
+	def handle_ph_addsong(self, nick, channel, output, song_id):
+		"""Add a song to this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph addsong" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable")
+			return
+
+		song_id = int(song_id)
+		self.ph.add(nick, song_id)
+		m = self._get_song_info_string(song_id)
+		m += " added to your Power Hour planning list"
+		output.privrs.append(m)
+
+	@command_handler(r"^!ph (clear|cl)")
+	def handle_ph_clear(self, nick, channel, output):
+		"""Remove all songs from this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph clear" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		self.ph.clear(nick)
+		output.privrs.append("Your Power Hour planning list has been cleared")
+
+	@command_handler(r"^!ph (down|dn) (?P<song_id>\d+)")
+	def handle_ph_down(self, nick, channel, output, song_id):
+		"""Move a song down in this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph down" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		song_id = int(song_id)
+		m = self._get_song_info_string(song_id)
+
+		if song_id in self.ph.items(nick):
+			self.ph.down(nick, song_id)
+			m += " moved down in your Power Hour planning list"
+		else:
+			m += " is not in your Power Hour planning list"
+
+		output.privrs.append(m)
+
+	@command_handler(r"^!ph go (?P<rchan>\w+)")
+	def handle_ph_go(self, nick, channel, output, rchan):
+		"""Start a Power Hour on a channel using this user's Power Hour planning
+		list"""
+
+		self.log.info("%s used !ph go" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+
+		if rchan in self.channel_ids:
+			cid = self.channel_ids[rchan]
+		else:
+			output.privrs.append("%s is not a valid channel code" % rchan)
+
+		url = "http://rainwave.cc/async/%s/oneshot_add" % cid
+		api_args = {}
+
+		user_id = self.config.get_id_for_nick(nick)
+
+		if user_id is None and self.rwdb:
+			user_id = self.rwdb.get_id_for_nick(nick)
+
+		if user_id is None:
+			r = "I do not have a user id stored for you. Visit "
+			r += "http://rainwave.cc/auth/ to look up your user id and tell me "
+			r += "about it with \x02!id add <id>\x02"
+			output.privrs.append(r)
+			return
+
+		api_args["user_id"] = user_id
+
+		# Get the key for this user
+		key = self.config.get_key_for_nick(nick)
+		if key is None:
+			r = "I do not have a key stored for you. Visit "
+			r += "http://rainwave.cc/auth/ to get a key and tell me about it "
+			r += "with \x02!key add <key>\x02"
+			output.privrs.append(r)
+			return
+
+		api_args["key"] = key
+
+		errors = 0
+		for song_id in self.ph.items(nick):
+			song_id = int(song_id)
+			api_args["song_id"] = song_id
+			data = self._api_call(url, api_args)
+			m = self._get_song_info_string(song_id) + " // "
+			if "oneshot_add_result" in data:
+				m += data["oneshot_add_result"]["text"]
+			else:
+				m += data["error"]["text"]
+				errors += 1
+			output.privrs.append(m)
+
+		if errors == 0:
+			self.handle_ph_clear(nick, channel, output)
+
+	@command_handler(r"^!ph (list|ls)")
+	def handle_ph_list(self, nick, channel, output):
+		"""Show all songs in this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph list" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		count = 0
+		for song_id in self.ph.items(nick):
+			count += 1
+			output.privrs.append(self._get_song_info_string(song_id))
+
+		if count == 0:
+			output.privrs.append("Your Power Hour planning list is empty")
+
+	@command_handler(r"^!ph (remove|rm) (?P<song_id>\d+)")
+	def handle_ph_remove(self, nick, channel, output, song_id):
+		"""Remove a song from this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph remove" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		song_id = int(song_id)
+		m = self._get_song_info_string(song_id)
+
+		if song_id in self.ph.items(nick):
+			self.ph.remove(nick, song_id)
+			m += " removed from your Power Hour planning list"
+		else:
+			m += " is not in your Power Hour planning list"
+
+		output.privrs.append(m)
+
+	@command_handler(r"^!ph up (?P<song_id>\d+)")
+	def handle_ph_up(self, nick, channel, output, song_id):
+		"""Move a song up in this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph up" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		song_id = int(song_id)
+		m = self._get_song_info_string(song_id)
+
+		if song_id in self.ph.items(nick):
+			self.ph.up(nick, song_id)
+			m += " moved up in your Power Hour planning list"
+		else:
+			m += " is not in your Power Hour planning list"
+
+		output.privrs.append(m)
+
 	@command_handler(r"!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?")
 	@command_handler(r"!pp(?P<rchan>\w+)?(\s(?P<index>\d))?")
 	def handle_prevplayed(self, nick, channel, output, rchan=None, index=0):
@@ -2181,6 +2386,18 @@ class wormgas(SingleServerIRCBot):
 			return self.rwdb.get_current_channel(db_id)
 
 		return None
+
+	def _get_song_info_string(self, song_id):
+		"""Get song info as single string"""
+		
+		info = {}
+		info["id"] = song_id
+		cid, album, title = self.rwdb.get_song_info(song_id)
+		info["chan"] = self.channel_names[cid]
+		info["album"] = album
+		info["title"] = title
+		m = "%(chan)s // %(album)s // %(title)s [%(id)s]" % info
+		return m
 
 	def _get_title(self, url):
 		"""Attempt to get the page title from a URL"""
