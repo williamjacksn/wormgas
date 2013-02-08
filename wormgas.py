@@ -1967,12 +1967,11 @@ class wormgas(SingleServerIRCBot):
 		self.log.info("%s used !stop" % nick)
 
 		if self._is_admin(nick):
-			self.config.set("who_stopped_me", nick)
 			if self.config.get("restart_on_stop"):
 				self.config.unset("restart_on_stop")
 				pid = subprocess.Popen([_abspath, "5"], stdout=subprocess.PIPE,
 					stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-			self.die(self.config.get("msg:quit", ""))
+			self.die("I was stopped by %s" % nick)
 		else:
 			self.log.warning("%s does not have privs to use !stop" % nick)
 
@@ -2225,16 +2224,6 @@ class wormgas(SingleServerIRCBot):
 
 		nick = e.source().split("!")[0]
 		irc_chan = e.target()
-
-		if nick == self.config.get("irc:nick"):
-			# It's me!
-
-			# If someone stopped me, call them out and clear it
-			a = self.config.get("who_stopped_me")
-			if a:
-				r = "I was stopped by %s." % a
-				self._to_irc(c, "privmsg", irc_chan, r)
-				self.config.unset("who_stopped_me")
 
 		# Check for a join response
 		jr = self.config.get("joinresponse:%s" % nick)
