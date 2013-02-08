@@ -287,6 +287,7 @@ class RainwaveDatabase(object):
 		Args:
 			config: dbaccess.Config, stores required connection params."""
 		self.config = config
+		self.song_info_cache = {}
 
 	def add_album_to_cdg(self, album_id, cdg_name):
 		"""Add all songs in an album to a cooldown group"""
@@ -353,8 +354,8 @@ class RainwaveDatabase(object):
 		sql = ("insert into rw_song_oa_cat (oac_id, song_id) values (%s, %s)")
 		self.rcur.execute(sql, (cdg_id, song_id))
 
-		song_info = self.get_song_info(song_id)
-		return 0, song_info + (cdg_name,)
+		info = self.get_song_info(song_id)
+		return 0, (info["channel_id"], info["album"], info["title"], cdg_name)
 
 	def connect(self):
 		if not psycopg2:
@@ -420,7 +421,8 @@ class RainwaveDatabase(object):
 
 		self.drop_empty_cdgs()
 
-		return 0, self.get_song_info(song_id)
+		info = self.get_song_info(song_id)
+		return 0, (info["channel_id"], info["album"], info["title"])
 
 	def drop_song_from_cdg_by_name(self, song_id, cdg_name):
 		"""Remove a song from a cooldown group"""
@@ -437,8 +439,8 @@ class RainwaveDatabase(object):
 
 		self.drop_empty_cdgs()
 
-		song_info = self.get_song_info(song_id)
-		return 0, song_info + (cdg_name,)
+		info = self.get_song_info(song_id)
+		return 0, (info["channel_id"], info["album"], info["title"], cdg_name)
 
 	def get_album_cid(self, album_id):
 		"""Returns the channel id for given album"""
@@ -690,13 +692,31 @@ class RainwaveDatabase(object):
 		return None
 
 	def get_song_info(self, song_id):
-		"""Return a tuple (cid, album_name, song_title) for the given song_id"""
+		"""Return a dictionary of info for the given song_id"""
 
-		sql = ("select rw_songs.sid, album_name, song_title from rw_songs join "
-			"rw_albums using (album_id) where song_id = %s")
+		song_id = int(song_id)
+		if song_id in self.song_info_cache:
+			return self.song_info_cache[song_id]
+
+		sql = ("select rw_songs.sid, album_id, song_title, song_genre, "
+			"song_comment, song_secondslong, song_rating_avg, song_rating_count, "
+			"song_url, album_name from rw_songs join rw_albums using (album_id) "
+			"where song_id = %s")
 		self.rcur.execute(sql, (song_id,))
 		for r in self.rcur.fetchall():
-			return r
+			return self.song_info_cache.setdefault(song_id, {
+				"id":           int(song_id),
+				"chan_id":      int(r[0]),
+				"album_id":     int(r[1]),
+				"title":        r[2],
+				"genre":        r[3],
+				"comment":      r[4],
+				"length":       int(r[5]),
+				"rating_avg":   float(r[6]),
+				"rating_count": int(r[7]),
+				"url":          r[8],
+				"album":        r[9]
+			})
 
 	def get_unrated_songs(self, user_id, cid, num=None):
 		"""Get unrated songs

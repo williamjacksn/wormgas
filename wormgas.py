@@ -1181,6 +1181,7 @@ class wormgas(SingleServerIRCBot):
 				output.privrs.append("The Rainwave database is unavailable")
 				return
 
+		album_id = int(album_id)
 		for song_id in self.rwdb.get_album_songs(album_id):
 			song_id = int(song_id)
 			self.handle_ph_addsong(nick, channel, output, song_id)
@@ -1199,9 +1200,14 @@ class wormgas(SingleServerIRCBot):
 			return
 
 		song_id = int(song_id)
-		self.ph.add(nick, song_id)
 		m = self._get_song_info_string(song_id)
-		m += " added to your Power Hour planning list"
+
+		if song_id in self.ph.items(nick):
+			m += " is already in your Power Hour planning list"
+		else:
+			self.ph.add(nick, song_id)
+			m += " added to your Power Hour planning list"
+
 		output.privrs.append(m)
 
 	@command_handler(r"^!ph (clear|cl)")
@@ -1302,6 +1308,47 @@ class wormgas(SingleServerIRCBot):
 		if errors == 0:
 			self.handle_ph_clear(nick, channel, output)
 
+	@command_handler(r"!ph (length|len)")
+	def handle_ph_length(self, nick, channel, output):
+		"""Show number of songs and total running time of this user's Power Hour
+		planning list"""
+
+		self.log.info("%s used !ph length" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		count = len(self.ph.items(nick))
+		seconds = 0
+		for song_id in self.ph.items(nick):
+			info = self.rwdb.get_song_info(song_id)
+			seconds += info["length"]
+
+		if count == 0:
+			output.privrs.append("Your Power Hour planning list is empty")
+			return
+
+		m = "Your Power Hour planning list contains %s song" % count
+		if count > 1:
+			m += "s"
+
+		m += " and will run for "
+		if seconds < 60:
+			m += "%s seconds" % seconds
+		else:
+			minutes, seconds = divmod(seconds, 60)
+			if minutes < 60:
+				m += "%02d:%02d" % (minutes, seconds)
+			else:
+				hours, minutes = divmod(minutes, 60)
+				m += "%02d:%02d:%02d" % (hours, minutes, seconds)
+
+		output.privrs.append(m)
+
 	@command_handler(r"^!ph (list|ls)")
 	def handle_ph_list(self, nick, channel, output):
 		"""Show all songs in this user's Power Hour planning list"""
@@ -1323,11 +1370,29 @@ class wormgas(SingleServerIRCBot):
 		if count == 0:
 			output.privrs.append("Your Power Hour planning list is empty")
 
-	@command_handler(r"^!ph (remove|rm) (?P<song_id>\d+)")
-	def handle_ph_remove(self, nick, channel, output, song_id):
+	@command_handler(r"^!ph (removealbum|ra) (?P<album_id>\d+)")
+	def handle_ph_removealbum(self, nick, channel, output, album_id):
+		"""Remove all songs in an album from this user's Power Hour planning list"""
+
+		self.log.info("%s used !ph removealbum" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		album_id = int(album_id)
+		for song_id in self.rwdb.get_album_songs(album_id):
+			song_id = int(song_id)
+			self.handle_ph_removesong(nick, channel, output, song_id)
+
+	@command_handler(r"^!ph (remove|rm|removesong|rs) (?P<song_id>\d+)")
+	def handle_ph_removesong(self, nick, channel, output, song_id):
 		"""Remove a song from this user's Power Hour planning list"""
 
-		self.log.info("%s used !ph remove" % nick)
+		self.log.info("%s used !ph removesong" % nick)
 		if not self._is_admin(nick):
 			self.log.warning("%s does not have privs to use !ph" % nick)
 			return
@@ -2390,13 +2455,9 @@ class wormgas(SingleServerIRCBot):
 	def _get_song_info_string(self, song_id):
 		"""Get song info as single string"""
 		
-		info = {}
-		info["id"] = song_id
-		cid, album, title = self.rwdb.get_song_info(song_id)
-		info["chan"] = self.channel_names[cid]
-		info["album"] = album
-		info["title"] = title
-		m = "%(chan)s // %(album)s // %(title)s [%(id)s]" % info
+		info = self.rwdb.get_song_info(song_id)
+		info["chan"] = self.channel_names[info["chan_id"]]
+		m = "%(chan)s // %(album)s [%(album_id)s] // %(title)s [%(id)s]" % info
 		return m
 
 	def _get_title(self, url):
