@@ -1263,6 +1263,7 @@ class wormgas(SingleServerIRCBot):
 			cid = self.channel_ids[rchan]
 		else:
 			output.privrs.append("%s is not a valid channel code" % rchan)
+			return
 
 		url = "http://rainwave.cc/async/%s/oneshot_add" % cid
 		api_args = {}
