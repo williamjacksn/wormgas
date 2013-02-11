@@ -545,7 +545,7 @@ class wormgas(SingleServerIRCBot):
 				"nowplaying, prevplayed, rate, request, roll, rps, stats, "
 				"unrated, ustats, vote")
 			if is_admin:
-				rs.append("Administration topics: cooldown, forum, newmusic, "
+				rs.append("Administration topics: cooldown, forum, newmusic, otp, ph, "
 					"refresh, restart, set, stop, unset")
 			rs.append(wiki)
 		elif topic == "8ball":
@@ -617,6 +617,20 @@ class wormgas(SingleServerIRCBot):
 				"now playing on the radio")
 			rs.append("Short version is \x02!np<channel>\x02")
 			rs.append(channelcodes)
+		elif topic == "otp":
+			if is_admin:
+				rs.append("Use \x02!otp\x02 to see all One-Time Plays currently "
+					"scheduled on all channels")
+			else:
+				rs.append(notpermitted)
+		elif topic == "ph":
+			if is_admin:
+				rs.append("Use \x02!ph <command>\x02 to manage your Power Hour "
+					"planning list")
+				rs.append("Refer to https://github.com/subtlecoolness/wormgas/wiki/ph "
+					"for details")
+			else:
+				rs.append(notpermitted)
 		elif topic in ["prevplayed", "pp"]:
 			rs.append("Use \x02!prevplayed <channel> [<index>]\x02 to show "
 				"what was previously playing on the radio")
