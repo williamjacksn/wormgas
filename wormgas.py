@@ -1371,6 +1371,79 @@ class wormgas(SingleServerIRCBot):
 		if count == 0:
 			output.privrs.append("Your Power Hour planning list is empty")
 
+	@command_handler(r"^!ph pause (?P<rchan>\w+)")
+	def handle_ph_pause(self, nick, channel, output, rchan):
+		"""Remove scheduled one-time plays from channel and put them in this user's
+		Power Hour planning list"""
+
+		self.log.info("%s used !ph pause" % nick)
+		if not self._is_admin(nick):
+			self.log.warning("%s does not have privs to use !ph" % nick)
+			return
+
+		if rchan in self.channel_ids:
+			cid = self.channel_ids[rchan]
+		else:
+			output.privrs.append("%s is not a valid channel code" % rchan)
+			return
+
+		api_args = {}
+
+		user_id = self.config.get_id_for_nick(nick)
+
+		if user_id is None and self.rwdb:
+			user_id = self.rwdb.get_id_for_nick(nick)
+
+		if user_id is None:
+			r = "I do not have a user id stored for you. Visit "
+			r += "http://rainwave.cc/auth/ to look up your user id and tell me "
+			r += "about it with \x02!id add <id>\x02"
+			output.privrs.append(r)
+			return
+		api_args["user_id"] = user_id
+
+		# Get the key for this user
+		key = self.config.get_key_for_nick(nick)
+		if key is None:
+			r = "I do not have a key stored for you. Visit "
+			r += "http://rainwave.cc/auth/ to get a key and tell me about it "
+			r += "with \x02!key add <key>\x02"
+			output.privrs.append(r)
+			return
+		api_args["key"] = key
+
+		add_to_ph = []
+
+		while True:
+			url = "http://rainwave.cc/async/%s/get" % cid
+			data = self._api_call(url)
+			otp_count = 0
+			for event in data["sched_next"]:
+				if event["sched_type"] == 4:
+					otp_count += 1
+					song_id = int(event["song_data"][0]["song_id"])
+					if song_id in add_to_ph:
+						continue
+					m = self._get_song_info_string(song_id) + " // "
+					add_to_ph.append(song_id)
+					api_args["sched_id"] = event["sched_id"]
+					url = "http://rainwave.cc/async/%s/oneshot_delete" % cid
+					d = self._api_call(url, api_args)
+					if "oneshot_delete_result" in d:
+						m += d["oneshot_delete_result"]["text"]
+					else:
+						m += d["error"]["text"]
+					output.privrs.append(m)
+			if otp_count == 0:
+				break
+
+		if len(add_to_ph) > 0:
+			add_to_ph.extend(self.ph.items(nick))
+			self.ph.set(nick, add_to_ph)
+		else:
+			output.privrs.append("No One-Time Plays scheduled on the %s" %
+				self.channel_names[cid])
+
 	@command_handler(r"^!ph (removealbum|ra) (?P<album_id>\d+)")
 	def handle_ph_removealbum(self, nick, channel, output, album_id):
 		"""Remove all songs in an album from this user's Power Hour planning list"""

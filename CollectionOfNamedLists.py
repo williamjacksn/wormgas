@@ -37,6 +37,11 @@ class CollectionOfNamedLists:
 		else:
 			return []
 
+	def set(self, name, items):
+		"""Replace a list"""
+		self.data[name] = items
+		self._flush()
+
 	def add(self, name, item):
 		"""Add an item to a ist"""
 		if name not in self.data:
