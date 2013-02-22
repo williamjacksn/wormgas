@@ -708,14 +708,14 @@ class RainwaveDatabase(object):
 				"id":           int(song_id),
 				"chan_id":      int(r[0]),
 				"album_id":     int(r[1]),
-				"title":        r[2],
-				"genre":        r[3],
-				"comment":      r[4],
+				"title":        r[2].decode('utf-8'),
+				"genre":        r[3].decode('utf-8'),
+				"comment":      r[4].decode('utf-8'),
 				"length":       int(r[5]),
 				"rating_avg":   float(r[6]),
 				"rating_count": int(r[7]),
-				"url":          r[8],
-				"album":        r[9]
+				"url":          r[8].decode('utf-8'),
+				"album":        r[9].decode('utf-8')
 			})
 
 	def get_unrated_songs(self, user_id, cid, num=None):

@@ -1312,11 +1312,17 @@ class wormgas(SingleServerIRCBot):
 			song_id = int(song_id)
 			api_args["song_id"] = song_id
 			data = self._api_call(url, api_args)
-			m = self._get_song_info_string(song_id) + " // "
-			if "oneshot_add_result" in data:
-				m += data["oneshot_add_result"]["text"]
+			m = self._get_song_info_string(song_id) + u" // "
+			if u"oneshot_add_result" in data:
+				try:
+					m += data[u"oneshot_add_result"][u"text"]
+				except UnicodeDecodeError:
+					self.log.exception(u"Not again. :(")
 			else:
-				m += data["error"]["text"]
+				try:
+					m += data["error"]["text"]
+				except UnicodeDecodeError:
+					self.log.exception(u"Not again. :(")
 				errors += 1
 			output.privrs.append(m)
 
@@ -2534,7 +2540,7 @@ class wormgas(SingleServerIRCBot):
 		
 		info = self.rwdb.get_song_info(song_id)
 		info["chan"] = self.channel_names[info["chan_id"]]
-		m = "%(chan)s // %(album)s [%(album_id)s] // %(title)s [%(id)s]" % info
+		m = u"{chan} // {album} [{album_id}] // {title} [{id}]".format(**info)
 		return m
 
 	def _get_title(self, url):
