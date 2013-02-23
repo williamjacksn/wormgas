@@ -1600,8 +1600,8 @@ class wormgas(SingleServerIRCBot):
 			output.default.extend(rs)
 			self.config.set("pp:%s:%s" % (cid, index), sched_id)
 
-	@command_handler(r"^!rate(\s(?P<rchan>\w+))?(\s(?P<rating>\w+))?")
-	@command_handler(r"^!rt(?P<rchan>\w+)?(\s(?P<rating>\w+))?")
+	@command_handler(r"^!rate(\s(?P<rchan>\S+))?(\s(?P<rating>\S+))?")
+	@command_handler(r"^!rt(?P<rchan>\S+)?(\s(?P<rating>\S+))?")
 	def handle_rate(self, nick, channel, output, rchan=None, rating=None):
 		"""Rate the currently playing song
 
