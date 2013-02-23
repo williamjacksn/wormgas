@@ -4,7 +4,6 @@ wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 https://github.com/subtlecoolness/wormgas
 """
 
-import httplib
 import json
 import lxml.html
 import logging, logging.handlers
@@ -12,18 +11,17 @@ import math
 import os
 import random
 import re
+import requests
 import subprocess
 import sys
-import threading
 import time
-import urllib, urllib2
 from urlparse import urlparse
 
 import dbaccess
 import rainwave
+import util
 from ircbot import SingleServerIRCBot
 from cobe.brain import Brain
-from CollectionOfNamedLists import CollectionOfNamedLists
 
 _abspath = os.path.abspath(__file__)
 _commands = set()
@@ -146,7 +144,7 @@ class wormgas(SingleServerIRCBot):
 		self.path, self.file = os.path.split(_abspath)
 		self.brain = Brain(self.path + "/brain.sqlite")
 		self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
-		self.ph = CollectionOfNamedLists("%s/ph.json" % self.path)
+		self.ph = util.CollectionOfNamedLists("%s/ph.json" % self.path)
 		self.rw = rainwave.RainwaveClient()
 
 		# Set up logging.
@@ -2492,19 +2490,10 @@ class wormgas(SingleServerIRCBot):
 	def _get_title(self, url):
 		"""Attempt to get the page title from a URL"""
 
-		ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
-		rq = urllib2.Request(url)
-		rq.add_header('user-agent', ua)
-		op = urllib2.build_opener()
+		data = requests.get(url, stream=True)
 
 		try:
-			data = op.open(rq)
-		except:
-			self.log.exception("Cannot open the URL: %s" % url)
-			return None
-
-		try:
-			title = lxml.html.parse(data).findtext("head/title")
+			title = lxml.html.parse(data.raw).findtext("head/title")
 		except:
 			self.log.exception("Cannot parse the page at: %s" % url)
 			return None
@@ -2592,7 +2581,7 @@ class wormgas(SingleServerIRCBot):
 		m = m.replace("<", "&lt;").replace(">", "&gt;")
 
 		post_data = {"u": u, "p": p, "f": forum_id, "t": topic_id, "m": m}
-		urllib2.urlopen(url, urllib.urlencode(post_data))
+		requests.post(url, data=post_data)
 
 	def _shorten(self, lurl):
 		"""Shorten a URL
@@ -2602,22 +2591,17 @@ class wormgas(SingleServerIRCBot):
 
 		Returns: a string, the short url"""
 
-		body = json.dumps({"longUrl": lurl})
-		headers = {}
-		headers["content-type"] = "application/json"
-		ua = "wormgas/0.1 +http://github.com/subtlecoolness/wormgas"
-		headers["user-agent"] = ua
+		payload = json.dumps({u"longUrl": lurl})
+		headers = {u"content-type": u"application/json"}
 
-		h = httplib.HTTPSConnection("www.googleapis.com")
 		gkey = self.config.get("googleapikey")
-		gurl = "/urlshortener/v1/url?key=%s" % gkey
-		h.request("POST", gurl, body, headers)
-		content = h.getresponse().read()
+		url = u"https://www.googleapis.com/urlshortener/v1/url?key={}".format(gkey)
+		d = requests.post(url, data=payload, headers=headers)
+		result = d.json()
 
-		result = json.loads(content)
-		if "id" in result:
-			return result["id"]
-		
+		if u"id" in result:
+			return result[u"id"]
+
 		return ""
 
 	def _talk(self, msg=None):
