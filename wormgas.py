@@ -4,7 +4,6 @@ wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 https://github.com/subtlecoolness/wormgas
 """
 
-import gzip
 import httplib
 import json
 import lxml.html
@@ -13,7 +12,6 @@ import math
 import os
 import random
 import re
-import StringIO
 import subprocess
 import sys
 import threading
@@ -22,6 +20,7 @@ import urllib, urllib2
 from urlparse import urlparse
 
 import dbaccess
+import rainwave
 from ircbot import SingleServerIRCBot
 from cobe.brain import Brain
 from CollectionOfNamedLists import CollectionOfNamedLists
@@ -148,6 +147,7 @@ class wormgas(SingleServerIRCBot):
 		self.brain = Brain(self.path + "/brain.sqlite")
 		self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
 		self.ph = CollectionOfNamedLists("%s/ph.json" % self.path)
+		self.rw = rainwave.RainwaveClient()
 
 		# Set up logging.
 		self.log = logging.getLogger("wormgas")
@@ -449,7 +449,7 @@ class wormgas(SingleServerIRCBot):
 
 		text = ""
 
-		data = self._api_call("http://rainwave.cc/async/%s/get" % cid)
+		data = self.rw.get_timeline(cid)
 		try:
 			elec = data["sched_next"][index]
 		except IndexError:
@@ -1113,8 +1113,7 @@ class wormgas(SingleServerIRCBot):
 			return
 		rchn = self.channel_names[cid]
 
-		url = "http://rainwave.cc/async/%s/get" % cid
-		data = self._api_call(url)
+		data = self.rw.get_timeline(cid)
 		sched_id = data["sched_current"]["sched_id"]
 		sched_type = data["sched_current"]["sched_type"]
 		if sched_type in (0, 4):
@@ -1279,22 +1278,15 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append("%s is not a valid channel code" % rchan)
 			return
 
-		url = "http://rainwave.cc/async/%s/oneshot_add" % cid
-		api_args = {}
-
 		user_id = self.config.get_id_for_nick(nick)
-
 		if user_id is None and self.rwdb:
 			user_id = self.rwdb.get_id_for_nick(nick)
-
 		if user_id is None:
 			r = "I do not have a user id stored for you. Visit "
 			r += "http://rainwave.cc/auth/ to look up your user id and tell me "
 			r += "about it with \x02!id add <id>\x02"
 			output.privrs.append(r)
 			return
-
-		api_args["user_id"] = user_id
 
 		# Get the key for this user
 		key = self.config.get_key_for_nick(nick)
@@ -1305,13 +1297,10 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(r)
 			return
 
-		api_args["key"] = key
-
 		errors = 0
 		for song_id in self.ph.items(nick):
 			song_id = int(song_id)
-			api_args["song_id"] = song_id
-			data = self._api_call(url, api_args)
+			data = self.rw.add_one_time_play(cid, song_id, user_id, key)
 			m = self._get_song_info_string(song_id) + u" // "
 			if u"oneshot_add_result" in data:
 				try:
@@ -1407,20 +1396,15 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append("%s is not a valid channel code" % rchan)
 			return
 
-		api_args = {}
-
 		user_id = self.config.get_id_for_nick(nick)
-
 		if user_id is None and self.rwdb:
 			user_id = self.rwdb.get_id_for_nick(nick)
-
 		if user_id is None:
 			r = "I do not have a user id stored for you. Visit "
 			r += "http://rainwave.cc/auth/ to look up your user id and tell me "
 			r += "about it with \x02!id add <id>\x02"
 			output.privrs.append(r)
 			return
-		api_args["user_id"] = user_id
 
 		# Get the key for this user
 		key = self.config.get_key_for_nick(nick)
@@ -1430,13 +1414,11 @@ class wormgas(SingleServerIRCBot):
 			r += "with \x02!key add <key>\x02"
 			output.privrs.append(r)
 			return
-		api_args["key"] = key
 
 		add_to_ph = []
 
 		while True:
-			url = "http://rainwave.cc/async/%s/get" % cid
-			data = self._api_call(url)
+			data = self.rw.get_timeline(cid)
 			otp_count = 0
 			for event in data["sched_next"]:
 				if event["sched_type"] == 4:
@@ -1446,9 +1428,7 @@ class wormgas(SingleServerIRCBot):
 						continue
 					m = self._get_song_info_string(song_id) + " // "
 					add_to_ph.append(song_id)
-					api_args["sched_id"] = event["sched_id"]
-					url = "http://rainwave.cc/async/%s/oneshot_delete" % cid
-					d = self._api_call(url, api_args)
+					d = self.rw.delete_one_time_play(cid, event[u"sched_id"], user_id, key)
 					if "oneshot_delete_result" in d:
 						m += d["oneshot_delete_result"]["text"]
 					else:
@@ -1570,8 +1550,7 @@ class wormgas(SingleServerIRCBot):
 			self.handle_help(nick, channel, output, topic="prevplayed")
 			return
 
-		url = "http://rainwave.cc/async/%s/get" % cid
-		data = self._api_call(url)
+		data = self.rw.get_timeline(cid)
 		sched_id = data["sched_history"][index]["sched_id"]
 		sched_type = data["sched_history"][index]["sched_type"]
 		if sched_type in (0, 4):
@@ -1676,15 +1655,11 @@ class wormgas(SingleServerIRCBot):
 			return
 
 		# Get the song_id
-		url = "http://rainwave.cc/async/%s/get" % cid
-		data = self._api_call(url)
+		data = self.rw.get_timeline(cid)
 		song_id = data["sched_current"]["song_data"][0]["song_id"]
 
 		# Try the rate
-		url = "http://rainwave.cc/async/%s/rate" % cid
-		args = {"user_id": user_id, "key": key, "song_id": song_id,
-			"rating": rating}
-		data = self._api_call(url, args)
+		data = self.rw.rate(cid, song_id, rating, user_id, key)
 
 		if "rate_result" in data:
 			output.privrs.append(data["rate_result"]["text"])
@@ -1779,11 +1754,9 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(r)
 			return
 
-		url = "http://rainwave.cc/async/%s/request" % cid
-		args = {"user_id": user_id, "key": key, "song_id": songid}
-		data = self._api_call(url, args)
+		data = self.rw.request(cid, songid, user_id, key)
 
-		if data["request_result"]:
+		if "request_result" in data:
 			output.privrs.append(data["request_result"]["text"])
 		else:
 			output.privrs.append(data["error"]["text"])
@@ -2156,9 +2129,7 @@ class wormgas(SingleServerIRCBot):
 
 		uid = self.config.get("api:user_id", 0)
 		key = self.config.get("api:key", 0)
-		url = "http://rainwave.cc/async/1/listener_detail"
-		args = {"user_id": uid, "key": key, "listener_uid": luid}
-		data = self._api_call(url, args)
+		data = self.rw.get_listener(luid, uid, key)
 
 		if "listener_detail" in data:
 			ld = data["listener_detail"]
@@ -2292,17 +2263,14 @@ class wormgas(SingleServerIRCBot):
 
 		# Get the elec_entry_id
 
-		url = "http://rainwave.cc/async/%s/get" % cid
-		data = self._api_call(url)
+		data = self.rw.get_timeline(cid)
 		voteindex = index - 1
 		song_data = data["sched_next"][0]["song_data"]
 		elec_entry_id = song_data[voteindex]["elec_entry_id"]
 
 		# Try the vote
 
-		url = "http://rainwave.cc/async/%s/vote" % cid
-		args = {"user_id": user_id, "key": key, "elec_entry_id": elec_entry_id}
-		data = self._api_call(url, args)
+		data = self.rw.vote(cid, elec_entry_d, user_id, key)
 
 		if data["vote_result"]:
 			output.privrs.append(data["vote_result"]["text"])
@@ -2478,28 +2446,6 @@ class wormgas(SingleServerIRCBot):
 		passwd = self.config.get("irc:nickservpass")
 		self._to_irc(c, "privmsg", "nickserv", "identify %s" % passwd)
 		c.join(self.config.get("irc:channel"))
-
-	def _api_call(self, url, args=None):
-		"""Make a call to the Rainwave API
-
-		Arguments:
-			url: the url of the API call
-			args: a dictionary of optional arguments for the API call
-
-		Returns: the API response object"""
-
-		request = urllib2.Request(url)
-		request.add_header("user-agent",
-			"wormgas/0.1 +http://github.com/subtlecoolness/wormgas")
-		request.add_header("accept-encoding", "gzip")
-		if args:
-			request.add_data(urllib.urlencode(args))
-		opener = urllib2.build_opener()
-		gzipdata = opener.open(request).read()
-		gzipstream = StringIO.StringIO(gzipdata)
-		result = gzip.GzipFile(fileobj=gzipstream).read()
-		data = json.loads(result)
-		return data
 
 	def _find_urls(self, text):
 		"""Look for URLs in arbitrary text. Return a list of the URLs found."""
