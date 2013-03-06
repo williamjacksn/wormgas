@@ -2490,7 +2490,10 @@ class wormgas(SingleServerIRCBot):
 	def _get_title(self, url):
 		"""Attempt to get the page title from a URL"""
 
-		data = requests.get(url, stream=True)
+		try:
+			data = requests.get(url, stream=True)
+		except:
+			self.log.exception("Cannot get the page at: {}".format(url))
 
 		try:
 			title = lxml.html.parse(data.raw).findtext("head/title")
