@@ -355,7 +355,7 @@ class RainwaveDatabase(object):
 		self.rcur.execute(sql, (cdg_id, song_id))
 
 		info = self.get_song_info(song_id)
-		return 0, (info["channel_id"], info["album"], info["title"], cdg_name)
+		return 0, (info["chan_id"], info["album"], info["title"], cdg_name)
 
 	def connect(self):
 		if not psycopg2:
@@ -422,7 +422,7 @@ class RainwaveDatabase(object):
 		self.drop_empty_cdgs()
 
 		info = self.get_song_info(song_id)
-		return 0, (info["channel_id"], info["album"], info["title"])
+		return 0, (info["chan_id"], info["album"], info["title"])
 
 	def drop_song_from_cdg_by_name(self, song_id, cdg_name):
 		"""Remove a song from a cooldown group"""
@@ -440,7 +440,7 @@ class RainwaveDatabase(object):
 		self.drop_empty_cdgs()
 
 		info = self.get_song_info(song_id)
-		return 0, (info["channel_id"], info["album"], info["title"], cdg_name)
+		return 0, (info["chan_id"], info["album"], info["title"], cdg_name)
 
 	def get_album_cid(self, album_id):
 		"""Returns the channel id for given album"""
