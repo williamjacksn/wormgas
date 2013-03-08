@@ -5,7 +5,6 @@ https://github.com/subtlecoolness/wormgas
 """
 
 import json
-import lxml.html
 import logging, logging.handlers
 import math
 import os
@@ -146,6 +145,7 @@ class wormgas(SingleServerIRCBot):
 		self.config = dbaccess.Config("%s/%s" % (self.path, config_db))
 		self.ph = util.CollectionOfNamedLists("%s/ph.json" % self.path)
 		self.rw = rainwave.RainwaveClient()
+		self.tf = util.TitleFetcher()
 
 		# Set up logging.
 		self.log = logging.getLogger("wormgas")
@@ -2375,7 +2375,10 @@ class wormgas(SingleServerIRCBot):
 		if len(rs) + len(privrs) == 0:
 			urls = self._find_urls(msg)
 			for url in urls:
-				title = self._get_title(url)
+				try:
+					title = self.tf.get_title(url)
+				except util.TitleFetcherError as e:
+					self.log.exception(e)
 				if title:
 					self.log.info("Found a title: %s" % title)
 					rs.append("[ %s ]" % title)
@@ -2486,24 +2489,6 @@ class wormgas(SingleServerIRCBot):
 		info["chan"] = self.channel_names[info["chan_id"]]
 		m = u"{chan} // {album} [{album_id}] // {title} [{id}]".format(**info)
 		return m
-
-	def _get_title(self, url):
-		"""Attempt to get the page title from a URL"""
-
-		try:
-			data = requests.get(url, stream=True)
-		except:
-			self.log.exception("Cannot get the page at: {}".format(url))
-
-		try:
-			title = lxml.html.parse(data.raw).findtext("head/title")
-		except:
-			self.log.exception("Cannot parse the page at: %s" % url)
-			return None
-
-		if title:
-			title = " ".join(title.split())
-		return title
 
 	def _is_admin(self, nick):
 		"""Check whether a nick has privileges to use administrative commands"""

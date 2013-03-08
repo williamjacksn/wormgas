@@ -1,5 +1,6 @@
 import json
 import os
+import requests
 
 class CollectionOfNamedLists:
 	"""A collection of lists, each list has a name, optional persistence"""
@@ -89,3 +90,20 @@ class CollectionOfNamedLists:
 				self.data[name].remove(item)
 				self.data[name].insert(new_index, item)
 				self._flush()
+
+class TitleFetcherError(Exception):
+	pass
+
+class TitleFetcher(object):
+	'''Get the contents of the <title> tag in HTML pages'''
+
+	def get_title(self, url):
+		try:
+			data = requests.get(url)
+		except:
+			raise TitleFetcherError(u'There was a problem fetching data from: {}'.format(url))
+		if u'<title>' in data.text:
+			title = data.text.partition(u'<title>')[2].partition(u'</title>')[0]
+			return u' '.join(title.split())
+		else:
+			raise TitleFetcherError(u'There is no <title> tag at: {}'.format(url))
