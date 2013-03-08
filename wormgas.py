@@ -2375,6 +2375,7 @@ class wormgas(SingleServerIRCBot):
 		if len(rs) + len(privrs) == 0:
 			urls = self._find_urls(msg)
 			for url in urls:
+				title = None
 				try:
 					title = self.tf.get_title(url)
 				except util.TitleFetcherError as e:
