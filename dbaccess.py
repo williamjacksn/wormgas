@@ -66,7 +66,7 @@ class Config(object):
 			self.ccur.execute(tsql, (t_name,))
 			existing = self.ccur.fetchall()
 			if len(existing) < 1:
-				csql = "create table %s %s" % (t_name, t_def)
+				csql = "create table {} {}".format(t_name, t_def)
 				self.ccur.execute(csql)
 
 		# Add any missing default bot config values.
@@ -204,9 +204,9 @@ class Config(object):
 
 		if id and value:
 			self.set(id, value)
-			rs.append("%s = %s" % (id, value))
+			rs.append("{} = {}".format(id, value))
 		elif id:
-			rs.append("%s = %s" % (id, self.get(id)))
+			rs.append("{} = {}".format(id, self.get(id)))
 		else:
 			cids = []
 			sql = "select distinct config_id from botconfig"
@@ -297,7 +297,7 @@ class RainwaveDatabase(object):
 
 		cid = self.get_album_cid(album_id)
 		if cid is None:
-			return 1, "Invalid album_id: %s" % album_id
+			return 1, "Invalid album_id: {}".format(album_id)
 
 		return 0, (cid, self.get_album_name(album_id), cdg_name)
 
@@ -313,7 +313,7 @@ class RainwaveDatabase(object):
 		cid = self.get_song_cid(song_id)
 
 		if cid is None:
-			return 1, "Invalid song_id: %s" % song_id
+			return 1, "Invalid song_id: {}".format(song_id)
 
 		# Get the cdg_id for this cdg_name
 
@@ -365,7 +365,7 @@ class RainwaveDatabase(object):
 		psql_conn_args.append(self.config.get("db:user"))
 		psql_conn_args.append(self.config.get("db:pass"))
 
-		connstr = "dbname='%s' user='%s' password='%s'" % tuple(psql_conn_args)
+		connstr = "dbname='{}' user='{}' password='{}'".format(*psql_conn_args)
 		try:
 			self.rdbh = psycopg2.connect(connstr)
 		except psycopg2.OperationalError:
@@ -383,7 +383,7 @@ class RainwaveDatabase(object):
 
 		cid = self.get_album_cid(album_id)
 		if cid is None:
-			return 1, "Invalid album_id: %s" % album_id
+			return 1, "Invalid album_id: {}".format(album_id)
 
 		return 0, (cid, self.get_album_name(album_id))
 
@@ -395,7 +395,7 @@ class RainwaveDatabase(object):
 
 		cid = self.get_album_cid(album_id)
 		if cid is None:
-			return 1, "Invalid album_id: %s" % album_id
+			return 1, "Invalid album_id: {}".format(album_id)
 
 		return 0, (cid, self.get_album_name(album_id), cdg_name)
 
@@ -414,7 +414,7 @@ class RainwaveDatabase(object):
 		cid = self.get_song_cid(song_id)
 
 		if cid is None:
-			return 1, "Invalid song_id: %s" % song_id
+			return 1, "Invalid song_id: {}".format(song_id)
 
 		sql = ("delete from rw_song_oa_cat where song_id = %s")
 		self.rcur.execute(sql, (song_id,))
@@ -430,7 +430,7 @@ class RainwaveDatabase(object):
 		cid = self.get_song_cid(song_id)
 
 		if cid is None:
-			return 1, "Invalid song_id: %s" % song_id
+			return 1, "Invalid song_id: {}".format(song_id)
 
 		for cdg_id in self.get_cdg_id(cid, cdg_name):
 			sql = ("delete from rw_song_oa_cat where song_id = %s and "
@@ -521,9 +521,8 @@ class RainwaveDatabase(object):
 
 		rows = self.rcur.fetchall()
 		for row in rows:
-			url = ("http://rainwave.cc/forums/viewtopic.php?p=%s#p%s" %
-				(row[3], row[3]))
-			r = "%s / %s by %s" % (row[0], row[1], row[2])
+			url = "http://rainwave.cc/forums/viewtopic.php?p={3}#p{3}".format(*row)
+			r = "{} / {} by {}".format(*row)
 			return r.decode("utf-8"), url
 
 	def get_history(self, cid):
@@ -605,7 +604,7 @@ class RainwaveDatabase(object):
 		channel up to three"""
 
 		rs = []
-		maxid = self.config.get("maxid:%s" % cid, 0)
+		maxid = self.config.get("maxid:{}".format(cid), 0)
 		sql = ("select song_id, album_name, song_title, song_url from rw_songs "
 			"join rw_albums using (album_id) where song_id > %s and "
 			"song_verified is true and rw_songs.sid = %s order by song_id desc "
@@ -613,7 +612,7 @@ class RainwaveDatabase(object):
 		self.rcur.execute(sql, (maxid, cid))
 		rows = self.rcur.fetchall()
 		for row in rows:
-			r = "%s / %s by " % (row[1], row[2])
+			r = "{} / {} by ".format(*row[1:])
 			artists = []
 			sql = ("select artist_name from rw_song_artist join rw_artists "
 				"using (artist_id) where song_id = %s")
@@ -723,8 +722,8 @@ class RainwaveDatabase(object):
 
 		Returns: a list of tuples (cid, message)"""
 
-		log.info("Getting unrated songs for user %s on channel %s with "
-			"limit %s" % (user_id, cid, num))
+		m = "Getting unrated songs for user {} on channel {} with limit {}"
+		log.info(m.format(user_id, cid, num))
 		rs = []
 
 	   # Get list of albums that have available unrated songs
@@ -802,7 +801,7 @@ class RainwaveDatabase(object):
 					self.rcur.execute(sql, (user_id, aa))
 				rows = self.rcur.fetchall()
 				for row in rows:
-					rs.append((row[0], "%s / %s [%s]" % row[1:]))
+					rs.append((row[0], "{} / {} [{}]".format(*row[1:])))
 
 			elif len(albums_unrated_unavailable) > 0:
 				au = albums_unrated_unavailable.pop()
@@ -825,8 +824,7 @@ class RainwaveDatabase(object):
 					self.rcur.execute(sql, (user_id, au))
 				rows = self.rcur.fetchall()
 				for row in rows:
-					rs.append((row[0], "%s / %s [%s] (available in %s)" %
-						row[1:]))
+					rs.append((row[0], "{} / {} [{}] (available in {})",format(*row[1:])))
 
 			else:
 				rs.append((cid, "No more albums with unrated songs."))
@@ -840,7 +838,7 @@ class RainwaveDatabase(object):
 			len(albums_unrated_unavailable))
 
 		if albums_left > 0:
-			r = "%s more album" % albums_left
+			r = "{} more album".format(albums_left)
 			if albums_left > 1:
 				r += "s"
 			r += " with unrated songs."
@@ -876,7 +874,7 @@ class RainwaveDatabase(object):
 			"rw_albums using (album_id) where song_verified is true and "
 			"rw_songs.sid = %s and song_title ilike %s order by "
 			"album_name, song_title")
-		self.rcur.execute(sql, (cid, "%%%s%%" % text))
+		self.rcur.execute(sql, (cid, "%{}%".format(text)))
 		rows = self.rcur.fetchall()
 		results = []
 		for row in rows[:limit]:
@@ -899,7 +897,7 @@ class RainwaveDatabase(object):
 		sql = ("select album_name, album_id from rw_albums where "
 			"album_verified is true and sid = %s and album_name ilike %s "
 			"order by album_name")
-		self.rcur.execute(sql, (cid, "%%%s%%" % text))
+		self.rcur.execute(sql, (cid, "%{}%".format(text)))
 		rows = self.rcur.fetchall()
 		results = []
 		for row in rows[:limit]:
