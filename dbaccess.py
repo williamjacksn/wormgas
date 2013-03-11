@@ -699,8 +699,9 @@ class RainwaveDatabase(object):
 
 		sql = ("select rw_songs.sid, album_id, song_title, song_genre, "
 			"song_comment, song_secondslong, song_rating_avg, song_rating_count, "
-			"song_url, album_name from rw_songs join rw_albums using (album_id) "
-			"where song_id = %s")
+			"song_url, album_name, song_available, (song_releasetime - extract(epoch "
+			"from current_timestamp)::integer) * interval '1 second' from rw_songs "
+			"join rw_albums using (album_id) where song_id = %s")
 		self.rcur.execute(sql, (song_id,))
 		for r in self.rcur.fetchall():
 			return self.song_info_cache.setdefault(song_id, {
@@ -714,17 +715,19 @@ class RainwaveDatabase(object):
 				"rating_avg":   float(r[6]),
 				"rating_count": int(r[7]),
 				"url":          r[8].decode('utf-8'),
-				"album":        r[9].decode('utf-8')
+				"album":        r[9].decode('utf-8'),
+				"available":    bool(r[10]),
+				"release_time": str(r[11]).decode('utf-8')
 			})
 
-	def get_unrated_songs(self, user_id, cid, num=None):
+	def get_unrated_songs(self, user_id, cid):
 		"""Get unrated songs
 
-		Returns: a list of tuples (cid, message)"""
+		Returns: a list of song_ids, each in a different album"""
 
-		m = "Getting unrated songs for user {} on channel {} with limit {}"
-		log.info(m.format(user_id, cid, num))
-		rs = []
+		m = "Getting unrated songs for user {} on channel {}"
+		log.info(m.format(user_id, cid))
+		song_ids = []
 
 	   # Get list of albums that have available unrated songs
 
@@ -770,15 +773,9 @@ class RainwaveDatabase(object):
 		# If everything has been rated, bail out now
 
 		if len(albums_unrated_available) + len(albums_unrated_unavailable) == 0:
-			rs.append((cid, "No unrated songs."))
-			return(rs)
+			return song_ids
 
-		# The number of songs returned cannot exceed the number requested or the
-		# maximum allowed
-
-		limit = min(num, int(self.config.get("maxlength:unrated", 12)))
-
-		while limit > 0:
+		while True:
 
 			# Report available songs first
 
@@ -801,7 +798,7 @@ class RainwaveDatabase(object):
 					self.rcur.execute(sql, (user_id, aa))
 				rows = self.rcur.fetchall()
 				for row in rows:
-					rs.append((row[0], "{} / {} [{}]".format(*row[1:])))
+					song_ids.append(row[3])
 
 			elif len(albums_unrated_unavailable) > 0:
 				au = albums_unrated_unavailable.pop()
@@ -824,27 +821,10 @@ class RainwaveDatabase(object):
 					self.rcur.execute(sql, (user_id, au))
 				rows = self.rcur.fetchall()
 				for row in rows:
-					rs.append((row[0], "{} / {} [{}] (available in {})",format(*row[1:])))
+					song_ids.append(row[3])
 
 			else:
-				rs.append((cid, "No more albums with unrated songs."))
-				return(rs)
-
-			limit -= 1
-
-		# How many albums were not specifically reported?
-
-		albums_left = (len(albums_unrated_available) +
-			len(albums_unrated_unavailable))
-
-		if albums_left > 0:
-			r = "{} more album".format(albums_left)
-			if albums_left > 1:
-				r += "s"
-			r += " with unrated songs."
-			rs.append((cid, r))
-
-		return rs
+				return song_ids
 
 	def request_playlist_refresh(self, cid):
 		"""Request a playlist refresh for a channel"""

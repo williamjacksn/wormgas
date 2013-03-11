@@ -58,6 +58,14 @@ class RainwaveClient(object):
 			args[u"key"] = key
 		return self._call(u"async/{}/oneshot_delete".format(channel_id), args)
 
+	def delete_request(self, requestq_id, user_id=None, key=None):
+		args = {u"requestq_id": requestq_id}
+		if user_id is not None:
+			args[u"user_id"] = user_id
+		if key is not None:
+			args[u"key"] = key
+		return self._call(u"async/1/request_delete", args)
+
 	def get_all_albums(self, channel_id):
 		"""Get a list of all albums, minimum information"""
 		return self._call(u"async/{}/all_albums".format(channel_id))
@@ -70,6 +78,15 @@ class RainwaveClient(object):
 		if key is not None:
 			args[u"key"] = key
 		return self._call(u"async/1/listener_detail", args)
+
+	def get_requests(self, user_id=None, key=None):
+		"""Get request queue for a user"""
+		args = {}
+		if user_id is not None:
+			args[u"user_id"] = user_id
+		if key is not None:
+			args[u"key"] = key
+		return self._call(u"async/1/requests_get", args)
 
 	def get_timeline(self, channel_id):
 		"""Get unauthenticated timeline"""

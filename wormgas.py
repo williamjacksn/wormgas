@@ -144,6 +144,7 @@ class wormgas(SingleServerIRCBot):
 		self.brain = Brain(self.path + "/brain.sqlite")
 		self.config = dbaccess.Config("{}/{}".format(self.path, config_db))
 		self.ph = util.CollectionOfNamedLists("{}/ph.json".format(self.path))
+		self.rq = util.CollectionOfNamedLists(u'{}/rq.json'.format(self.path))
 		self.rw = rainwave.RainwaveClient()
 		self.tf = util.TitleFetcher()
 
@@ -540,7 +541,7 @@ class wormgas(SingleServerIRCBot):
 		if topic in ["all", None]:
 			rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
 				"8ball, election, flip, history, id, key, lookup, lstats, "
-				"nowplaying, prevplayed, rate, request, roll, rps, stats, "
+				"nowplaying, prevplayed, rate, roll, rps, rq, stats, "
 				"unrated, ustats, vote")
 			if is_admin:
 				rs.append("Administration topics: cooldown, forum, newmusic, otp, ph, "
@@ -650,12 +651,6 @@ class wormgas(SingleServerIRCBot):
 				rs.append(channelcodes)
 			else:
 				rs.append(notpermitted)
-		elif topic in ["request", "rq"]:
-			rs.append("Use \x02!request <channel> <song_id>\x02 to add a "
-				"song to your request queue, find the <song_id> using "
-				"\x02!lookup\x02 or \x02!unrated\x02")
-			rs.append("Short version is \x02!rq<channel> <song_id>\x02")
-			rs.append(channelcodes)
 		elif topic == "restart":
 			if is_admin:
 				rs.append("Use \x02!restart\x02 to restart the bot")
@@ -679,6 +674,14 @@ class wormgas(SingleServerIRCBot):
 				rs.append("Administrators can use \x02!rps rename <oldnick> "
 					"<newnick>\x02 to reassign stats and game history from one "
 					"nick to another")
+		elif topic == "rq":
+			rs.append("Use \x02!rq <song_id>\x02 to add a "
+				"song to your request queue, find the <song_id> using "
+				"\x02!lookup\x02 or \x02!unrated\x02")
+			rs.append(u'Use \x02!rq unrated [<limit>]\x02 to add unrated songs (up to <limit>) to your request queue, leave off <limit> to fill your request queue.')
+			rs.append(u'Use \x02!rq stash\x02 to remove all songs from your request queue and stash them with wormgas ("pause" your request queue).')
+			rs.append(u'Use \x02!rq loadstash\x02 to move songs from your stash to your request queue ("resume" your request queue).')
+			rs.append(u'Use \x02!rq showstash\x02 to see what is in your request stash and \x02!rq clearstash\x02 to remove all songs from your request stash.')
 		elif topic == "set":
 			if is_admin:
 				rs.append("Use \x02!set [<id>] [<value>]\x02 to display or "
@@ -1696,67 +1699,6 @@ class wormgas(SingleServerIRCBot):
 		if len(output.privrs) == 0:
 			output.privrs.append("No pending or running playlist refresh jobs.")
 
-	@command_handler(r"^!request(\s(?P<rchan>\w+))?(\s(?P<songid>\d+))?")
-	@command_handler(r"^!rq(?P<rchan>\w+)?(\s(?P<songid>\d+))?")
-	def handle_request(self, nick, channel, output, rchan=None, songid=None):
-		"""Request a song on the radio
-
-		Arguments:
-			station: the station to request on
-			songid: id of song to request"""
-
-		self.log.info("{} used !request".format(nick))
-
-		if rchan is None:
-			if songid is None:
-				self.handle_help(nick, channel, output, topic="request")
-				return
-			rchan = 0
-		else:
-			rchan = rchan.lower()
-			if songid is None:
-				songid = rchan
-
-		if rchan not in self.channel_ids:
-			luid = self.config.get_id_for_nick(nick)
-			if not luid and self.rwdb:
-				luid = self.rwdb.get_id_for_nick(nick)
-			cur_cid = self.rwdb.get_current_channel(luid)
-			if cur_cid:
-				rchan = self.channel_codes[cur_cid]
-			else:
-				self.handle_help(nick, channel, output, topic="request")
-				return
-
-		cid = self.channel_ids.get(rchan)
-
-		user_id = self.config.get_id_for_nick(nick)
-
-		if not user_id and self.rwdb:
-			user_id = self.rwdb.get_id_for_nick(nick)
-
-		if not user_id:
-			r = "I do not have a user id stored for you. Visit "
-			r += "http://rainwave.cc/auth/ to look up your user id and tell me "
-			r += "about it with \x02!id add <id>\x02"
-			output.privrs.append(r)
-			return
-
-		key = self.config.get_key_for_nick(nick)
-		if not key:
-			r = "I do not have a key stored for you. Visit "
-			r += "http://rainwave.cc/auth/ to get a key and tell me about it "
-			r += "with \x02!key add <key>\x02"
-			output.privrs.append(r)
-			return
-
-		data = self.rw.request(cid, songid, user_id, key)
-
-		if "request_result" in data:
-			output.privrs.append(data["request_result"]["text"])
-		else:
-			output.privrs.append(data["error"]["text"])
-
 	@command_handler("!restart")
 	def handle_restart(self, nick, channel, output):
 		"""Restart the bot"""
@@ -1980,6 +1922,248 @@ class wormgas(SingleServerIRCBot):
 			r += "for another {} seconds.".format(wait) 
 			output.privrs.append(r)
 
+	@command_handler(u'^!rq (?P<song_id>\d+)')
+	def handle_rq(self, nick, channel, output, song_id):
+		'''Add a song to your request queue'''
+
+		self.log.info(u'{} used !rq'.format(nick))
+
+		# detect radio channel, return if not tuned in
+		radio_channel_id = self._get_current_channel_for_nick(nick)
+		if radio_channel_id is None:
+			output.privrs.append(u'You must be tuned in to request')
+			return
+		radio_channel_id = int(radio_channel_id)
+
+		# get user_id and key, return if not set
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
+			return
+
+		if u'key' not in api_auth:
+			r = u'I do not have a key stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to get a key and tell me about it '
+			r += u'with \x02!key add <key>\x02'
+			output.privrs.append(r)
+			return
+
+		song_id = int(song_id)
+		song_info = self._get_song_info_string(song_id)
+		output.privrs.append(u'Attempting request: {}'.format(song_info))
+
+		data = self.rw.request(radio_channel_id, song_id, **api_auth)
+		if u'request_result' in data:
+			output.privrs.append(data[u'request_result'][u'text'])
+		else:
+			output.privrs.append(data[u'error'][u'text'])
+
+	@command_handler(u'^!rq clearstash$')
+	def handle_rq_clearstash(self, nick, channel, output):
+		'''Clear a user's request stash'''
+
+		self.log.info(u'{} used !rq clearstash'.format(nick))
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			m = u'I do not have a user id stored for you. Visit '
+			m += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			m += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(m)
+			return
+
+		self.rq.clear(str(api_auth[u'user_id']))
+		output.privrs.append(u'I cleared your request stash.')
+
+	@command_handler(u'^!rq loadstash$')
+	def handle_rq_loadstash(self, nick, channel, output):
+		'''Load a user's request stash into his radio request queue'''
+
+		self.log.info(u'{} used !rq loadstash'.format(nick))
+
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			m = u'I do not have a user id stored for you. Visit '
+			m += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			m += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(m)
+			return
+
+		if u'key' not in api_auth:
+			r = u'I do not have a key stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to get a key and tell me about it '
+			r += u'with \x02!key add <key>\x02'
+			output.privrs.append(r)
+			return
+
+		stash = self.rq.items(str(api_auth[u'user_id']))[:]
+		if len(stash) < 1:
+			output.privrs.append(u'Your request stash is empty.')
+			return
+
+		radio_channel_id = self._get_current_channel_for_nick(nick)
+		if radio_channel_id is None:
+			output.privrs.append(u'You must be tuned in to request.')
+			return
+		radio_channel_id = int(radio_channel_id)
+
+		for song_id in stash:
+			song_id = int(song_id)
+			song_info = self._get_song_info_string(song_id)
+			output.privrs.append(u'Attempting request: {}'.format(song_info))
+			data = self.rw.request(radio_channel_id, song_id, **api_auth)
+			if u'request_result' in data:
+				output.privrs.append(data[u'request_result'][u'text'])
+				if data[u'request_result'][u'code'] == 1:
+					output.privrs.append(u'Removing from stash: {}'.format(song_info))
+					self.rq.remove(str(api_auth[u'user_id']), song_id)
+				else:
+					m = u'I ran into a problem. I will stop here and leave the rest of your stash intact.'
+					output.privrs.append(m)
+					return
+			else:
+				output.privrs.append(data[u'error'][u'text'])
+				m = u'I ran into a problem. I will stop here and leave the rest of your stash intact.'
+				output.privrs.append(m)
+				return
+		output.privrs.append(u'All done.')
+
+	@command_handler(u'^!rq showstash$')
+	def handle_rq_showstash(self, nick, channel, output):
+		'''Show what is in a user's rq stash'''
+
+		self.log.info(u'{} used !rq showstash')
+
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
+			return
+
+		count = len(self.rq.items(str(api_auth[u'user_id'])))
+		if count > 0:
+			if count == 1:
+				m = u'There is 1 song in your request stash.'
+			else:
+				m = u'There are {} songs in your request stash.'.format(count)
+			output.privrs.append(m)
+			for song_id in self.rq.items(str(api_auth[u'user_id'])):
+				output.privrs.append(self._get_song_info_string(song_id))
+		else:
+			output.privrs.append(u'Your request stash is empty.')
+
+	@command_handler(u'^!rq stash$')
+	def handle_rq_stash(self, nick, channel, output):
+		'''Pull a user's requests from the radio and stash locally'''
+
+		self.log.info(u'{} used !rq stash'.format(nick))
+
+		# get user_id and key, return if not set
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
+			return
+
+		if u'key' not in api_auth:
+			r = u'I do not have a key stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to get a key and tell me about it '
+			r += u'with \x02!key add <key>\x02'
+			output.privrs.append(r)
+			return
+
+		self.rq.clear(str(api_auth[u'user_id']))
+		data = self.rw.get_requests(**api_auth)
+		for request in data[u'requests_user']:
+			self.rq.add(str(api_auth[u'user_id']), request[u'song_id'])
+			self.rw.delete_request(request[u'requestq_id'], **api_auth)
+
+		request_count = len(data[u'requests_user'])
+		if request_count > 0:
+			m = u'I stashed {} request'.format(request_count)
+			if request_count > 1:
+				m += u's'
+			m += u' and cleared your radio request queue. Use \x02!rqstash load\x02 '
+			m += u'to load the stash into your request queue.'
+		else:
+			m = u'Your radio request queue is empty.'
+
+		output.privrs.append(m)
+
+	@command_handler(u'^!rq unrated(\s(?P<limit>\d+))?')
+	def handle_rq_unrated(self, nick, channel, output, limit=None):
+		'''Request unrated songs up to limit'''
+
+		self.log.info(u'{} used !rq unrated'.format(nick))
+
+		if self.rwdb is None:
+			output.privrs.append(u'The Rainwave database is unavailable.')
+			return
+
+		# detect radio channel, return if not tuned in
+		radio_channel_id = self._get_current_channel_for_nick(nick)
+		if radio_channel_id is None:
+			output.privrs.append(u'You must be tuned in to request')
+			return
+		radio_channel_id = int(radio_channel_id)
+
+		# get user_id and key, return if not set
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
+			return
+
+		if u'key' not in api_auth:
+			r = u'I do not have a key stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to get a key and tell me about it '
+			r += u'with \x02!key add <key>\x02'
+			output.privrs.append(r)
+			return
+
+		if limit is None:
+			limit = self.config.get(u'maxlength:unrated', 12)
+		limit = int(limit)
+
+		unrated = self.rwdb.get_unrated_songs(api_auth[u'user_id'], radio_channel_id)
+
+		if len(unrated) == 0:
+			output.privrs.append(u'No unrated songs.')
+			return
+
+		i = 0
+		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
+			if len(unrated) > 0:
+				song_id = unrated.pop(0)
+			else:
+				output.privrs.append(u'No more albums with unrated songs.')
+				return
+			output.privrs.append(u'Attempting request: {}'.format(self._get_song_info_string(song_id)))
+			data = self.rw.request(radio_channel_id, song_id, **api_auth)
+			if u'request_result' in data:
+				if data[u'request_result'][u'code'] == 1:
+					output.privrs.append(data[u'request_result'][u'text'])
+					i += 1
+				elif data[u'request_result'][u'code'] == -6:
+					output.privrs.append(data[u'request_result'][u'text'])
+					return
+				else:
+					output.privrs.append(u'Request failed. ({})'.format(data[u'request_result'][u'text']))
+			else:
+				output.privrs.append(data[u'error'][u'text'])
+				output.privrs.append(u'I ran into a problem. I will stop here.')
+				return
+
+		output.privrs.append(u'All done.')
+
 	@command_handler(r"^!set(\s(?P<id>\S+))?(\s(?P<value>.+))?")
 	def handle_set(self, nick, channel, output, id=None, value=None):
 		"""View and set bot configuration"""
@@ -2070,24 +2254,41 @@ class wormgas(SingleServerIRCBot):
 		except:
 			num = 1
 
-		user_id = self.config.get_id_for_nick(nick)
-		if not user_id and self.rwdb:
-			user_id = self.rwdb.get_id_for_nick(nick)
-
-		if not user_id:
-			output.privrs.append("I do not have a user id stored for you. "
-				"Visit http://rainwave.cc/auth/ to look up your user id and "
-				"tell me about it with \x02!id add <id>\x02")
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
 			return
 
-		if not self.rwdb:
+		if self.rwdb is None:
 			output.privrs.append("The Rainwave database is unavailable.")
 			return
 
-		unrated = self.rwdb.get_unrated_songs(user_id, cid, num)
-		for ucid, text in unrated:
-			uchn = self.channel_names[ucid]
-			output.privrs.append("{}: {}".format(uchn, text))
+		unrated = self.rwdb.get_unrated_songs(api_auth[u'user_id'], cid)
+
+		if len(unrated) == 0:
+			output.privrs.append(u'No unrated songs.')
+			return
+
+		i = 0
+		while i < num and i < int(self.config.get(u'maxlength:unrated')):
+			if len(unrated) > 0:
+				song_id = unrated.pop(0)
+			else:
+				output.privrs.append(u'No more albums with unrated songs.')
+				return
+			output.privrs.append(self._get_song_info_string(song_id))
+			i += 1
+
+		albums_left = len(unrated)
+		if albums_left > 0:
+			m = u'{} more album'.format(albums_left)
+			if albums_left > 1:
+				m += u's'
+			m += u' with unrated songs.'
+			output.privrs.append(m)
 
 	@command_handler(r"^!unset(\s(?P<id>\S+))?")
 	def handle_unset(self, nick, channel, output, id=None):
@@ -2461,6 +2662,28 @@ class wormgas(SingleServerIRCBot):
 				urls.append(url)
 		return urls
 
+	def _get_api_auth_for_nick(self, nick):
+		'''Try to get the user_id and api key for a nick.
+		Return a dict with keys 'user_id' and 'key', keys
+		will be missing if they are not available.'''
+
+		auth = {}
+
+		stored_id = self.config.get_id_for_nick(nick)
+		if stored_id:
+			auth[u'user_id'] = int(stored_id)
+		else:
+			if self.rwdb is not None:
+				db_id = self.rwdb.get_id_for_nick(nick)
+				if db_id:
+					auth[u'user_id'] = int(db_id)
+
+		stored_key = self.config.get_key_for_nick(nick)
+		if stored_key:
+			auth[u'key'] = stored_key
+
+		return auth
+
 	def _get_current_channel_for_nick(self, nick):
 		"""Try to find the channel that `nick` is currently tuned in to. Return
 		a numeric channel id or None."""
@@ -2487,6 +2710,8 @@ class wormgas(SingleServerIRCBot):
 		info = self.rwdb.get_song_info(song_id)
 		info["chan"] = self.channel_names[info["chan_id"]]
 		m = u"{chan} // {album} [{album_id}] // {title} [{id}]".format(**info)
+		if not info["available"]:
+			m += u" (available in {release_time})".format(**info)
 		return m
 
 	def _is_admin(self, nick):
@@ -2623,7 +2848,7 @@ class wormgas(SingleServerIRCBot):
 	def _to_irc(self, c, msgtype, target, msg):
 		"""Send an IRC message"""
 
-		self.log.debug("Sending {} to {} -- {}".format(msgtype, target, msg))
+		self.log.debug(u"Sending {} to {} -- {}".format(msgtype, target, msg))
 
 		if hasattr(c, msgtype):
 			f = getattr(c, msgtype)
