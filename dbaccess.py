@@ -506,10 +506,11 @@ class RainwaveDatabase(object):
 		log.info(u'Getting favourite songs for user {} on channel {}'.format(user_id, cid))
 
 		song_ids = []
-		sql = (u'select distinct on (album_id) song_id from rw_songs where sid = '
-			u'%s and song_verified is true and song_rating_id in (select '
-			u'song_rating_id from rw_songfavourites where user_id = %s) order by '
-			u'album_id, song_available, song_releasetime')
+		sql = (u'select * from (select distinct on (album_id) song_id, '
+			u'song_available, song_releasetime from rw_songs where sid = %s and '
+			u'song_verified is true and song_rating_id in (select song_rating_id '
+			u'from rw_songfavourites where user_id = %s) order by album_id) as favs '
+			u'order by song_available desc, song_releasetime')
 		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
 			song_ids.extend(r)
