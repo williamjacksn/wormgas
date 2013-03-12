@@ -500,6 +500,21 @@ class RainwaveDatabase(object):
 			cur_chan = row[0]
 		return cur_chan
 
+	def get_fav_songs(self, user_id, cid):
+		'''Get favourite songs, each in a different album'''
+
+		log.info(u'Getting favourite songs for user {} on channel {}'.format(user_id, cid))
+
+		song_ids = []
+		sql = (u'select distinct on (album_id) song_id from rw_songs where sid = '
+			u'%s and song_verified is true and song_rating_id in (select '
+			u'song_rating_id from rw_songfavourites where user_id = %s) order by '
+			u'album_id, song_available, song_releasetime')
+		self.rcur.execute(sql, (cid, user_id))
+		for r in self.rcur:
+			song_ids.extend(r)
+		return song_ids
+
 	def get_forum_post_info(self, post_id=None):
 		"""Return a string of information and a url for a forum post, default
 		to the latest public post"""

@@ -1977,6 +1977,74 @@ class wormgas(SingleServerIRCBot):
 		self.rq.clear(str(api_auth[u'user_id']))
 		output.privrs.append(u'I cleared your request stash.')
 
+	@command_handler(u'^!rq fav(\s(?P<limit>\d+))?')
+	def handle_rq_fav(self, nick, channel, output, limit=None):
+		'''Request favourite songs up to limit'''
+
+		self.log.info(u'{} user !rq fav'.format(nick))
+
+		if self.rwdb is None:
+			output.privrs.append(u'The Rainwave database is unavailable.')
+			return
+
+		# detect radio channel, return if not tuned in
+		radio_channel_id = self._get_current_channel_for_nick(nick)
+		if radio_channel_id is None:
+			output.privrs.append(u'You must be tuned in to request')
+			return
+		radio_channel_id = int(radio_channel_id)
+
+		# get user_id and key, return if not set
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			r = u'I do not have a user id stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to look up your user id and tell me '
+			r += u'about it with \x02!id add <id>\x02'
+			output.privrs.append(r)
+			return
+
+		if u'key' not in api_auth:
+			r = u'I do not have a key stored for you. Visit '
+			r += u'http://rainwave.cc/auth/ to get a key and tell me about it '
+			r += u'with \x02!key add <key>\x02'
+			output.privrs.append(r)
+			return
+
+		if limit is None:
+			limit = self.config.get(u'maxlength:unrated', 12)
+		limit = int(limit)
+
+		favourite = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
+
+		if len(favourite) == 0:
+			output.privrs.append(u'No favourite songs.')
+			return
+
+		i = 0
+		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
+			if len(favourite) > 0:
+				song_id = favourite.pop(0)
+			else:
+				output.privrs.append(u'No more albums with favourite songs.')
+				return
+			output.privrs.append(u'Attempting request: {}'.format(self._get_song_info_string(song_id)))
+			data = self.rw.request(radio_channel_id, song_id, **api_auth)
+			if u'request_result' in data:
+				if data[u'request_result'][u'code'] == 1:
+					output.privrs.append(data[u'request_result'][u'text'])
+					i += 1
+				elif data[u'request_result'][u'code'] == -6:
+					output.privrs.append(data[u'request_result'][u'text'])
+					return
+				else:
+					output.privrs.append(u'Request failed. ({})'.format(data[u'request_result'][u'text']))
+			else:
+				output.privrs.append(data[u'error'][u'text'])
+				output.privrs.append(u'I ran into a problem. I will stop here.')
+				return
+
+		output.privrs.append(u'All done.')
+
 	@command_handler(u'^!rq loadstash$')
 	def handle_rq_loadstash(self, nick, channel, output):
 		'''Load a user's request stash into his radio request queue'''
