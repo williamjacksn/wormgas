@@ -679,6 +679,7 @@ class wormgas(SingleServerIRCBot):
 				"song to your request queue, find the <song_id> using "
 				"\x02!lookup\x02 or \x02!unrated\x02")
 			rs.append(u'Use \x02!rq unrated [<limit>]\x02 to add unrated songs (up to <limit>) to your request queue, leave off <limit> to fill your request queue.')
+			rs.append(u'Use \x02!rq fav [<limit>]\x02 to add favourite songs to your request queue.')
 			rs.append(u'Use \x02!rq stash\x02 to remove all songs from your request queue and stash them with wormgas ("pause" your request queue).')
 			rs.append(u'Use \x02!rq loadstash\x02 to move songs from your stash to your request queue ("resume" your request queue).')
 			rs.append(u'Use \x02!rq showstash\x02 to see what is in your request stash and \x02!rq clearstash\x02 to remove all songs from your request stash.')
