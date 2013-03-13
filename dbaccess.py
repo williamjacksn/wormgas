@@ -513,7 +513,7 @@ class RainwaveDatabase(object):
 			u'order by song_available desc, song_releasetime')
 		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
-			song_ids.extend(r)
+			song_ids.append(r[0])
 		return song_ids
 
 	def get_forum_post_info(self, post_id=None):

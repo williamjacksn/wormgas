@@ -468,6 +468,62 @@ class wormgas(SingleServerIRCBot):
 				text += " (conflict)"
 		return elec["sched_id"], text
 
+	@command_handler(u'^!fav(?P<argstring>.*)')
+	def handle_fav(self, nick, channel, output, argstring=u''):
+		'''Show a list of favourite songs for a user'''
+
+		self.log.info(u'{} use !fav'.format(nick))
+
+		if self.rwdb is None:
+			output.privrs.append("The Rainwave database is unavailable.")
+			return
+
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			m = (u'I do not have a user id stored for you. '
+				u'Visit http://rainwave.cc/auth/ to look up your user id and tell me '
+				u'about it with \x02!id add <id>\x02')
+			output.privrs.append(m)
+			return
+
+		limit = 1
+		radio_channel_id = self._get_current_channel_for_nick(nick)
+
+		args = argstring.split()
+
+		if len(args) > 0:
+			if args[0] in self.channel_ids:
+				radio_channel_id = self.channel_ids[args[0]]
+				if len(args) > 1 and args[1].isdigit():
+						limit = int(args[1])
+			else:
+				radio_channel_id = self._get_current_channel_for_nick(nick)
+				if args[0].isdigit():
+					limit = int(args[0])
+
+		if radio_channel_id is None:
+			m = u'You are not tuned in and you did not specify a channel code.'
+			output.privrs.append(m)
+			self.handle_help(self, nick, channel, output, topic=u'fav')
+			return
+		radio_channel_id = int(radio_channel_id)
+
+		fav = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
+
+		if len(fav) == 0:
+			output.privrs.append(u'No favourite songs.')
+			return
+
+		i = 0
+		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
+			if len(fav) > 0:
+				song_id = fav.pop(0)
+			else:
+				output.privrs.append(u'No more albums with favourite songs.')
+				return
+			output.privrs.append(self._get_song_info_string(song_id))
+			i += 1
+
 	@command_handler("!flip")
 	def handle_flip(self, nick, channel, output):
 		"""Simulate a coin flip"""
@@ -540,7 +596,7 @@ class wormgas(SingleServerIRCBot):
 
 		if topic in ["all", None]:
 			rs.append("Use \x02!help [<topic>]\x02 with one of these topics: "
-				"8ball, election, flip, history, id, key, lookup, lstats, "
+				"8ball, election, fav, flip, history, id, key, lookup, lstats, "
 				"nowplaying, prevplayed, rate, roll, rps, rq, stats, "
 				"unrated, ustats, vote")
 			if is_admin:
@@ -565,6 +621,13 @@ class wormgas(SingleServerIRCBot):
 				"candidates in an election")
 			rs.append("Short version is \x02!el<channel> [<index>]\x02")
 			rs.append("Index should be 0 (current) or 1 (future), default is 0")
+			rs.append(channelcodes)
+		elif topic == u'fav':
+			rs.append(u'Use \x02!fav [<channel>] [<limit>] to see songs you have '
+				u'marked favourite, <limit> can go up to 12, leave it off to see just '
+				u'one song.')
+			rs.append(u'Leave off <channel> to use the channel you are currently '
+				u'tuned to.')
 			rs.append(channelcodes)
 		elif topic == "flip":
 			rs.append("Use \x02!flip\x02 to flip a coin")
@@ -1982,7 +2045,7 @@ class wormgas(SingleServerIRCBot):
 	def handle_rq_fav(self, nick, channel, output, limit=None):
 		'''Request favourite songs up to limit'''
 
-		self.log.info(u'{} user !rq fav'.format(nick))
+		self.log.info(u'{} used !rq fav'.format(nick))
 
 		if self.rwdb is None:
 			output.privrs.append(u'The Rainwave database is unavailable.')
