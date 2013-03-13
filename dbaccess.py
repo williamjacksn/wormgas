@@ -503,14 +503,16 @@ class RainwaveDatabase(object):
 	def get_fav_songs(self, user_id, cid):
 		'''Get favourite songs, each in a different album'''
 
-		log.info(u'Getting favourite songs for user {} on channel {}'.format(user_id, cid))
+		m = u'Getting favourite songs for user {} on channel {}'
+		log.info(m.format(user_id, cid))
 
 		song_ids = []
-		sql = (u'select * from (select distinct on (album_id) song_id, '
+		sql = (u'select song_id from (select distinct on (album_id) song_id, '
 			u'song_available, song_releasetime from rw_songs where sid = %s and '
 			u'song_verified is true and song_rating_id in (select song_rating_id '
-			u'from rw_songfavourites where user_id = %s) order by album_id) as favs '
-			u'order by song_available desc, song_releasetime')
+			u'from rw_songfavourites where user_id = %s) order by album_id, '
+			u'song_available desc, song_releasetime) as favs order by song_available '
+			u'desc, song_releasetime')
 		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
 			song_ids.append(r[0])
@@ -737,110 +739,22 @@ class RainwaveDatabase(object):
 			})
 
 	def get_unrated_songs(self, user_id, cid):
-		"""Get unrated songs
+		'''Get unrated songs, each in a different album'''
 
-		Returns: a list of song_ids, each in a different album"""
-
-		m = "Getting unrated songs for user {} on channel {}"
+		m = u'Getting unrated songs for user {} on channel {}'
 		log.info(m.format(user_id, cid))
+
 		song_ids = []
-
-	   # Get list of albums that have available unrated songs
-
-		albums_unrated_available = []
-		sql = ("select distinct album_id from rw_songs left join (select "
-			"user_id, song_rating_id, song_rating from rw_songratings where "
-			"user_id = %s) as r using (song_rating_id) where song_verified is "
-			"true and song_available is true and song_rating is null")
-		if cid > 0:
-			sql += " and sid = %s"
-			self.rcur.execute(sql, (user_id, cid))
-		else:
-			sql += " and sid < 5"
-			self.rcur.execute(sql, (user_id,))
+		sql = (u'select song_id from (select distinct on (album_id) song_id, '
+			u'song_available, song_releasetime from rw_songs where sid = %s and '
+			u'song_verified is true and song_rating_id not in (select song_rating_id '
+			u'from rw_songratings where user_id = %s) order by album_id, '
+			u'song_available desc, song_releasetime) as unrated order by '
+			u'song_available desc, song_releasetime')
+		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
-			albums_unrated_available.append(r[0])
-
-	   # Get list of albums that have unavailable unrated songs, exclude any
-	   # albums already in the first list
-
-		albums_unrated_unavailable = []
-		sql = ("select album_id, min(song_releasetime) as rt from rw_songs "
-			"left join (select user_id, song_rating_id, song_rating from "
-			"rw_songratings where user_id = %s) as r using (song_rating_id) "
-			"where song_verified is true and song_available is false and "
-			"song_rating is null")
-		if cid > 0:
-			sql += " and sid = %s"
-		else:
-			sql += " and sid < 5"
-		for a in albums_unrated_available:
-			sql += " and album_id != %s"
-		sql += " group by album_id order by rt desc"
-		if cid > 0:
-			params = [user_id, cid]
-		else:
-			params = [user_id]
-		params.extend(albums_unrated_available)
-		self.rcur.execute(sql, tuple(params))
-		for r in self.rcur:
-			albums_unrated_unavailable.append(r[0])
-
-		# If everything has been rated, bail out now
-
-		if len(albums_unrated_available) + len(albums_unrated_unavailable) == 0:
-			return song_ids
-
-		while True:
-
-			# Report available songs first
-
-			if len(albums_unrated_available) > 0:
-				aa = albums_unrated_available.pop()
-				sql = ("select rw_songs.sid, album_name, song_title, song_id "
-					"from rw_songs left join (select user_id, song_rating_id, "
-					"song_rating from rw_songratings where user_id = %s) as r "
-					"using (song_rating_id) join rw_albums using (album_id) "
-					"where song_verified is true and song_available is true "
-					"and song_rating is null and album_id = %s")
-				if cid > 0:
-					sql += " and rw_songs.sid = %s"
-				else:
-					sql += " and rw_songs.sid < 6"
-				sql += " order by song_releasetime limit 1"
-				if cid > 0:
-					self.rcur.execute(sql, (user_id, aa, cid))
-				else:
-					self.rcur.execute(sql, (user_id, aa))
-				rows = self.rcur.fetchall()
-				for row in rows:
-					song_ids.append(row[3])
-
-			elif len(albums_unrated_unavailable) > 0:
-				au = albums_unrated_unavailable.pop()
-				sql = ("select rw_songs.sid, album_name, song_title, song_id, "
-					"(song_releasetime - extract(epoch from "
-					"current_timestamp)::integer) * interval '1 second' from "
-					"rw_songs left join (select user_id, song_rating_id, "
-					"song_rating from rw_songratings where user_id = %s) as r "
-					"using (song_rating_id) join rw_albums using (album_id) "
-					"where song_verified is true and song_available is false "
-					"and song_rating is null and album_id = %s")
-				if cid > 0:
-					sql += " and rw_songs.sid = %s"
-				else:
-					sql += " and rw_songs.sid < 6"
-				sql += " order by song_releasetime limit 1"
-				if cid > 0:
-					self.rcur.execute(sql, (user_id, au, cid))
-				else:
-					self.rcur.execute(sql, (user_id, au))
-				rows = self.rcur.fetchall()
-				for row in rows:
-					song_ids.append(row[3])
-
-			else:
-				return song_ids
+			song_ids.extend(r)
+		return song_ids
 
 	def request_playlist_refresh(self, cid):
 		"""Request a playlist refresh for a channel"""
