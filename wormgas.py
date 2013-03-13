@@ -2712,8 +2712,8 @@ class wormgas(SingleServerIRCBot):
 				except util.TitleFetcherError as e:
 					self.log.exception(e)
 				if title:
-					self.log.info("Found a title: {}".format(title))
-					rs.append("[ {} ]".format(title))
+					self.log.info(u'Found a title: {}'.format(title))
+					rs.append(u'[ {} ]'.format(title))
 
 		# If there are no URLs, punt to the brain
 
