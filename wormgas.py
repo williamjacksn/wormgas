@@ -1771,8 +1771,8 @@ class wormgas(SingleServerIRCBot):
 
 		for running in self.rwdb.get_running_refresh_jobs():
 			m = u'Running playlist refresh on the {}.'
-			channel_name = self.channel_names[self.channel_ids.get(running)])
-			output.privrs.append(m.format(channel_name)
+			channel_name = self.channel_names[self.channel_ids.get(running)]
+			output.privrs.append(m.format(channel_name))
 
 		if len(output.privrs) == 0:
 			output.privrs.append("No pending or running playlist refresh jobs.")
