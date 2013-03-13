@@ -1201,7 +1201,8 @@ class wormgas(SingleServerIRCBot):
 				art_name = art["artist_name"]
 				art_list.append(art_name)
 			artt = ", ".join(art_list)
-			r = "Now playing on the {}: {} / {} by {}".format(rchn, album, song, artt)
+			r = u'Now playing on the '
+			r += u'{}: {} / {} by {}'.format(rchn, album, song, artt)
 			url = np["song_url"]
 			if url and "http" in url:
 				r += " <{}>".format(self._shorten(url))
