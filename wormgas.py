@@ -255,7 +255,8 @@ class wormgas(SingleServerIRCBot):
 
 		# This command requires administrative privileges
 		if not self._is_admin(nick):
-			self.log.warning("{} does not have privs to use !cooldown add".format(nick))
+			m = u'{} does not have privs to use !cooldown add'
+			self.log.warning(m.format(nick))
 			return
 
 		# This command requires the Rainwave database
@@ -315,7 +316,8 @@ class wormgas(SingleServerIRCBot):
 		# This command requires administrative privileges
 
 		if not self._is_admin(nick):
-			self.log.warning("{} does not have privs to use !cooldown add".format(nick))
+			m = u'{} does not have privs to use !cooldown add'
+			self.log.warning(m.format(nick))
 			return
 
 		# This command requires the Rainwave database
@@ -741,11 +743,18 @@ class wormgas(SingleServerIRCBot):
 			rs.append("Use \x02!rq <song_id>\x02 to add a "
 				"song to your request queue, find the <song_id> using "
 				"\x02!lookup\x02 or \x02!unrated\x02")
-			rs.append(u'Use \x02!rq unrated [<limit>]\x02 to add unrated songs (up to <limit>) to your request queue, leave off <limit> to fill your request queue.')
-			rs.append(u'Use \x02!rq fav [<limit>]\x02 to add favourite songs to your request queue.')
-			rs.append(u'Use \x02!rq stash\x02 to remove all songs from your request queue and stash them with wormgas ("pause" your request queue).')
-			rs.append(u'Use \x02!rq loadstash\x02 to move songs from your stash to your request queue ("resume" your request queue).')
-			rs.append(u'Use \x02!rq showstash\x02 to see what is in your request stash and \x02!rq clearstash\x02 to remove all songs from your request stash.')
+			rs.append(u'Use \x02!rq unrated [<limit>]\x02 to add unrated songs (up '
+				u'to <limit>) to your request queue, leave off <limit> to fill your '
+				u'request queue.')
+			rs.append(u'Use \x02!rq fav [<limit>]\x02 to add favourite songs to your '
+				u'request queue.')
+			rs.append(u'Use \x02!rq stash\x02 to remove all songs from your request '
+				u'queue and stash them with wormgas ("pause" your request queue).')
+			rs.append(u'Use \x02!rq loadstash\x02 to move songs from your stash to '
+				u'your request queue ("resume" your request queue).')
+			rs.append(u'Use \x02!rq showstash\x02 to see what is in your request '
+				u'stash and \x02!rq clearstash\x02 to remove all songs from your '
+				u'request stash.')
 		elif topic == "set":
 			if is_admin:
 				rs.append("Use \x02!set [<id>] [<value>]\x02 to display or "
@@ -1494,7 +1503,8 @@ class wormgas(SingleServerIRCBot):
 						continue
 					m = self._get_song_info_string(song_id) + " // "
 					add_to_ph.append(song_id)
-					d = self.rw.delete_one_time_play(cid, event[u"sched_id"], user_id, key)
+					sched_id = event[u'sched_id']
+					d = self.rw.delete_one_time_play(cid, sched_id, user_id, key)
 					if "oneshot_delete_result" in d:
 						m += d["oneshot_delete_result"]["text"]
 					else:
@@ -1507,7 +1517,8 @@ class wormgas(SingleServerIRCBot):
 			add_to_ph.extend(self.ph.items(nick))
 			self.ph.set(nick, add_to_ph)
 		else:
-			output.privrs.append("No One-Time Plays scheduled on the {}".format(self.channel_names[cid]))
+			m = u'No One-Time Plays scheduled on the {}'
+			output.privrs.append(m.format(self.channel_names[cid]))
 
 	@command_handler(r"^!ph (removealbum|ra) (?P<album_id>\d+)")
 	def handle_ph_removealbum(self, nick, channel, output, album_id):
@@ -1755,10 +1766,13 @@ class wormgas(SingleServerIRCBot):
 			self.rwdb.request_playlist_refresh(cid)
 
 		for pending in self.rwdb.get_pending_refresh_jobs():
-			output.privrs.append("Pending playlist refresh on the {}.".format(self.channel_names[pending]))
+			m = u'Pending playlist refresh on the {}.'
+			output.privrs.append(m.format(self.channel_names[pending]))
 
 		for running in self.rwdb.get_running_refresh_jobs():
-			output.privrs.append("Running playlist refresh on the {}.".format(self.channel_names[self.channel_ids.get(running)]))
+			m = u'Running playlist refresh on the {}.'
+			channel_name = self.channel_names[self.channel_ids.get(running)])
+			output.privrs.append(m.format(channel_name)
 
 		if len(output.privrs) == 0:
 			output.privrs.append("No pending or running playlist refresh jobs.")
@@ -1846,7 +1860,8 @@ class wormgas(SingleServerIRCBot):
 		pw = int(float(w)/float(w+d+l)*100)
 		pd = int(float(d)/float(w+d+l)*100)
 		pl = int(float(l)/float(w+d+l)*100)
-		r += " Your current record is {}-{}-{} or {}%-{}%-{}% (w-d-l).".format(w, d, l, pw, pd, pl)
+		r += u' Your current record is '
+		r += u'{}-{}-{} or {}%-{}%-{}% (w-d-l).'.format(w, d, l, pw, pd, pl)
 
 		if channel == PRIVMSG:
 			output.default.append(r)
@@ -1892,7 +1907,9 @@ class wormgas(SingleServerIRCBot):
 		else:
 			output.privrs.append(r)
 			wait = ltr + wr - int(time.time())
-			output.privrs.append("I am cooling down. You cannot use !rps in {} for another {} seconds.".format(channel, wait))
+			m = u'I am cooling down. You cannot use !rps in '
+			m += u'{} for another {} seconds.'.format(channel, wait)
+			output.privrs.append(m)
 
 	@command_handler(r"!rps rename(\s(?P<old>\S+))?(\s(?P<new>\S+))?")
 	def handle_rps_rename(self, nick, channel, output, old=None, new=None):
@@ -1931,7 +1948,8 @@ class wormgas(SingleServerIRCBot):
 			p_rate = totals[1] / float(games) * 100
 			s_rate = totals[2] / float(games) * 100
 
-			r = "{} challenges with rock/paper/scissors at these rates: ".format(target)
+			r = target
+			r += " challenges with rock/paper/scissors at these rates: "
 			r += "{:3.1f}/{:3.1f}/{:3.1f}%.".format(r_rate, p_rate, s_rate)
 		else:
 			r = "{} does not play. :(".format(target)
@@ -2091,7 +2109,8 @@ class wormgas(SingleServerIRCBot):
 			else:
 				output.privrs.append(u'No more albums with favourite songs.')
 				return
-			output.privrs.append(u'Attempting request: {}'.format(self._get_song_info_string(song_id)))
+			song_info = self._get_song_info_string(song_id)
+			output.privrs.append(u'Attempting request: {}'.format(song_info))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
 				if data[u'request_result'][u'code'] == 1:
@@ -2101,7 +2120,8 @@ class wormgas(SingleServerIRCBot):
 					output.privrs.append(data[u'request_result'][u'text'])
 					return
 				else:
-					output.privrs.append(u'Request failed. ({})'.format(data[u'request_result'][u'text']))
+					fail = data[u'request_result'][u'text']
+					output.privrs.append(u'Request failed. ({})'.format(fail))
 			else:
 				output.privrs.append(data[u'error'][u'text'])
 				output.privrs.append(u'I ran into a problem. I will stop here.')
@@ -2152,12 +2172,14 @@ class wormgas(SingleServerIRCBot):
 					output.privrs.append(u'Removing from stash: {}'.format(song_info))
 					self.rq.remove(str(api_auth[u'user_id']), song_id)
 				else:
-					m = u'I ran into a problem. I will stop here and leave the rest of your stash intact.'
+					m = u'I ran into a problem. I will stop here and leave the rest of '
+					m += u'your stash intact.'
 					output.privrs.append(m)
 					return
 			else:
 				output.privrs.append(data[u'error'][u'text'])
-				m = u'I ran into a problem. I will stop here and leave the rest of your stash intact.'
+				m = u'I ran into a problem. I will stop here and leave the rest of '
+				m += u'your stash intact.'
 				output.privrs.append(m)
 				return
 		output.privrs.append(u'All done.')
@@ -2783,14 +2805,14 @@ class wormgas(SingleServerIRCBot):
 	def _find_urls(self, text):
 		"""Look for URLs in arbitrary text. Return a list of the URLs found."""
 
-		self.log.info("Looking for URLs in: {}".format(text))
+		self.log.info(u'Looking for URLs in: {}'.format(text))
 
 		urls = []
 		for token in text.split():
 			o = urlparse(token)
-			if "http" in o.scheme and o.netloc:
+			if u'http' in o.scheme and o.netloc:
 				url = o.geturl()
-				self.log.info("Found a URL: {}".format(url))
+				self.log.info(u'Found a URL: {}'.format(url))
 				urls.append(url)
 		return urls
 
