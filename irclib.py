@@ -781,13 +781,14 @@ class ServerConnection(Connection):
 
         The string will be padded with appropriate CR LF.
         """
+        bytes = string.encode('utf-8') + b'\r\n'
         if self.socket is None:
             raise ServerNotConnectedError, "Not connected."
         try:
             if self.ssl:
-                self.ssl.write(string + "\r\n")
+                self.ssl.write(bytes)
             else:
-                self.socket.send(string + "\r\n")
+                self.socket.send(bytes)
             if DEBUG:
                 print "TO SERVER:", string
         except socket.error, x:
