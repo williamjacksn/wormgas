@@ -1394,6 +1394,8 @@ class wormgas(SingleServerIRCBot):
 
 		if count == 0:
 			output.privrs.append(u'Your Power Hour planning list is empty.')
+		else:
+			output.privrs.append(u'All done.')
 
 	@command_handler(u'^!ph pause (?P<rchan>\w+)')
 	def handle_ph_pause(self, nick, channel, output, rchan):
@@ -1445,8 +1447,9 @@ class wormgas(SingleServerIRCBot):
 		if len(add_to_ph) > 0:
 			add_to_ph.extend(self.ph.items(nick))
 			self.ph.set(nick, add_to_ph)
+			output.privrs.append(u'All done.')
 		else:
-			m = u'No One-Time Plays scheduled on the {}'
+			m = u'No One-Time Plays scheduled on the {}.'
 			output.privrs.append(m.format(self.rw.channel_id_to_name(cid)))
 
 	@command_handler(u'^!ph (removealbum|ra) (?P<album_id>\d+)')
