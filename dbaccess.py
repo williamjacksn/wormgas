@@ -6,6 +6,7 @@ https://github.com/subtlecoolness/wormgas
 
 import logging
 import sqlite3
+import time
 
 log = logging.getLogger(u'wormgas')
 
@@ -704,15 +705,20 @@ class RainwaveDatabase(object):
 
 		song_id = int(song_id)
 		if song_id in self.song_info_cache:
-			return self.song_info_cache[song_id]
+			if self.song_info_cache[song_id][u'release_time'] > time.time():
+				log.debug(u'Song info cache hit for {}'.format(song_id))
+				return self.song_info_cache[song_id]
+			else:
+				log.debug(u'Song info cache expire for {}'.format(song_id))
+				del self.song_info_cache[song_id]
 
 		sql = (u'select rw_songs.sid, album_id, song_title, song_genre, '
 			u'song_comment, song_secondslong, song_rating_avg, song_rating_count, '
-			u'song_url, album_name, song_available, (song_releasetime - extract(epoch '
-			u'from current_timestamp)::integer) * interval \'1 second\' from rw_songs '
+			u'song_url, album_name, song_available, song_releasetime from rw_songs '
 			u'join rw_albums using (album_id) where song_id = %s')
 		self.rcur.execute(sql, (song_id,))
 		for r in self.rcur.fetchall():
+			log.debug(u'Song info cache miss for {}'.format(song_id))
 			return self.song_info_cache.setdefault(song_id, {
 				u'id':           int(song_id),
 				u'chan_id':      int(r[0]),
@@ -726,7 +732,7 @@ class RainwaveDatabase(object):
 				u'url':          r[8].decode(u'utf-8'),
 				u'album':        r[9].decode(u'utf-8'),
 				u'available':    bool(r[10]),
-				u'release_time': str(r[11]).decode(u'utf-8')
+				u'release_time': int(r[11])
 			})
 
 	def get_unrated_songs(self, user_id, cid):

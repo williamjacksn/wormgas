@@ -1370,16 +1370,7 @@ class wormgas(SingleServerIRCBot):
 		if count > 1:
 			m += u's'
 
-		m += u' and will run for '
-		if seconds < 60:
-			m += u'{} seconds.'.format(seconds)
-		else:
-			minutes, seconds = divmod(seconds, 60)
-			if minutes < 60:
-				m += u'{:0>2d}:{:0>2d}.'.format(minutes, seconds)
-			else:
-				hours, minutes = divmod(minutes, 60)
-				m += u'{:0>2d}:{:0>2d}:{:0>2d}.'.format(hours, minutes, seconds)
+		m += u' and will run for {}.'.format(self._get_readable_time_span(seconds))
 
 		output.privrs.append(m)
 
@@ -2787,7 +2778,22 @@ class wormgas(SingleServerIRCBot):
 		info[u'chan'] = self.rw.channel_id_to_name(info[u'chan_id'])
 		m = u'{chan} // {album} [{album_id}] // {title} [{id}]'.format(**info)
 		if not info[u'available']:
-			m += u' (available in {release_time})'.format(**info)
+			seconds = info[u'release_time'] - int(time.time())
+			m += u' (available in {})'.format(self._get_readable_time_span(seconds))
+		return m
+
+	def _get_readable_time_span(self, seconds):
+		'''Convert seconds into readable time span'''
+		m = u''
+		if seconds < 60:
+			m += u'{} seconds.'.format(seconds)
+		else:
+			minutes, seconds = divmod(seconds, 60)
+			if minutes < 60:
+				m += u'{:0>2d}:{:0>2d}.'.format(minutes, seconds)
+			else:
+				hours, minutes = divmod(minutes, 60)
+				m += u'{:0>2d}:{:0>2d}:{:0>2d}'.format(hours, minutes, seconds)
 		return m
 
 	def _is_admin(self, nick):
