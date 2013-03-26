@@ -77,6 +77,21 @@ class RainwaveClient(object):
 			args[u'key'] = key
 		return self._call(u'async/1/request_delete', args)
 
+	def get_song_ids_in_album(self, album_id, user_id=None, key=None):
+		'''Get a list of song_ids that belong to an album'''
+		args = {u'album_id': album_id}
+		if user_id is not None:
+			args[u'user_id'] = user_id
+		if key is not None:
+			args[u'key'] = key
+		data = self._call(u'async/1/album', args)
+		if u'playlist_album' not in data:
+			raise RainwaveClientException(u'Bad request.')
+		if u'code' in data[u'playlist_album']:
+			raise RainwaveClientException(data[u'playlist_album'][u'text'])
+		song_data = data[u'playlist_album'][u'song_data']
+		return [song[u'song_id'] for song in song_data]
+
 	def get_all_albums(self, channel_id):
 		'''Get a list of all albums, minimum information'''
 		return self._call(u'async/{}/all_albums'.format(channel_id))

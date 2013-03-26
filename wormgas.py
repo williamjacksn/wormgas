@@ -1213,14 +1213,26 @@ class wormgas(SingleServerIRCBot):
 			self.log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
-		if self.rwdb is None:
-				output.privrs.append(self.rwdberr)
-				return
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			output.privrs.append(self._missing_user_id())
+			return
+		if u'key' not in api_auth:
+			output.privrs.append(self._missing_key())
+			return
 
 		album_id = int(album_id)
-		for song_id in self.rwdb.get_album_songs(album_id):
+		try:
+			song_ids = self.rw.get_song_ids_in_album(album_id, **api_auth)
+		except rainwave.RainwaveClientException as e:
+			self.log.exception(e)
+			output.privrs.append(str(e))
+			return
+
+		for song_id in song_ids:
 			song_id = int(song_id)
 			self.handle_ph_addsong(nick, channel, output, song_id)
+		output.privrs.append(u'All done.')
 
 	@command_handler(u'^!ph (addsong|add|as) (?P<song_id>\d+)')
 	def handle_ph_addsong(self, nick, channel, output, song_id):
@@ -1455,14 +1467,26 @@ class wormgas(SingleServerIRCBot):
 			self.log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
-		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+		api_auth = self._get_api_auth_for_nick(nick)
+		if u'user_id' not in api_auth:
+			output.privrs.append(self._missing_user_id())
+			return
+		if u'key' not in api_auth:
+			output.privrs.append(self._missing_key())
 			return
 
 		album_id = int(album_id)
-		for song_id in self.rwdb.get_album_songs(album_id):
+		try:
+			song_ids = self.rw.get_song_ids_in_album(album_id, **api_auth)
+		except rainwave.RainwaveClientException as e:
+			self.log.exception(e)
+			output.privrs.append(str(e))
+			return
+
+		for song_id in song_ids:
 			song_id = int(song_id)
 			self.handle_ph_removesong(nick, channel, output, song_id)
+		output.privrs.append(u'All done.')
 
 	@command_handler(u'^!ph (remove|rm|removesong|rs) (?P<song_id>\d+)')
 	def handle_ph_removesong(self, nick, channel, output, song_id):
