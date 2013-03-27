@@ -101,9 +101,13 @@ class TitleFetcher(object):
 
 	def get_title(self, url):
 		try:
-			data = requests.get(url)
+			data = requests.get(url, stream=True)
 		except:
 			raise TitleFetcherError(u'There was a problem fetching data from: {}'.format(url))
+		if u'content-type' in data.headers:
+			ct = data.headers[u'content-type']
+			if u'audio/' in ct or u'image/' in ct:
+				raise TitleFetcherError(u'Invalid content-type: {}'.format(ct))
 		if u'<title>' in data.text:
 			title = data.text.partition(u'<title>')[2].partition(u'</title>')[0]
 			return self.unescape(u' '.join(title.split()))
