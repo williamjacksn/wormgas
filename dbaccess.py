@@ -622,16 +622,17 @@ class RainwaveDatabase(object):
 		self.rcur.execute(sql, (maxid, cid))
 		rows = self.rcur.fetchall()
 		for row in rows:
-			r = u'{} / {} by '.format(*row[1:])
+			urow = (x.decode(u'utf-8') for x in row[1:])
+			r = u'{} / {} by '.format(*urow)
 			artists = []
 			sql = (u'select artist_name from rw_song_artist join rw_artists '
 				u'using (artist_id) where song_id = %s')
 			self.rcur.execute(sql, (row[0],))
 			arows = self.rcur.fetchall()
 			for arow in arows:
-				artists.append(arow[0])
+				artists.append(arow[0].decode(u'utf-8'))
 			r += u', '.join(artists)
-			rs.append((r.decode(u'utf-8'), row[3]))
+			rs.append((r, row[3]))
 		return rs
 
 	def get_pending_refresh_jobs(self):
