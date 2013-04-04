@@ -19,7 +19,7 @@ from urlparse import urlparse
 import dbaccess
 import rainwave
 import util
-from ircbot import SingleServerIRCBot
+from irc.bot import SingleServerIRCBot
 from cobe.brain import Brain
 
 _abspath = os.path.abspath(__file__)
@@ -162,11 +162,11 @@ class wormgas(SingleServerIRCBot):
 			logging.getLogger().removeHandler(self.log_handler)
 
 	def _dispatcher(self, c, e):
-		et = e.eventtype()
+		et = e.type
 		if et not in self._events_not_logged():
-			s = e.source()
-			t = e.target()
-			self.log.debug(u'{}, {}, {} -- {}'.format(et, s, t, e.arguments()))
+			s = e.source
+			t = e.target
+			self.log.debug(u'{}, {}, {} -- {}'.format(et, s, t, e.arguments))
 		SingleServerIRCBot._dispatcher(self, c, e)
 
 	@command_handler(u'!8ball')
@@ -2507,8 +2507,8 @@ class wormgas(SingleServerIRCBot):
 			c: the Connection object asociated with this event
 			e: the Event object'''
 
-		nick = e.source().split(u'!')[0]
-		irc_chan = e.target()
+		nick = e.source.nick
+		irc_chan = e.target
 
 		# Check for a join response
 		jr = self.config.get(u'joinresponse:{}'.format(nick))
@@ -2532,13 +2532,8 @@ class wormgas(SingleServerIRCBot):
 			c: the Connection object associated with this event
 			e: the Event object'''
 
-		nick = e.source().split(u'!')[0]
-		msg = e.arguments()[0].strip()
-		try:
-			msg = unicode(msg, u'utf-8')
-		except UnicodeDecodeError:
-			self.log.exception(u'Cannot convert message to unicode')
-			return
+		nick = e.source.nick
+		msg = e.arguments[0].strip()
 
 		rs = []
 		privrs = []
@@ -2574,14 +2569,9 @@ class wormgas(SingleServerIRCBot):
 			c: the Connection object associated with this event
 			e: the Event object'''
 
-		nick = e.source().split(u'!')[0]
-		chan = e.target()
-		msg = e.arguments()[0].strip()
-		try:
-			msg = unicode(msg, u'utf-8')
-		except UnicodeDecodeError:
-			self.log.exception(u'Cannot convert message to unicode')
-			return
+		nick = e.source.nick
+		chan = e.target
+		msg = e.arguments[0].strip()
 
 		rs = []
 		privrs = []
@@ -2647,9 +2637,8 @@ class wormgas(SingleServerIRCBot):
 			c: the Connection object associated with this event
 			e: the Event object'''
 
-		nickmask = e.source()
-		nick = nickmask.split(u'!')[0]
-		new_topic = e.arguments()[0]
+		nick = e.source.nick
+		new_topic = e.arguments[0]
 		m = u'{} changed the topic to: {}'.format(nick, new_topic)
 
 		nicks_to_match = self.config.get(u'funnytopic:nicks', u'').split()

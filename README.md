@@ -8,10 +8,12 @@ Pull requests welcome.
 Dependencies:
 
 * [Python][python] >= 2.6
+* [irc][] >= 8.1.1 (`pip install irc`)
 * [stemming][stemming] >= 1.0
 * [psycopg][psycopg] >= 2.4 (if using RW database functions)
 * [requests][requests] >= 1.1.0 (if you use pip: `pip install requests`)
 
+[irc]: https://bitbucket.org/jaraco/irc
 [psycopg]: http://initd.org
 [python]: http://python.org
 [rainwave]: http://rainwave.cc
