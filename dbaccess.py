@@ -787,7 +787,9 @@ class RainwaveDatabase(object):
 		results = []
 		for row in rows[:limit]:
 			results.append({
-				u'album_name': row[0], u'song_title': row[1], u'song_id': row[2]})
+				u'album_name': row[0].decode(u'utf-8'),
+				u'song_title': row[1].decode(u'utf-8'),
+				u'song_id': int(row[2])})
 		unreported_results = max(len(rows) - limit, 0)
 		return results, unreported_results
 
