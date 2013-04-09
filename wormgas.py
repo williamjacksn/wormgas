@@ -434,7 +434,7 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 
 		limit = 1
@@ -1215,10 +1215,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		album_id = int(album_id)
@@ -1315,10 +1315,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		errors = 0
@@ -1415,10 +1415,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		add_to_ph = []
@@ -1463,10 +1463,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		album_id = int(album_id)
@@ -1633,10 +1633,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		if rating is None:
@@ -1949,10 +1949,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		song_id = int(song_id)
@@ -1972,7 +1972,7 @@ class wormgas(SingleServerIRCBot):
 		self.log.info(u'{} used !rq clearstash'.format(nick))
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 
 		self.rq.clear(str(api_auth[u'user_id']))
@@ -1997,10 +1997,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		if limit is None:
@@ -2048,10 +2048,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		stash = self.rq.items(str(api_auth[u'user_id']))[:]
@@ -2096,7 +2096,7 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 
 		count = len(self.rq.items(str(api_auth[u'user_id'])))
@@ -2119,10 +2119,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		self.rq.clear(str(api_auth[u'user_id']))
@@ -2162,10 +2162,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		if limit is None:
@@ -2297,7 +2297,7 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 
 		if self.rwdb is None:
@@ -2478,10 +2478,10 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self._missing_user_id())
+			output.privrs.append(self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self._missing_key())
+			output.privrs.append(self.missing_key)
 			return
 
 		# Get the elec_entry_id
@@ -2803,12 +2803,14 @@ class wormgas(SingleServerIRCBot):
 
 		return False
 
-	def _missing_key(self):
+	@property
+	def missing_key(self):
 		m = u'I do not have a key stored for you. Visit http://rainwave.cc/auth/ '
 		m += u'to get a key and tell me about it with \x02!key add <key>\x02.'
 		return m
 
-	def _missing_user_id(self):
+	@property
+	def missing_user_id(self):
 		m = u'I do not have a user id stored for you. Visit '
 		m += u'http://rainwave.cc/auth/ to look up your user id and tell me about '
 		m += u'it with \x02!id add <id>\x02.'
