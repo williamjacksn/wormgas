@@ -4,6 +4,7 @@ import os
 import re
 import requests
 
+
 class CollectionOfNamedLists:
 	"""A collection of lists, each list has a name, optional persistence"""
 
@@ -93,8 +94,10 @@ class CollectionOfNamedLists:
 				self.data[name].insert(new_index, item)
 				self._flush()
 
+
 class TitleFetcherError(Exception):
 	pass
+
 
 class TitleFetcher(object):
 	'''Get the contents of the <title> tag in HTML pages'''
@@ -103,7 +106,8 @@ class TitleFetcher(object):
 		try:
 			data = requests.get(url, stream=True)
 		except:
-			raise TitleFetcherError(u'There was a problem fetching data from: {}'.format(url))
+			m = u'There was a problem fetching data from: {}'
+			raise TitleFetcherError(m.format(url))
 		if u'content-type' in data.headers:
 			ct = data.headers[u'content-type']
 			if u'audio/' in ct or u'image/' in ct:
@@ -133,5 +137,5 @@ class TitleFetcher(object):
 					text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
 				except KeyError:
 					pass
-			return text # leave as is
+			return text  # leave as is
 		return re.sub("&#?\w+;", fixup, text)

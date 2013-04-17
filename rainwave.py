@@ -1,10 +1,12 @@
 import requests
 
+
 class RainwaveClientException(Exception):
 	'''Raised for just about anything going wrong with RainwaveClient'''
 
+
 class RainwaveClient(object):
-	'''A RainwaveClient object provides a simple interface to the Rainwave API 
+	'''A RainwaveClient object provides a simple interface to the Rainwave API
 	(see http://rainwave.cc/api/ for details about the API)'''
 
 	def __init__(self, base_url=None, user_id=None, key=None):

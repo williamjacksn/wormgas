@@ -5,7 +5,8 @@ https://github.com/subtlecoolness/wormgas
 '''
 
 import json
-import logging, logging.handlers
+import logging
+import logging.handlers
 import math
 import os
 import random
@@ -26,6 +27,7 @@ _abspath = os.path.abspath(__file__)
 _commands = set()
 
 PRIVMSG = u'__privmsg__'
+
 
 class Output(object):
 	'''Dead-simple abstraction for splitting output between public and private.
@@ -54,6 +56,7 @@ class Output(object):
 		'''The default output list.'''
 		return self._default
 
+
 def command_handler(command):
 	'''Decorate a method to register as a command handler for provided regex.'''
 	def decorator(func):
@@ -79,6 +82,7 @@ def command_handler(command):
 		return func
 	return decorator
 
+
 class wormgas(SingleServerIRCBot):
 
 	channel_codes = (
@@ -91,20 +95,20 @@ class wormgas(SingleServerIRCBot):
 	)
 
 	channel_ids = {
-		u'rw':     1,
-		u'game':   1,
-		u'oc':     2,
-		u'ocr':    2,
-		u'vw':     3,
-		u'mw':     3,
-		u'cover':  3,
+		u'rw': 1,
+		u'game': 1,
+		u'oc': 2,
+		u'ocr': 2,
+		u'vw': 3,
+		u'mw': 3,
+		u'cover': 3,
 		u'covers': 3,
-		u'bw':     4,
-		u'chip':   4,
-		u'ch':     4,
-		u'ow':     5,
-		u'omni':   5,
-		u'all':    5
+		u'bw': 4,
+		u'chip': 4,
+		u'ch': 4,
+		u'ow': 5,
+		u'omni': 5,
+		u'all': 5
 	}
 
 	def __init__(self, config_db=u'config.sqlite', log_file=u'wormgas.log'):
@@ -139,7 +143,7 @@ class wormgas(SingleServerIRCBot):
 		args = sys.argv[1:]
 		for arg in args:
 			if arg.startswith(u'--set-'):
-				key,value = arg[6:].split(u'=', 1)
+				key, value = arg[6:].split(u'=', 1)
 				print u'Setting \'{}\' to \'{}\'.'.format(key, value)
 				self.config.set(key, value)
 
@@ -377,7 +381,7 @@ class wormgas(SingleServerIRCBot):
 
 		# Prepend the message description to the output string.
 		time = [u'Current', u'Future'][index]
-		rchn = self.rw.channel_id_to_name(cid) # radio channel name
+		rchn = self.rw.channel_id_to_name(cid)  # radio channel name
 		result = u'{} election on the {}: {}'.format(time, rchn, text)
 
 		if channel == PRIVMSG:
@@ -1772,7 +1776,7 @@ class wormgas(SingleServerIRCBot):
 		self.log.info(u'{} used !{}'.format(nick, mode))
 
 		rps = [u'rock', u'paper', u'scissors']
-		challenge	 = rps.index(mode)
+		challenge = rps.index(mode)
 		response = random.randint(0, 2)
 
 		self.config.log_rps(nick, challenge, response)
@@ -1784,12 +1788,12 @@ class wormgas(SingleServerIRCBot):
 		elif challenge == response:
 			r += u'We draw!'
 		elif challenge == (response + 2) % 3:
-			r+= u'You lose!'
+			r += u'You lose!'
 
 		w, d, l = self.config.get_rps_record(nick)
-		pw = int(float(w)/float(w+d+l)*100)
-		pd = int(float(d)/float(w+d+l)*100)
-		pl = int(float(l)/float(w+d+l)*100)
+		pw = int(float(w) / float(w + d + l) * 100)
+		pd = int(float(d) / float(w + d + l) * 100)
+		pl = int(float(l) / float(w + d + l) * 100)
 		r += u' Your current record is '
 		r += u'{}-{}-{} or {}%-{}%-{}% (w-d-l).'.format(w, d, l, pw, pd, pl)
 
@@ -1931,7 +1935,7 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.extend(rs)
 			wait = ltr + wr - int(time.time())
 			r = u'I am cooling down. You cannot use !rps in {} '.format(channel)
-			r += u'for another {} seconds.'.format(wait) 
+			r += u'for another {} seconds.'.format(wait)
 			output.privrs.append(r)
 
 	@command_handler(u'^!rq (?P<song_id>\d+)')
@@ -2185,7 +2189,8 @@ class wormgas(SingleServerIRCBot):
 			else:
 				output.privrs.append(u'No more albums with unrated songs.')
 				return
-			output.privrs.append(u'Attempting request: {}'.format(self._get_song_info_string(song_id)))
+			song_info_string = self._get_song_info_string(song_id)
+			output.privrs.append(u'Attempting request: {}'.format(song_info_string))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
 				if data[u'request_result'][u'code'] == 1:
@@ -2195,7 +2200,8 @@ class wormgas(SingleServerIRCBot):
 					output.privrs.append(data[u'request_result'][u'text'])
 					return
 				else:
-					output.privrs.append(u'Request failed. ({})'.format(data[u'request_result'][u'text']))
+					failure_text = data[u'request_result'][u'text']
+					output.privrs.append(u'Request failed. ({})'.format(failure_text))
 			else:
 				output.privrs.append(data[u'error'][u'text'])
 				output.privrs.append(u'I ran into a problem. I will stop here.')
@@ -2206,9 +2212,9 @@ class wormgas(SingleServerIRCBot):
 	@command_handler(u'^!set(\s(?P<id>\S+))?(\s(?P<value>.+))?')
 	def handle_set(self, nick, channel, output, id=None, value=None):
 		'''View and set bot configuration'''
-		
+
 		self.log.info(u'{} used !set'.format(nick))
-		
+
 		if self._is_admin(nick):
 			output.privrs.extend(self.config.handle(id, value))
 		else:
@@ -2331,9 +2337,9 @@ class wormgas(SingleServerIRCBot):
 	@command_handler(u'^!unset(\s(?P<id>\S+))?')
 	def handle_unset(self, nick, channel, output, id=None):
 		'''Unset a configuration item'''
-		
+
 		self.log.info(u'{} used !unset'.format(nick))
-		
+
 		if self._is_admin(nick):
 			if id:
 				self.config.unset(id)
@@ -2367,7 +2373,7 @@ class wormgas(SingleServerIRCBot):
 
 		if u'listener_detail' in data:
 			ld = data[u'listener_detail']
-			cun = ld[u'username'] # canonical username
+			cun = ld[u'username']  # canonical username
 
 			# Line 1: winning/losing votes/requests
 
@@ -2463,7 +2469,7 @@ class wormgas(SingleServerIRCBot):
 					u'channel or link your Rainwave account to this IRC nick '
 					u'using \x02!id\x02.')
 				return
-		
+
 		cid = self.channel_ids.get(rchan)
 
 		try:
@@ -2765,7 +2771,7 @@ class wormgas(SingleServerIRCBot):
 
 	def _get_song_info_string(self, song_id):
 		'''Get song info as single string'''
-		
+
 		info = self.rwdb.get_song_info(song_id)
 		info[u'chan'] = self.rw.channel_id_to_name(info[u'chan_id'])
 		m = u'{chan} // {album} [{album_id}] // {title} [{id}]'.format(**info)
@@ -2948,22 +2954,24 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self.log.error(u'Invalid message type \'{}\''.format(msgtype))
 
+
 def main():
-		try:
-				pid = os.fork()
-				if pid > 0:
-						sys.exit(0)
-		except (OSError, AttributeError):
-				pass # Non-Unix systems will run wormgas in the foreground.
+	try:
+		pid = os.fork()
+		if pid > 0:
+			sys.exit(0)
+	except (OSError, AttributeError):
+		# Non-Unix systems will run wormgas in the foreground.
+		pass
 
-		if len(sys.argv) > 1:
-				sleeptime = float(sys.argv[1])
-		else:
-				sleeptime = 0
-		time.sleep(sleeptime)
+	if len(sys.argv) > 1:
+		sleeptime = float(sys.argv[1])
+	else:
+		sleeptime = 0
+	time.sleep(sleeptime)
 
-		bot = wormgas()
-		bot.start()
+	bot = wormgas()
+	bot.start()
 
 if __name__ == u'__main__':
-		main()
+	main()

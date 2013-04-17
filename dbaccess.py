@@ -16,6 +16,7 @@ except:
 	psycopg2 = None
 	log.warning(u'psycopg2 unavailable -- RW db access turned off.')
 
+
 class Config(object):
 	'''Connects to, retrieves from, and sets values in the local sqlite db.'''
 
@@ -72,13 +73,15 @@ class Config(object):
 
 		# Add any missing default bot config values.
 		for key, value in self.default_bot_config.iteritems():
-			if self.get(key) == None:
+			if self.get(key) is None:
 				self.set(key, value)
 
 	def __del__(self):
 		try:
 			self.cdbh.close()
-		except AttributeError: pass # Never opened the db; no handle to close.
+		except AttributeError:
+			# Never opened the db; no handle to close.
+			pass
 
 	def add_id_to_nick(self, id, nick):
 		sql = u'update user_keys set user_id = ? where user_nick = ?'
@@ -276,8 +279,10 @@ class Config(object):
 		sql = u'delete from botconfig where config_id = ?'
 		self.ccur.execute(sql, (id,))
 
+
 class RainwaveDatabaseUnavailableError(IOError):
 	'''Raised if the Rainwave database or PostgreSQL module is missing.'''
+
 
 class RainwaveDatabase(object):
 	'''Calls Rainwave DB functions while managing the database handles.'''
@@ -361,12 +366,12 @@ class RainwaveDatabase(object):
 	def connect(self):
 		if not psycopg2:
 			raise RainwaveDatabaseUnavailableError(u'No psycopg2 available.')
-		psql_conn_args = []
-		psql_conn_args.append(self.config.get(u'db:name'))
-		psql_conn_args.append(self.config.get(u'db:user'))
-		psql_conn_args.append(self.config.get(u'db:pass'))
+		conn_args = []
+		conn_args.append(self.config.get(u'db:name'))
+		conn_args.append(self.config.get(u'db:user'))
+		conn_args.append(self.config.get(u'db:pass'))
 
-		connstr = u'dbname=\'{}\' user=\'{}\' password=\'{}\''.format(*psql_conn_args)
+		connstr = u'dbname=\'{}\' user=\'{}\' password=\'{}\''.format(*conn_args)
 		try:
 			self.rdbh = psycopg2.connect(connstr)
 		except psycopg2.OperationalError:
@@ -669,7 +674,7 @@ class RainwaveDatabase(object):
 		ccodes = []
 
 		import subprocess
-		ps_cmd = [u'ps',u'-A',u'-o',u'ni,args']
+		ps_cmd = [u'ps', u'-A', u'-o', u'ni,args']
 		p = subprocess.Popen(ps_cmd, stdout=subprocess.PIPE)
 		ps_out_str = p.communicate()[0]
 		ps_out_list = ps_out_str.splitlines()
@@ -721,18 +726,18 @@ class RainwaveDatabase(object):
 		for r in self.rcur.fetchall():
 			log.debug(u'Song info cache miss for {}'.format(song_id))
 			return self.song_info_cache.setdefault(song_id, {
-				u'id':           int(song_id),
-				u'chan_id':      int(r[0]),
-				u'album_id':     int(r[1]),
-				u'title':        r[2].decode(u'utf-8'),
-				u'genre':        r[3].decode(u'utf-8'),
-				u'comment':      r[4].decode(u'utf-8'),
-				u'length':       int(r[5]),
-				u'rating_avg':   float(r[6]),
+				u'id': int(song_id),
+				u'chan_id': int(r[0]),
+				u'album_id': int(r[1]),
+				u'title': r[2].decode(u'utf-8'),
+				u'genre': r[3].decode(u'utf-8'),
+				u'comment': r[4].decode(u'utf-8'),
+				u'length': int(r[5]),
+				u'rating_avg': float(r[6]),
 				u'rating_count': int(r[7]),
-				u'url':          r[8].decode(u'utf-8'),
-				u'album':        r[9].decode(u'utf-8'),
-				u'available':    bool(r[10]),
+				u'url': r[8].decode(u'utf-8'),
+				u'album': r[9].decode(u'utf-8'),
+				u'available': bool(r[10]),
 				u'release_time': int(r[11])
 			})
 
@@ -789,7 +794,8 @@ class RainwaveDatabase(object):
 			results.append({
 				u'album_name': row[0].decode(u'utf-8'),
 				u'song_title': row[1].decode(u'utf-8'),
-				u'song_id': int(row[2])})
+				u'song_id': int(row[2])
+			})
 		unreported_results = max(len(rows) - limit, 0)
 		return results, unreported_results
 
