@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''
 wormgas -- IRC bot for Rainwave (http://rainwave.cc)
-https://github.com/subtlecoolness/wormgas
+https://github.com/williamjacksn/wormgas
 '''
 
 import json
@@ -547,7 +547,7 @@ class wormgas(SingleServerIRCBot):
 			u'\x02, \x02'.join(self.channel_ids.keys()) + u'\x02.')
 		notpermitted = u'You are not permitted to use this command.'
 		wiki = (u'More help is available at '
-			u'https://github.com/subtlecoolness/wormgas/wiki')
+			u'https://github.com/williamjacksn/wormgas/wiki')
 
 		if topic in [u'all', None]:
 			rs.append(u'Use \x02!help [<topic>]\x02 with one of these topics: '
@@ -642,7 +642,7 @@ class wormgas(SingleServerIRCBot):
 			if is_admin:
 				rs.append(u'Use \x02!ph <command>\x02 to manage your Power Hour '
 					u'planning list.')
-				rs.append(u'Refer to https://github.com/subtlecoolness/wormgas/wiki/ph '
+				rs.append(u'Refer to https://github.com/williamjacksn/wormgas/wiki/ph '
 					u'for details.')
 			else:
 				rs.append(notpermitted)
