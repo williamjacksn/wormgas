@@ -157,6 +157,7 @@ class wormgas(SingleServerIRCBot):
 		nick = self.config.get(u'irc:nick')
 		name = self.config.get(u'irc:name')
 		SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
+		self.connection.buffer_class.errors = u'replace'
 
 	def stop(self):
 		'''Save all data and shut down the bot.'''
