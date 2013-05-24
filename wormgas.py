@@ -2801,11 +2801,11 @@ class wormgas(SingleServerIRCBot):
 		'''Convert seconds into readable time span'''
 		m = u''
 		if seconds < 60:
-			m += u'{} seconds.'.format(seconds)
+			m += u'{} seconds'.format(seconds)
 		else:
 			minutes, seconds = divmod(seconds, 60)
 			if minutes < 60:
-				m += u'{:0>2d}:{:0>2d}.'.format(minutes, seconds)
+				m += u'{:0>2d}:{:0>2d}'.format(minutes, seconds)
 			else:
 				hours, minutes = divmod(minutes, 60)
 				m += u'{:0>2d}:{:0>2d}:{:0>2d}'.format(hours, minutes, seconds)
