@@ -1,6 +1,7 @@
 import htmlentitydefs
 import json
 import os
+import random
 import re
 import requests
 
@@ -66,6 +67,12 @@ class CollectionOfNamedLists:
 		"""Remove all items from a list"""
 		if name in self.data:
 			del self.data[name]
+			self._flush()
+
+	def shuffle(self, name):
+		"""Randomize the items in a list"""
+		if name in self.data:
+			random.shuffle(self.data[name])
 			self._flush()
 
 	def up(self, name, item):

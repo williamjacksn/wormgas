@@ -1511,6 +1511,22 @@ class wormgas(SingleServerIRCBot):
 
 		output.privrs.append(m)
 
+	@command_handler(u'^!ph (shuffle|sh)')
+	def handle_ph_shuffle(self, nick, channel, output):
+		'''Randomize the songs in this user's Power Hour planning list'''
+
+		self.log.info(u'{} used !ph shuffle'.format(nick))
+		if not self._is_admin(nick):
+			self.log.warning(u'{} does not have privs to use !ph'.format(nick))
+			return
+
+		if self.rwdb is None:
+			output.privrs.append(self.rwdberr)
+			return
+
+		self.ph.shuffle(nick)
+		self.handle_ph_list(nick, channel, output)
+
 	@command_handler(u'^!ph up (?P<song_id>\d+)')
 	def handle_ph_up(self, nick, channel, output, song_id):
 		'''Move a song up in this user's Power Hour planning list'''
