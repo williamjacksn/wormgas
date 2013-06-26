@@ -537,8 +537,11 @@ class RainwaveDatabase(object):
 		rows = self.rcur.fetchall()
 		for row in rows:
 			url = u'http://rainwave.cc/forums/viewtopic.php?p={3}#p{3}'.format(*row)
-			r = u'{} / {} by {}'.format(*row)
-			return r.decode(u'utf-8'), url
+			forum_name = row[0].decode(u'utf-8')
+			post_subject = row[1].decode(u'utf-8')
+			username = row[2].decode(u'utf-8')
+			r = u'{} / {} by {}'.format(forum_name, post_subject, username)
+			return r, url
 
 	def get_history(self, cid):
 		'''Yield information about the last several songs that played'''
