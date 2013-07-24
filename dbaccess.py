@@ -466,6 +466,15 @@ class RainwaveDatabase(object):
 			return r[0]
 		return None
 
+	def get_album_songs(self, album_id):
+		'''Yields song_ids in an album'''
+
+		sql = (u'select song_id from rw_songs where album_id = %s and '
+			u'song_verified is true')
+		self.rcur.execute(sql, (album_id,))
+		for r in self.rcur.fetchall():
+			yield r[0]
+
 	def get_all_otps(self):
 		'''Yields all Oneshots currently on the schedule'''
 
