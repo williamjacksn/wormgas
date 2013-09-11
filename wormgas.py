@@ -111,7 +111,7 @@ class wormgas(SingleServerIRCBot):
 		u'all': 5
 	}
 
-	def __init__(self, config_db=u'config.sqlite', log_file=u'wormgas.log'):
+	def __init__(self, config_db=u'config.sqlite'):
 		self.path, self.file = os.path.split(_abspath)
 		self.brain = Brain(self.path + u'/brain.sqlite')
 		self.config = dbaccess.Config(u'{}/{}'.format(self.path, config_db))
@@ -122,15 +122,11 @@ class wormgas(SingleServerIRCBot):
 
 		# Set up logging.
 		self.log = logging.getLogger(u'wormgas')
-		self.log_handler = None
-		if log_file:
-			self.log.setLevel(logging.DEBUG)
-			logpath = u'{}/{}'.format(self.path, log_file)
-			self.log_handler = logging.handlers.RotatingFileHandler(
-				logpath, maxBytes=20000000, backupCount=1)
-			self.log_handler.setFormatter(logging.Formatter(
-				u'%(asctime)s - %(levelname)s - %(message)s'))
-			logging.getLogger().addHandler(self.log_handler)
+		self.log.setLevel(logging.DEBUG)
+		self.log_handler = logging.StreamHandler(stream=sys.stdout)
+		self.log_handler.setFormatter(logging.Formatter(
+			u'%(asctime)s - %(levelname)s - %(message)s'))
+		logging.getLogger().addHandler(self.log_handler)
 
 		# Set up Rainwave DB access if available.
 		try:
@@ -2280,7 +2276,7 @@ class wormgas(SingleServerIRCBot):
 		if self._is_admin(nick):
 			if self.config.get(u'restart_on_stop'):
 				self.config.unset(u'restart_on_stop')
-				pid = subprocess.Popen([_abspath, u'5'], stdout=subprocess.PIPE,
+				pid = subprocess.Popen([_abspath], stdout=subprocess.PIPE,
 					stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 			self.die(u'I was stopped by {}'.format(nick))
 		else:
@@ -2973,20 +2969,6 @@ class wormgas(SingleServerIRCBot):
 
 
 def main():
-	try:
-		pid = os.fork()
-		if pid > 0:
-			sys.exit(0)
-	except (OSError, AttributeError):
-		# Non-Unix systems will run wormgas in the foreground.
-		pass
-
-	if len(sys.argv) > 1:
-		sleeptime = float(sys.argv[1])
-	else:
-		sleeptime = 0
-	time.sleep(sleeptime)
-
 	bot = wormgas()
 	bot.start()
 
