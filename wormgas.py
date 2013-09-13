@@ -21,6 +21,7 @@ import re
 import requests
 import subprocess
 import time
+import xml.etree.ElementTree
 from urlparse import urlparse
 
 import dbaccess
@@ -165,6 +166,68 @@ class wormgas(SingleServerIRCBot):
 			t = e.target
 			log.debug(u'{}, {}, {} -- {}'.format(et, s, t, e.arguments))
 		SingleServerIRCBot._dispatcher(self, c, e)
+
+	def _aux_wa(self, query):
+		'''Auxilliary function that does the Wolfram API magic.'''
+
+		apikey = self.config.get(u'wa:apikey', None)
+		if apikey is None:
+			return ['Wolfram Alpha API key is not configured,'
+			          + 'can\'t use !wa.']
+		try:
+			r = requests.get('http://api.wolframalpha.com/v2/query',
+			      timeout = 10,
+			      params = {'appid': apikey,
+					'input': query,
+					'format': 'plaintext'})
+			root = xml.etree.ElementTree.fromstring(r.text.encode('utf-8'))
+			if root.get('success') != 'true':
+				return ['Wolfram Alpha found no answer.']
+			plaintext = root.find('./pod[@primary="true"]/subpod/plaintext')
+			plaintext = None
+			if plaintext is None:
+				for pod in root.findall('./pod'):
+					if pod.get('title') != 'Input interpretation':
+						plaintext = pod.find('./subpod/plaintext')
+						if plaintext is not None:
+							break
+			if plaintext is None:
+				return ['Error: couldn\'t find response.']
+			if plaintext.text is None:
+				return ['Error: empty response.']
+			return plaintext.text.split('\n')
+		except requests.exceptions.Timeout:
+			return ['Error: Wolfram Alpha timed out.']
+		except xml.etree.ElementTree.ParseError:
+			return ['Error: couldn\'t parse response.']
+		except Exception as e:
+			return ['Error: I don\'t even know.']
+
+	@command_handler(u'!wa (?P<query>.+)')
+	def handle_wa(self, nick, channel, output, query=None):
+		'''Ask something to the Wolfram Alpha API.'''
+
+		result = self._aux_wa(query)
+
+		# Private messages always get the full result
+		if channel == PRIVMSG:
+			output.default.extend(result)
+			return
+
+		# Otherwise, check for the cooldown and respond accordingly.
+		ltb = int(self.config.get(u'lasttime:wa', 0))
+		wb = int(self.config.get(u'wait:wa', 0))
+		wb = 0
+		if ltb < time.time() - wb:
+			# If outputting to the channel, output at most 5 lines.
+			output.default.extend(result[:5])
+			self.config.set(u'lasttime:wa', time.time())
+		else:
+			output.privrs.extend(result)
+			wait = ltb + wb - int(time.time())
+			r = u'I am cooling down. You cannot use !wa in '
+			r += u'{} for another {} seconds.'.format(channel, wait)
+			output.privrs.append(r)
 
 	@command_handler(u'!8ball')
 	def handle_8ball(self, nick, channel, output):
