@@ -609,13 +609,15 @@ class wormgas(SingleServerIRCBot):
 			rs.append(u'Use \x02!help [<topic>]\x02 with one of these topics: '
 				u'8ball, election, fav, flip, history, id, key, lookup, lstats, '
 				u'nowplaying, prevplayed, rate, roll, rps, rq, stats, '
-				u'unrated, ustats, vote.')
+				u'unrated, ustats, vote, wa.')
 			if is_admin:
 				rs.append(u'Administration topics: cooldown, forum, newmusic, otp, ph, '
 					u'refresh, restart, set, stop, unset.')
 			rs.append(wiki)
 		elif topic == u'8ball':
 			rs.append(u'Use \x02!8ball\x02 to ask a question of the magic 8ball.')
+		elif topic == u'8ball':
+			rs.append(u'Use \x02!wa [query]\x02 to query Wolfram Alpha.')
 		elif topic in [u'cooldown', u'cd']:
 			if is_admin:
 				rs.append(u'Use \x02!cooldown add song|album <song_id|album_id> '
