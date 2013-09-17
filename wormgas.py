@@ -172,40 +172,41 @@ class wormgas(SingleServerIRCBot):
 
 		apikey = self.config.get(u'wa:apikey', None)
 		if apikey is None:
-			return ['Wolfram Alpha API key is not configured,'
-			          + 'can\'t use !wa.']
+			return [u'Wolfram Alpha API key not configured, cannot use !wa.']
 		try:
-			r = requests.get('http://api.wolframalpha.com/v2/query',
-			      timeout = 10,
-			      params = {'appid': apikey,
-					'input': query,
-					'format': 'plaintext'})
-			root = xml.etree.ElementTree.fromstring(r.text.encode('utf-8'))
-			if root.get('success') != 'true':
-				return ['Wolfram Alpha found no answer.']
-			plaintext = root.find('./pod[@primary="true"]/subpod/plaintext')
-			plaintext = None
+			url = u'http://api.wolframalpha.com/v2/query'
+			payload = {
+				u'appid': apikey,
+				u'input': query,
+				u'format': u'plaintext'
+			}
+			r = requests.get(url, timeout=10, params=payload)
+			root = xml.etree.ElementTree.fromstring(r.text.encode(u'utf-8'))
+			if root.get(u'success') != u'true':
+				return [u'Wolfram Alpha found no answer.']
+			plaintext = root.find(u'./pod[@primary="true"]/subpod/plaintext')
 			if plaintext is None:
-				for pod in root.findall('./pod'):
-					if pod.get('title') != 'Input interpretation':
-						plaintext = pod.find('./subpod/plaintext')
+				for pod in root.findall(u'./pod'):
+					if pod.get(u'title') != u'Input interpretation':
+						plaintext = pod.find(u'./subpod/plaintext')
 						if plaintext is not None:
 							break
 			if plaintext is None:
-				return ['Error: couldn\'t find response.']
+				return [u'Error: could not find response.']
 			if plaintext.text is None:
-				return ['Error: empty response.']
-			return plaintext.text.split('\n')
+				return [u'Error: empty response.']
+			return plaintext.text.splitlines()
 		except requests.exceptions.Timeout:
-			return ['Error: Wolfram Alpha timed out.']
+			return [u'Error: Wolfram Alpha timed out.']
 		except xml.etree.ElementTree.ParseError:
-			return ['Error: couldn\'t parse response.']
+			return [u'Error: could not parse response.']
 		except Exception as e:
-			return ['Error: I don\'t even know.']
+			log.exception(e)
+			return [u'Error: An unknown error occurred.']
 
 	@command_handler(u'!wa (?P<query>.+)')
 	def handle_wa(self, nick, channel, output, query=None):
-		'''Ask something to the Wolfram Alpha API.'''
+		'''Ask something of the Wolfram Alpha API.'''
 
 		result = self._aux_wa(query)
 
@@ -215,16 +216,15 @@ class wormgas(SingleServerIRCBot):
 			return
 
 		# Otherwise, check for the cooldown and respond accordingly.
-		ltb = int(self.config.get(u'lasttime:wa', 0))
-		wb = int(self.config.get(u'wait:wa', 0))
-		wb = 0
-		if ltb < time.time() - wb:
+		ltw = int(self.config.get(u'lasttime:wa', 0))
+		ww = int(self.config.get(u'wait:wa', 0))
+		if ltw < time.time() - ww:
 			# If outputting to the channel, output at most 5 lines.
 			output.default.extend(result[:5])
 			self.config.set(u'lasttime:wa', time.time())
 		else:
 			output.privrs.extend(result)
-			wait = ltb + wb - int(time.time())
+			wait = ltw + ww - int(time.time())
 			r = u'I am cooling down. You cannot use !wa in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
 			output.privrs.append(r)
@@ -616,8 +616,8 @@ class wormgas(SingleServerIRCBot):
 			rs.append(wiki)
 		elif topic == u'8ball':
 			rs.append(u'Use \x02!8ball\x02 to ask a question of the magic 8ball.')
-		elif topic == u'8ball':
-			rs.append(u'Use \x02!wa [query]\x02 to query Wolfram Alpha.')
+		elif topic == u'wa':
+			rs.append(u'Use \x02!wa <query>\x02 to query Wolfram Alpha.')
 		elif topic in [u'cooldown', u'cd']:
 			if is_admin:
 				rs.append(u'Use \x02!cooldown add song|album <song_id|album_id> '
