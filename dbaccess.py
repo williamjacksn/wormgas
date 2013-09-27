@@ -759,17 +759,29 @@ class RainwaveDatabase(object):
 		m = u'Getting unrated songs for user {} on channel {}'
 		log.info(m.format(user_id, cid))
 
-		song_ids = []
-		sql = (u'select song_id from (select distinct on (album_id) song_id, '
-			u'song_available, song_releasetime from rw_songs where sid = %s and '
-			u'song_verified is true and song_rating_id not in (select song_rating_id '
-			u'from rw_songratings where user_id = %s) order by album_id, '
-			u'song_available desc, song_releasetime) as unrated order by '
-			u'song_available desc, song_releasetime')
-		self.rcur.execute(sql, (cid, user_id))
+		songs = []
+		sql = (u'with rated_songs as (select song_rating_id from '
+			u'rw_songratings where user_id = %s), unrated_songs as (select '
+			u'song_id, album_id, song_available, song_releasetime from '
+			u'rw_songs where song_verified is true and sid = %s and '
+			u'song_rating_id not in (select song_rating_id from '
+			u'rated_songs)), album_unrated_counts as (select album_id, '
+			u'count(song_id) as unrated_songs_in_album from rw_songs where '
+			u'song_id in (select song_id from unrated_songs) group by '
+			u'album_id) select song_id, album_id, song_available, '
+			u'song_releasetime, unrated_songs_in_album from unrated_songs '
+			u'join album_unrated_counts using (album_id)')
+		self.rcur.execute(sql, (user_id, cid))
 		for r in self.rcur:
-			song_ids.extend(r)
-		return song_ids
+			this_song = {
+				u'id': int(r[0]),
+				u'album_id': int(r[1]),
+				u'available': bool(r[2]),
+				u'release_time': int(r[3]),
+				u'unrated_songs_in_album': int(r[4])
+			}
+			songs.append(this_song)
+		return songs
 
 	def request_playlist_refresh(self, cid):
 		'''Request a playlist refresh for a channel'''

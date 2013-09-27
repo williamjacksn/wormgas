@@ -2256,10 +2256,17 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(u'No unrated songs.')
 			return
 
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unrated.sort(key=release_time_key)
+
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
 			if len(unrated) > 0:
-				song_id = unrated.pop(0)
+				song = unrated.pop(0)
+				unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
+				song_id = song.get(u'id')
 			else:
 				output.privrs.append(u'No more albums with unrated songs.')
 				return
@@ -2390,17 +2397,24 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(u'No unrated songs.')
 			return
 
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unrated.sort(key=release_time_key)
+
 		i = 0
 		while i < num and i < int(self.config.get(u'maxlength:unrated')):
 			if len(unrated) > 0:
-				song_id = unrated.pop(0)
+				song = unrated.pop(0)
+				unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
+				song_id = song.get(u'id')
 			else:
 				output.privrs.append(u'No more albums with unrated songs.')
 				return
 			output.privrs.append(self._get_song_info_string(song_id))
 			i += 1
 
-		albums_left = len(unrated)
+		albums_left = len(set([song.get(u'album_id') for song in unrated]))
 		if albums_left > 0:
 			m = u'{} more album'.format(albums_left)
 			if albums_left > 1:
