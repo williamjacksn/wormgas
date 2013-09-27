@@ -2256,10 +2256,14 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(u'No unrated songs.')
 			return
 
-		def release_time_key(record):
-			return record.get(u'release_time')
+		def available_key(record):
+			return record.get(u'available')
 
-		unrated.sort(key=release_time_key)
+		def unrated_songs_in_album_key(record):
+			return record.get(u'unrated_songs_in_album')
+
+		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
+		unrated.sort(key=available_key, reverse=True)
 
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
@@ -2397,10 +2401,14 @@ class wormgas(SingleServerIRCBot):
 			output.privrs.append(u'No unrated songs.')
 			return
 
-		def release_time_key(record):
-			return record.get(u'release_time')
+		def available_key(record):
+			return record.get(u'available')
 
-		unrated.sort(key=release_time_key)
+		def unrated_songs_in_album_key(record):
+			return record.get(u'unrated_songs_in_album')
+
+		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
+		unrated.sort(key=available_key, reverse=True)
 
 		i = 0
 		while i < num and i < int(self.config.get(u'maxlength:unrated')):
