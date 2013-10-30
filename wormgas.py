@@ -2869,6 +2869,8 @@ class wormgas(SingleServerIRCBot):
 		'''Get song info as single string'''
 
 		info = self.rwdb.get_song_info(song_id)
+		if not info:
+			return u'Not a valid song ID [{}]'.format(song_id)
 		info[u'chan'] = self.rw.channel_id_to_name(info[u'chan_id'])
 		m = u'{chan} // {album} [{album_id}] // {title} [{id}]'.format(**info)
 		if not info[u'available']:
