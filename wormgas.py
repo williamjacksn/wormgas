@@ -269,7 +269,9 @@ class wormgas(SingleServerIRCBot):
 		elif len(self.mb.items(nick)) == 1:
 			ouput.privrs.append(self.mb.pop(nick, 0))
 		elif len(self.mb.items(nick)) > 1:
-			output.privrs.append(u'Use \x02!\x02 to see more messages.')
+			num = len(self.mb.items(nick))
+			msg = u'Use \x02!\x02 to see more messages ({} left).'format(num)
+			output.privrs.append(msg)
 
 		return
 
