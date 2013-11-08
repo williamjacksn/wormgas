@@ -795,17 +795,16 @@ class RainwaveDatabase(object):
 			self.rcur.execute(sql, (int(cid), u'regenplaylist'))
 		return
 
-	def search_songs(self, cid, text, limit=10):
+	def search_songs(self, cid, text):
 		'''Search for songs by title.
 
 		Returns:
-			the tuple ([song dicts], unreported results), where:
-				a song dict is: {
-					'album_name': string
-					'song_title': string
-					'song_id': string
-				}
-				unreported results: int, number of results over the limit.
+			a list of {song dict}s, where a song dict is:
+			{
+				'album_name': string,
+				'song_title': string,
+				'song_id': int
+			}
 		'''
 		sql = (u'select album_name, song_title, song_id from rw_songs join '
 			u'rw_albums using (album_id) where song_verified is true and '
@@ -813,25 +812,24 @@ class RainwaveDatabase(object):
 			u'album_name, song_title')
 		self.rcur.execute(sql, (cid, u'%{}%'.format(text)))
 		rows = self.rcur.fetchall()
-		results = []
-		for row in rows[:limit]:
+		results = list()
+		for row in rows:
 			results.append({
 				u'album_name': row[0].decode(u'utf-8'),
 				u'song_title': row[1].decode(u'utf-8'),
 				u'song_id': int(row[2])
 			})
-		unreported_results = max(len(rows) - limit, 0)
-		return results, unreported_results
+		return results
 
 	def search_albums(self, cid, text, limit=10):
 		'''Search for albums by title.
 
 		Returns:
-			the tuple ([album dicts], unreported results), where:
-				an album dict is: {
-					'album_name': string
-					'album_id': string
-				}
+			a list of {album dict}s, where an album dict is:
+			{
+				'album_name': string,
+				'album_id': string
+			}
 				unreported results: int, number of results over the limit.
 		'''
 		sql = (u'select album_name, album_id from rw_albums where '
@@ -839,8 +837,10 @@ class RainwaveDatabase(object):
 			u'order by album_name')
 		self.rcur.execute(sql, (cid, u'%{}%'.format(text)))
 		rows = self.rcur.fetchall()
-		results = []
-		for row in rows[:limit]:
-			results.append({u'album_name': row[0], u'album_id': row[1]})
-		unreported_results = max(len(rows) - limit, 0)
-		return results, unreported_results
+		results = list()
+		for row in rows:
+			results.append({
+				u'album_name': row[0].decode(u'utf-8'),
+				u'album_id': int(row[1])
+			})
+		return results

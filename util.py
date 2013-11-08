@@ -101,6 +101,15 @@ class CollectionOfNamedLists:
 				self.data[name].insert(new_index, item)
 				self._flush()
 
+	def pop(self, name, index):
+		"""Remove an item from the list and return it"""
+		if name in self.data:
+			item = self.data[name].pop(index)
+			if len(self.data[name]) == 0:
+				del self.data[name]
+			self._flush()
+			return item
+
 
 class TitleFetcherError(Exception):
 	pass

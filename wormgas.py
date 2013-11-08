@@ -124,6 +124,7 @@ class wormgas(SingleServerIRCBot):
 		self.config = dbaccess.Config(u'{}/{}'.format(self.path, config_db))
 		self.ph = util.CollectionOfNamedLists(u'{}/ph.json'.format(self.path))
 		self.rq = util.CollectionOfNamedLists(u'{}/rq.json'.format(self.path))
+		self.mb = util.CollectionOfNamedLists(u'{}/mb.json'.format(self.path))
 		self.rw = rainwave.RainwaveClient()
 		self.tf = util.TitleFetcher()
 
@@ -254,6 +255,23 @@ class wormgas(SingleServerIRCBot):
 			r = u'I am cooling down. You cannot use !8ball in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
 			output.privrs.append(r)
+
+	@command_handler(r'^!$')
+	def handle_bang(self, nick, channel, output):
+		'''Get messages from the message buffer.'''
+
+		log.info(u'{} user !'.format(nick))
+		while len(output.privrs) < 7 and self.mb.items(nick):
+			output.privrs.append(self.mb.pop(nick, 0))
+
+		if output.privrs and not self.mb.items(nick):
+			output.privrs.append(u'END OF LINE.')
+		elif len(self.mb.items(nick)) == 1:
+			ouput.privrs.append(self.mb.pop(nick, 0))
+		elif len(self.mb.items(nick)) > 1:
+			output.privrs.append(u'Use \x02!\x02 to see more messages.')
+
+		return
 
 	@command_handler(u'^!c(ool)?d(own)? add(\s(?P<unit>\w+))?'
 		u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
@@ -911,6 +929,7 @@ class wormgas(SingleServerIRCBot):
 		'''Look up (search for) a song or album'''
 
 		log.info(u'{} used !lookup'.format(nick))
+		self.mb.clear(nick)
 
 		if not self.rwdb:
 			output.privrs.append(self.rwdberr)
@@ -940,7 +959,7 @@ class wormgas(SingleServerIRCBot):
 		rchn = self.rw.channel_id_to_name(cid)
 
 		if mode == u'song':
-			rows, unreported_results = self.rwdb.search_songs(cid, text)
+			rows = self.rwdb.search_songs(cid, text)
 			out = u'{rchan}: {album_name} / {song_title} [{song_id}]'
 		elif mode == u'album':
 			rows, unreported_results = self.rwdb.search_albums(cid, text)
@@ -949,32 +968,16 @@ class wormgas(SingleServerIRCBot):
 			self.handle_help(nick, channel, output, topic=u'lookup')
 			return
 
-		# If I got results, output them
+		# Send results to the message buffer
 		for row in rows:
 			row[u'rchan'] = rchn
-			output.privrs.append(out.format(**row))
+			self.mb.add(nick, out.format(**row))
 
-		# If I had to trim the results, be honest about it
-		if unreported_results > 0:
-			r = u'{}: {} more result'.format(rchn, unreported_results)
-			if unreported_results > 1:
-				r += u's'
-			r += u'. If you do not see what you are looking for, be more specific '
-			r += u'with your search.'
-			output.privrs.append(r)
+		if not self.mb.items(nick):
+			output.privrs.append(u'No results.')
+			return
 
-			# If I did not find anything with this search, mention that
-			if len(output.privrs) < 1:
-				r = u'{}: No results.'.format(rchn)
-				output.privrs.append(r)
-			elif unreported_results < 1:
-				# I got between 1 and 10 results
-				num = len(output.privrs)
-				r = u'{}: Your search returned {} result'.format(rchn, num)
-				if num > 1:
-					r += u's'
-				r += u'.'
-				output.privrs.insert(0, r)
+		self.handle_bang(nick, channel, output)
 
 	@command_handler(u'^!lstats(\s(?P<rchan>\w+))?(\s(?P<days>\d+))?')
 	def handle_lstats(self, nick, channel, output, rchan=None, days=30):
