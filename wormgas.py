@@ -36,41 +36,13 @@ _commands = set()
 PRIVMSG = u'__privmsg__'
 
 
-class Output(object):
-	'''Dead-simple abstraction for splitting output between public and private.
-
-	When created, specify the default output, either public or private. This
-	way command handlers don't have to care about the output mode unless they
-	need to.
-	'''
-	def __init__(self, default):
-		'''Create an Output object.
-
-		Args:
-			default: string, either u'public' or u'private'.
-		'''
-		self.rs = []
-		self.privrs = []
-		if default == u'public':
-			self._default = self.rs
-		elif default == u'private':
-			self._default = self.privrs
-		else:
-			raise ValueError(u'default should be u\'public\' or u\'private\'')
-
-	@property
-	def default(self):
-		'''The default output list.'''
-		return self._default
-
-
 def command_handler(command):
 	'''Decorate a method to register as a command handler for provided regex.'''
 	def decorator(func):
 		# Compile the command into a regex.
 		regex = re.compile(command, re.I)
 
-		def wrapped(self, nick, msg, channel, output):
+		def wrapped(self, nick, msg, channel):
 			'''Command with stored regex that will execute if it matches msg.'''
 			# If the regex does not match the message, return False.
 			result = regex.search(msg)
@@ -78,7 +50,7 @@ def command_handler(command):
 				return False
 
 			# The msg matches pattern for this command, so run it.
-			func(self, nick, channel, output, **result.groupdict())
+			func(self, nick, channel, **result.groupdict())
 			return True
 		# Add the wrapped function to a set, so we can iterate over them later.
 		_commands.add(wrapped)
@@ -206,78 +178,69 @@ class wormgas(SingleServerIRCBot):
 			return [u'Error: An unknown error occurred.']
 
 	@command_handler(u'!wa (?P<query>.+)')
-	def handle_wa(self, nick, channel, output, query=None):
+	def handle_wa(self, nick, channel, query=None):
 		'''Ask something of the Wolfram Alpha API.'''
 
+		log.info(u'{} used !wa'.format(nick))
+		self.mb.clear(nick)
 		result = self._aux_wa(query)
 
 		# Private messages always get the full result
 		if channel == PRIVMSG:
-			output.default.extend(result)
+			self.mb.set(nick, result)
 			return
 
 		# Otherwise, check for the cooldown and respond accordingly.
 		ltw = int(self.config.get(u'lasttime:wa', 0))
 		ww = int(self.config.get(u'wait:wa', 0))
 		if ltw < time.time() - ww:
-			# If outputting to the channel, output at most 5 lines.
-			output.default.extend(result[:5])
+			# If sending to the channel, send at most 5 lines.
+			self.mb.set(channel, result[:5])
 			self.config.set(u'lasttime:wa', time.time())
 		else:
-			output.privrs.extend(result)
+			self.mb.set(nick, result)
 			wait = ltw + ww - int(time.time())
 			r = u'I am cooling down. You cannot use !wa in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'!8ball')
-	def handle_8ball(self, nick, channel, output):
+	def handle_8ball(self, nick, channel):
 		'''Ask a question of the magic 8ball.'''
 
 		log.info(u'{} used !8ball'.format(nick))
+		self.mb.clear(nick)
 
 		result = random.choice(self._answers_8ball())
 		# Private messages always get the result.
 		if channel == PRIVMSG:
-			output.default.append(result)
+			self.mb.add(nick, result)
 			return
 
 		# Otherwise, check for the cooldown and respond accordingly.
 		ltb = int(self.config.get(u'lasttime:8ball', 0))
 		wb = int(self.config.get(u'wait:8ball', 0))
 		if ltb < time.time() - wb:
-			output.default.append(result)
+			self.mb.add(channel, result)
 			if u'again' not in result:
 				self.config.set(u'lasttime:8ball', time.time())
 		else:
-			output.privrs.append(result)
+			self.mb.add(nick, result)
 			wait = ltb + wb - int(time.time())
 			r = u'I am cooling down. You cannot use !8ball in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(r'^!$')
-	def handle_bang(self, nick, channel, output):
+	def handle_bang(self, nick, channel):
 		'''Get messages from the message buffer.'''
 
-		log.info(u'{} user !'.format(nick))
-		while len(output.privrs) < 7 and self.mb.items(nick):
-			output.privrs.append(self.mb.pop(nick, 0))
-
-		if output.privrs and not self.mb.items(nick):
-			output.privrs.append(u'END OF LINE.')
-		elif len(self.mb.items(nick)) == 1:
-			ouput.privrs.append(self.mb.pop(nick, 0))
-		elif len(self.mb.items(nick)) > 1:
-			num = len(self.mb.items(nick))
-			msg = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
-			output.privrs.append(msg)
-
-		return
+		log.info(u'{} used !'.format(nick))
+		pass
 
 	@command_handler(u'^!c(ool)?d(own)? add(\s(?P<unit>\w+))?'
 		u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
-	def handle_cooldown_add(self, nick, channel, output, unit=None,
+	def handle_cooldown_add(self, nick, channel, unit=None,
 		unit_id=None, cdg_name=None):
 		'''Add a song or album to a cooldown group.'''
 
@@ -291,25 +254,27 @@ class wormgas(SingleServerIRCBot):
 			log.warning(m.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		# This command requires the Rainwave database
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		# cdg_name must be specified
 		if cdg_name is None:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 			return
 
 		# unit_id should be numeric
 		if unit_id is None:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 			return
 
 		if unit_id.isdigit():
 			unit_id = int(unit_id)
 		else:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 			return
 
 		# unit should be 'song' or 'album'
@@ -320,24 +285,24 @@ class wormgas(SingleServerIRCBot):
 				rchan = self.rw.channel_id_to_name(rval[0])
 				rval = (rchan,) + rval[1:]
 				r = u'Added {} / {} / {} to cooldown group {}'.format(*rval)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 			else:
-				output.privrs.append(rval)
+				self.mb.add(nick, rval)
 		elif unit == u'album':
 			rcode, rval = self.rwdb.add_album_to_cdg(unit_id, cdg_name)
 			if rcode == 0:
 				rchan = self.rw.channel_id_to_name(rval[0])
 				rval = (rchan,) + rval[1:]
 				r = u'Added {} / {} to cooldown group {}'.format(*rval)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 			else:
-				output.privrs.append(rval)
+				self.mb.add(nick, rval)
 		else:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 
 	@command_handler(u'^!c(ool)?d(own)? drop(\s(?P<unit>\w+))?'
 		u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
-	def handle_cooldown_drop(self, nick, channel, output, unit=None,
+	def handle_cooldown_drop(self, nick, channel, unit=None,
 		unit_id=None, cdg_name=None):
 		'''Remove a song or album from a cooldown group'''
 
@@ -352,22 +317,24 @@ class wormgas(SingleServerIRCBot):
 			log.warning(m.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		# This command requires the Rainwave database
 
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		# unit_id should be numeric
 
 		if unit_id is None:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 			return
 
 		if unit_id.isdigit():
 			unit_id = int(unit_id)
 		else:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 			return
 
 		# unit should be 'song' or 'album'
@@ -379,18 +346,18 @@ class wormgas(SingleServerIRCBot):
 					rchan = self.rw.channel_id_to_name(rval[0])
 					rval = (rchan,) + rval[1:]
 					r = u'Dropped {} / {} / {} from all cooldown groups'.format(*rval)
-					output.privrs.append(r)
+					self.mb.add(nick, r)
 				else:
-					output.privrs.append(rval)
+					self.mb.add(nick, rval)
 			else:
 				rcode, rval = self.rwdb.drop_song_from_cdg_by_name(unit_id, cdg_name)
 				if rcode == 0:
 					rchan = self.rw.channel_id_to_name(rval[0])
 					rval = (rchan,) + rval[1:]
 					r = u'Dropped {} / {} / {} from cooldown group {}'.format(*rval)
-					output.privrs.append(r)
+					self.mb.add(nick, r)
 				else:
-					output.privrs.append(rval)
+					self.mb.add(nick, rval)
 		elif unit == u'album':
 			if cdg_name is None:
 				rcode, rval = self.rwdb.drop_album_from_all_cdgs(unit_id)
@@ -398,27 +365,29 @@ class wormgas(SingleServerIRCBot):
 					rchan = self.rw.channel_id_to_name(rval[0])
 					rval = (rchan,) + rval[1:]
 					r = u'Dropped {} / {} from all cooldown groups'.format(*rval)
-					output.privrs.append(r)
+					self.mb.add(nick, r)
 				else:
-					output.privrs.append(rval)
+					self.mb.add(nick, rval)
 			else:
 				rcode, rval = self.rwdb.drop_album_from_cdg_by_name(unit_id, cdg_name)
 				if rcode == 0:
 					rchan = self.rw.channel_id_to_name(rval[0])
 					rval = (rchan,) + rval[1:]
 					r = u'Dropped {} / {} from cooldown group {}'.format(*rval)
-					output.privrs.append(r)
+					self.mb.add(nick, r)
 				else:
-					output.privrs.append(rval)
+					self.mb.add(nick, rval)
 		else:
-			self.handle_help(nick, channel, output, topic=u'cooldown')
+			self._help(nick, topic=u'cooldown')
 
 	@command_handler(u'!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
 	@command_handler(u'!el(?P<rchan>\w+)?(\s(?P<index>\d))?')
-	def handle_election(self, nick, channel, output, rchan=None, index=None):
+	def handle_election(self, nick, channel, rchan=None, index=None):
 		'''Show the candidates in an election'''
 
 		log.info(u'{} used !election'.format(nick))
+
+		self.mb.clear(nick)
 
 		# Make sure the index is valid.
 		try:
@@ -427,7 +396,7 @@ class wormgas(SingleServerIRCBot):
 			index = 0
 		if index not in [0, 1]:
 			# Not a valid index, return the help text.
-			self.handle_help(nick, channel, output, topic=u'election')
+			self._help(nick, topic=u'election')
 			return
 
 		if rchan:
@@ -437,14 +406,14 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel.')
-				self.handle_help(nick, channel, output, topic=u'election')
+				self.mb.add(nick, u'I cannot determine the channel.')
+				self._help(nick, topic=u'election')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids.get(rchan)
 		else:
-			self.handle_help(nick, channel, output, topic=u'election')
+			self._help(nick, topic=u'election')
 			return
 
 		sched_config = u'el:{}:{}'.format(cid, index)
@@ -452,24 +421,24 @@ class wormgas(SingleServerIRCBot):
 
 		if sched_id == 0:
 			# Something strange happened while fetching the election
-			output.default.append(text)
+			self.mb.add(nick, text)
 			return
 
-		# Prepend the message description to the output string.
+		# Prepend the message description to the response string.
 		time = [u'Current', u'Future'][index]
 		rchn = self.rw.channel_id_to_name(cid)  # radio channel name
 		result = u'{} election on the {}: {}'.format(time, rchn, text)
 
 		if channel == PRIVMSG:
-			output.privrs.append(result)
+			self.mb.add(nick, result)
 		elif sched_id == self.config.get(sched_config):
 			# !election has already been called for this election
-			output.privrs.append(result)
+			self.mb.add(nick, result)
 			r = u'I am cooling down. You can only use !election in '
 			r += u'{} once per election.'.format(channel)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		else:
-			output.default.append(result)
+			self.mb.add(channel, result)
 			self.config.set(sched_config, sched_id)
 
 	def _fetch_election(self, index, cid):
@@ -503,18 +472,20 @@ class wormgas(SingleServerIRCBot):
 		return elec[u'sched_id'], text
 
 	@command_handler(u'^!fav(?P<argstring>.*)')
-	def handle_fav(self, nick, channel, output, argstring=u''):
+	def handle_fav(self, nick, channel, argstring=u''):
 		'''Show a list of favourite songs for a user'''
 
 		log.info(u'{} use !fav'.format(nick))
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 
 		limit = 1
@@ -534,15 +505,15 @@ class wormgas(SingleServerIRCBot):
 
 		if radio_channel_id is None:
 			m = u'You are not tuned in and you did not specify a channel code.'
-			output.privrs.append(m)
-			self.handle_help(nick, channel, output, topic=u'fav')
+			self.mb.add(nick, m)
+			self._help(nick, topic=u'fav')
 			return
 		radio_channel_id = int(radio_channel_id)
 
 		fav = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
 
 		if len(fav) == 0:
-			output.privrs.append(u'No favourite songs.')
+			self.mb.add(nick, u'No favourite songs.')
 			return
 
 		i = 0
@@ -550,37 +521,39 @@ class wormgas(SingleServerIRCBot):
 			if len(fav) > 0:
 				song_id = fav.pop(0)
 			else:
-				output.privrs.append(u'No more albums with favourite songs.')
+				self.mb.add(nick, u'No more albums with favourite songs.')
 				return
-			output.privrs.append(self._get_song_info_string(song_id))
+			self.mb.add(nick, self._get_song_info_string(song_id))
 			i += 1
 
 	@command_handler(u'!flip')
-	def handle_flip(self, nick, channel, output):
+	def handle_flip(self, nick, channel):
 		'''Simulate a coin flip'''
 
 		log.info(u'{} used !flip'.format(nick))
 
+		self.mb.clear(nick)
+
 		answers = (u'Heads!', u'Tails!')
 		result = random.choice(answers)
 		if channel == PRIVMSG:
-			output.default.append(result)
+			self.mb.add(nick, result)
 			return
 
 		ltf = int(self.config.get(u'lasttime:flip', 0))
 		wf = int(self.config.get(u'wait:flip', 0))
 		if ltf < time.time() - wf:
-			output.default.append(result)
+			self.mb.add(channel, result)
 			self.config.set(u'lasttime:flip', time.time())
 		else:
-			output.privrs.append(result)
+			self.mb.add(nick, result)
 			wait = ltf + wf - int(time.time())
 			r = u'I am cooling down. You cannot use !flip in {} '.format(channel)
 			r += u'for another {} seconds.'.format(wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'!forum')
-	def handle_forum(self, nick, channel, output, force=True):
+	def handle_forum(self, nick, channel, force=True):
 		'''Check for new forum posts, excluding forums where the anonymous user
 		has no access'''
 
@@ -589,6 +562,8 @@ class wormgas(SingleServerIRCBot):
 		if not self._is_admin(nick):
 			log.warning(u'{} does not have privs to use !forum'.format(nick))
 			return
+
+		self.mb.clear(nick)
 
 		self.config.set(u'lasttime:forumcheck', time.time())
 
@@ -601,23 +576,27 @@ class wormgas(SingleServerIRCBot):
 		if self.rwdb:
 			newmaxid = self.rwdb.get_max_forum_post_id()
 		else:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		if newmaxid > int(self.config.get(u'maxid:forum', 0)):
 			r, url = self.rwdb.get_forum_post_info()
 			surl = self._shorten(url)
-			output.rs.append(u'New on the forums! {} <{}>'.format(r, surl))
+			self.mb.add(channel, u'New on the forums! {} <{}>'.format(r, surl))
 			self.config.set(u'maxid:forum', newmaxid)
 
 	@command_handler(u'^!help(\s(?P<topic>\w+))?')
-	def handle_help(self, nick, channel, output, topic=None):
+	def handle_help(self, nick, channel, topic=None):
 		'''Look up help about a topic'''
 
 		log.info(u'{} used !help'.format(nick))
 
+		self.mb.clear(nick)
+		self._help(nick, topic)
+
+	def _help(self, nick, topic):
 		is_admin = self._is_admin(nick)
-		rs = []
+		rs = list()
 
 		channelcodes = (u'Channel codes are \x02' +
 			u'\x02, \x02'.join(self.channel_ids.keys()) + u'\x02.')
@@ -821,17 +800,20 @@ class wormgas(SingleServerIRCBot):
 			rs.append(u'I cannot help you with \'{}\''.format(topic))
 			rs.append(wiki)
 
-		output.privrs.extend(rs)
+		for r in rs:
+			self.mb.add(nick, r)
 
 	@command_handler(u'!history(\s(?P<rchan>\w+))?')
 	@command_handler(u'!hs(?P<rchan>\w+)?')
-	def handle_history(self, nick, channel, output, rchan=None):
+	def handle_history(self, nick, channel, rchan=None):
 		'''Show the last several songs that played on the radio'''
 
 		log.info(u'{} used !history'.format(nick))
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		if rchan:
@@ -841,26 +823,26 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel.')
-				self.handle_help(nick, channel, output, topic=u'history')
+				self.mb.add(nick, u'I cannot determine the channel.')
+				self._help(nick, topic=u'history')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids.get(rchan)
 		else:
-			self.handle_help(nick, channel, output, topic=u'history')
+			self._help(nick, topic=u'history')
 			return
 		rchn = self.rw.channel_id_to_name(cid)
 
 		for song in self.rwdb.get_history(cid):
 			info = (rchn,) + song
 			r = u'{}: {} -- {} [{}] / {} [{}]'.format(*info)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
-		output.privrs.reverse()
+		self.mb.set(nick, reversed(self.mb.items(nick)[:]))
 
 	@command_handler(u'^!id(\s(?P<mode>\w+))?(\s(?P<id>\d+))?')
-	def handle_id(self, nick, channel, output, mode=None, id=None):
+	def handle_id(self, nick, channel, mode=None, id=None):
 		'''Manage correlation between an IRC nick and Rainwave User ID
 
 		Arguments:
@@ -869,30 +851,32 @@ class wormgas(SingleServerIRCBot):
 
 		log.info(u'{} used !id'.format(nick))
 
+		self.mb.clear(nick)
+
 		# Make sure this nick is in the user_keys table
 		self.config.store_nick(nick)
 
 		if mode == u'add' and id:
 			self.config.add_id_to_nick(id, nick)
 			r = u'I assigned the user id {} to nick \'{}\'.'.format(id, nick)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		elif mode == u'drop':
 			self.config.drop_id_for_nick(nick)
 			r = u'I dropped the user id for nick \'{}\'.'.format(nick)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		elif mode == u'show':
 			stored_id = self.config.get_id_for_nick(nick)
 			if stored_id:
 				r = u'The user id for nick \'{}\' is {}.'.format(nick, stored_id)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 			else:
 				r = u'I do not have a user id for nick \'{}\'.'.format(nick)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 		else:
-			self.handle_help(nick, channel, output, topic=u'id')
+			self._help(nick, topic=u'id')
 
 	@command_handler(u'^!key(\s(?P<mode>\w+))?(\s(?P<key>\w{10}))?')
-	def handle_key(self, nick, channel, output, mode=None, key=None):
+	def handle_key(self, nick, channel, mode=None, key=None):
 		'''Manage API keys
 
 		Arguments:
@@ -901,40 +885,42 @@ class wormgas(SingleServerIRCBot):
 
 		log.info(u'{} used !key'.format(nick))
 
+		self.mb.clear(nick)
+
 		# Make sure this nick is in the user_keys table
 		self.config.store_nick(nick)
 
 		if mode == u'add' and key:
 			self.config.add_key_to_nick(key, nick)
 			r = u'I assigned the API key \'{}\' to nick \'{}\'.'.format(key, nick)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		elif mode == u'drop':
 			self.config.drop_key_for_nick(nick)
 			r = u'I dropped the API key for nick \'{}\'.'.format(nick)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		elif mode == u'show':
 			stored_id = self.config.get_key_for_nick(nick)
 			if stored_id:
 				r = u'The API key for nick \'{}\' is \'{}\'.'.format(nick, stored_id)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 			else:
 				r = u'I do not have an API key for nick \'{}\'.'.format(nick)
-				output.privrs.append(r)
+				self.mb.add(nick, r)
 		else:
-			self.handle_help(nick, channel, output, topic=u'key')
+			self._help(nick, topic=u'key')
 
 	@command_handler(u'^!lookup(\s(?P<rchan>\w+))?(\s(?P<mode>\w+))?'
 		u'(\s(?P<text>.+))?')
 	@command_handler(u'^!lu(?P<rchan>\w+)?(\s(?P<mode>\w+))?'
 		u'(\s(?P<text>.+))?')
-	def handle_lookup(self, nick, channel, output, rchan, mode, text):
+	def handle_lookup(self, nick, channel, rchan, mode, text):
 		'''Look up (search for) a song or album'''
 
 		log.info(u'{} used !lookup'.format(nick))
 		self.mb.clear(nick)
 
 		if not self.rwdb:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		if rchan in (u'song', u'album'):
@@ -949,14 +935,14 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel.')
-				self.handle_help(nick, channel, output, topic=u'lookup')
+				self.mb.add(nick, u'I cannot determine the channel.')
+				self._help(nick, topic=u'lookup')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids.get(rchan)
 		else:
-			self.handle_help(nick, channel, output, topic=u'lookup')
+			self._help(nick, topic=u'lookup')
 			return
 		rchn = self.rw.channel_id_to_name(cid)
 
@@ -964,10 +950,10 @@ class wormgas(SingleServerIRCBot):
 			rows = self.rwdb.search_songs(cid, text)
 			out = u'{rchan}: {album_name} / {song_title} [{song_id}]'
 		elif mode == u'album':
-			rows, unreported_results = self.rwdb.search_albums(cid, text)
+			rows = self.rwdb.search_albums(cid, text)
 			out = u'{rchan}: {album_name} [{album_id}]'
 		else:
-			self.handle_help(nick, channel, output, topic=u'lookup')
+			self._help(nick, topic=u'lookup')
 			return
 
 		# Send results to the message buffer
@@ -976,13 +962,10 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, out.format(**row))
 
 		if not self.mb.items(nick):
-			output.privrs.append(u'No results.')
-			return
-
-		self.handle_bang(nick, channel, output)
+			self.mb.add(nick, u'No results.')
 
 	@command_handler(u'^!lstats(\s(?P<rchan>\w+))?(\s(?P<days>\d+))?')
-	def handle_lstats(self, nick, channel, output, rchan=None, days=30):
+	def handle_lstats(self, nick, channel, rchan=None, days=30):
 		'''Reports listener statistics, as numbers or a chart
 
 		Arguments:
@@ -991,11 +974,13 @@ class wormgas(SingleServerIRCBot):
 
 		log.info(u'{} used !lstats'.format(nick))
 
+		self.mb.clear(nick)
+
 		if not self.rwdb:
-			output.default.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
-		rs = []
+		rs = list()
 
 		if rchan:
 			rchan = rchan.lower()
@@ -1106,26 +1091,26 @@ class wormgas(SingleServerIRCBot):
 			url += u','.join(t2)
 			rs.append(self._shorten(url))
 		else:
-			self.handle_help(nick, channel, output, topic=u'lstats')
+			self._help(nick, topic=u'lstats')
 			return
 
 		if channel == PRIVMSG:
-			output.default.extend(rs)
+			self.mb.set(nick, rs)
 			return
 
 		ltls = int(self.config.get(u'lasttime:lstats', 0))
 		wls = int(self.config.get(u'wait:lstats', 0))
 		if ltls < time.time() - wls:
-			output.default.extend(rs)
+			self.mb.set(channel, rs)
 			self.config.set(u'lasttime:lstats', time.time())
 		else:
-			output.privrs.extend(rs)
+			self.mb.set(nick, rs)
 			wait = ltls + wls - int(time.time())
-			output.privrs.append(u'I am cooling down. You cannot use !lstats in '
+			self.mb.add(nick, u'I am cooling down. You cannot use !lstats in '
 				u'{} for another {} seconds.'.format(channel, wait))
 
 	@command_handler(u'!newmusic(\s(?P<rchan>\w+))?')
-	def handle_newmusic(self, nick, channel, output, rchan=None, force=True):
+	def handle_newmusic(self, nick, channel, rchan=None, force=True):
 		'''Check for new music and announce up to three new songs per station'''
 
 		r = u'Looking for new music on channel {}'.format(rchan)
@@ -1144,7 +1129,7 @@ class wormgas(SingleServerIRCBot):
 		if rchan in self.channel_ids:
 			cid = self.channel_ids[rchan]
 		else:
-			self.handle_help(nick, channel, output, topic=u'newmusic')
+			self._help(nick, topic=u'newmusic')
 			return
 
 		rchn = self.rw.channel_id_to_name(cid)
@@ -1159,7 +1144,7 @@ class wormgas(SingleServerIRCBot):
 		if self.rwdb:
 			newmaxid = self.rwdb.get_max_song_id(cid)
 		else:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		if newmaxid > int(maxid):
@@ -1168,17 +1153,17 @@ class wormgas(SingleServerIRCBot):
 				msg = u'New on the {}: {}'.format(rchn, r)
 				if u'http' in url:
 					msg += u' <{}>'.format(self._shorten(url))
-				output.rs.append(msg)
+				self.mb.add(channel, msg)
 			self.config.set(u'maxid:{}'.format(cid), newmaxid)
 
 	@command_handler(u'!nowplaying(\s(?P<rchan>\w+))?')
 	@command_handler(u'!np(?P<rchan>\w+)?')
-	def handle_nowplaying(self, nick, channel, output, rchan=None):
+	def handle_nowplaying(self, nick, channel, rchan=None):
 		'''Report what is currently playing on the radio'''
 
 		log.info(u'{} used !nowplaying'.format(nick))
 
-		rs = []
+		self.mb.clear(nick)
 
 		if rchan:
 			rchan = rchan.lower()
@@ -1187,14 +1172,14 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel.')
-				self.handle_help(nick, channel, output, topic=u'nowplaying')
+				self.mb.add(nick, u'I cannot determine the channel.')
+				self._help(nick, topic=u'nowplaying')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids[rchan]
 		else:
-			self.handle_help(nick, channel, output, topic=u'nowplaying')
+			self._help(nick, topic=u'nowplaying')
 			return
 		rchn = self.rw.channel_id_to_name(cid)
 
@@ -1238,41 +1223,41 @@ class wormgas(SingleServerIRCBot):
 			elif type in (0, 1):
 				r += u', conflict'
 			r += u')'
-			rs.append(r)
 		else:
 			r = u'{}: I have no idea (sched_type = {})'.format(rchn, sched_type)
-			rs.append(r)
 
 		if channel == PRIVMSG:
-			output.default.extend(rs)
+			self.mb.add(nick, r)
 			return
 
 		if sched_id == int(self.config.get(u'np:{}'.format(cid), 0)):
-			output.privrs.extend(rs)
+			self.mb.add(nick, r)
 			r = u'I am cooling down. You can only use !nowplaying in '
 			r += u'{} once per song.'.format(channel)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		else:
-			output.default.extend(rs)
+			self.mb.add(channel, r)
 			self.config.set(u'np:{}'.format(cid), sched_id)
 
 	@command_handler(u'^!otp')
-	def handle_otp(self, nick, channel, output):
+	def handle_otp(self, nick, channel):
 		log.info(u'{} used !otp'.format(nick))
 		if not self._is_admin(nick):
 			log.warning(u'{} does not have privs to use !otp'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		for o in self.rwdb.get_all_otps():
 			r = u'{} [{}] {} / {}'.format(self.rw.channel_id_to_name(o[0]), *o[1:])
-			output.default.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'^!ph (addalbum|aa) (?P<album_id>\d+)')
-	def handle_ph_addalbum(self, nick, channel, output, album_id):
+	def handle_ph_addalbum(self, nick, channel, album_id):
 		'''Add all songs from an album to this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph addalbum'.format(nick))
@@ -1280,12 +1265,14 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		album_id = int(album_id)
@@ -1293,16 +1280,15 @@ class wormgas(SingleServerIRCBot):
 			song_ids = self.rw.get_song_ids_in_album(album_id, **api_auth)
 		except rainwave.RainwaveClientException as e:
 			log.exception(e)
-			output.privrs.append(str(e))
+			self.mb.add(nick, str(e))
 			return
 
 		for song_id in song_ids:
 			song_id = int(song_id)
-			self.handle_ph_addsong(nick, channel, output, song_id)
-		output.privrs.append(u'All done.')
+			self._ph_addsong(nick, song_id)
 
 	@command_handler(u'^!ph (addsong|add|as) (?P<song_id>\d+)')
-	def handle_ph_addsong(self, nick, channel, output, song_id):
+	def handle_ph_addsong(self, nick, channel, song_id):
 		'''Add a song to this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph addsong'.format(nick))
@@ -1310,23 +1296,26 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		song_id = int(song_id)
-		m = self._get_song_info_string(song_id)
+		self._ph_addsong(nick, song_id)
 
+	def _ph_addsong(self, nick, song_id):
+		m = self._get_song_info_string(song_id)
 		if song_id in self.ph.items(nick):
-			m += u' is already in your Power Hour planning list.'
+			m = u'{} is already in your Power Hour planning list.'.format(m)
 		else:
 			self.ph.add(nick, song_id)
-			m += u' added to your Power Hour planning list.'
-
-		output.privrs.append(m)
+			m = u'{} added to your Power Hour planning list.'.format(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'^!ph (clear|cl)')
-	def handle_ph_clear(self, nick, channel, output):
+	def handle_ph_clear(self, nick, channel):
 		'''Remove all songs from this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph clear'.format(nick))
@@ -1334,15 +1323,20 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
+		self._ph_clear(nick)
+
+	def _ph_clear(self, nick):
 		self.ph.clear(nick)
-		output.privrs.append(u'Your Power Hour planning list has been cleared.')
+		self.mb.add(nick, u'Your Power Hour planning list has ben cleared.')
 
 	@command_handler(u'^!ph (down|dn) (?P<song_id>\d+)')
-	def handle_ph_down(self, nick, channel, output, song_id):
+	def handle_ph_down(self, nick, channel, song_id):
 		'''Move a song down in this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph down'.format(nick))
@@ -1350,8 +1344,10 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		song_id = int(song_id)
@@ -1359,14 +1355,14 @@ class wormgas(SingleServerIRCBot):
 
 		if song_id in self.ph.items(nick):
 			self.ph.down(nick, song_id)
-			m += u' moved down in your Power Hour planning list.'
+			m = u'{} moved down in your Power Hour planning list.'.format(m)
 		else:
-			m += u' is not in your Power Hour planning list'
+			m = u'{} is not in your Power Hour planning list.'.format(m)
 
-		output.privrs.append(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'^!ph go (?P<rchan>\w+)')
-	def handle_ph_go(self, nick, channel, output, rchan):
+	def handle_ph_go(self, nick, channel, rchan):
 		'''Start a Power Hour on a channel using this user's Power Hour planning
 		list'''
 
@@ -1374,18 +1370,20 @@ class wormgas(SingleServerIRCBot):
 		if not self._is_admin(nick):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 
+		self.mb.clear(nick)
+
 		if rchan in self.channel_ids:
 			cid = self.channel_ids[rchan]
 		else:
-			output.privrs.append(u'{} is not a valid channel code.'.format(rchan))
+			self.mb.add(nick, u'{} is not a valid channel code.'.format(rchan))
 			return
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		errors = 0
@@ -1404,13 +1402,13 @@ class wormgas(SingleServerIRCBot):
 				except UnicodeDecodeError:
 					log.exception(u'Not again. :(')
 				errors += 1
-			output.privrs.append(m)
+			self.mb.add(nick, m)
 
 		if errors == 0:
-			self.handle_ph_clear(nick, channel, output)
+			self._ph_clear(nick)
 
 	@command_handler(u'!ph (length|len)')
-	def handle_ph_length(self, nick, channel, output):
+	def handle_ph_length(self, nick, channel):
 		'''Show number of songs and total running time of this user's Power Hour
 		planning list'''
 
@@ -1419,8 +1417,10 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		count = len(self.ph.items(nick))
@@ -1430,7 +1430,7 @@ class wormgas(SingleServerIRCBot):
 			seconds += info[u'length']
 
 		if count == 0:
-			output.privrs.append(u'Your Power Hour planning list is empty.')
+			self.mb.add(nick, u'Your Power Hour planning list is empty.')
 			return
 
 		m = u'Your Power Hour planning list contains {} song'.format(count)
@@ -1439,10 +1439,10 @@ class wormgas(SingleServerIRCBot):
 
 		m += u' and will run for {}.'.format(self._get_readable_time_span(seconds))
 
-		output.privrs.append(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'^!ph (list|ls)')
-	def handle_ph_list(self, nick, channel, output):
+	def handle_ph_list(self, nick, channel):
 		'''Show all songs in this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph list'.format(nick))
@@ -1450,22 +1450,23 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
-		count = 0
-		for song_id in self.ph.items(nick):
-			count += 1
-			output.privrs.append(self._get_song_info_string(song_id))
+		self._ph_list(nick)
 
-		if count == 0:
-			output.privrs.append(u'Your Power Hour planning list is empty.')
+	def _ph_list(self, nick):
+		if not self.ph.items(nick):
+			self.mb.add(nick, u'Your Power Hour planning list is empty.')
 		else:
-			output.privrs.append(u'All done.')
+			for song_id in self.ph.items(nick):
+				self.mb.add(nick, self._get_song_info_string(song_id))
 
 	@command_handler(u'^!ph pause (?P<rchan>\w+)')
-	def handle_ph_pause(self, nick, channel, output, rchan):
+	def handle_ph_pause(self, nick, channel, rchan):
 		'''Remove scheduled one-time plays from channel and put them in this user's
 		Power Hour planning list'''
 
@@ -1474,18 +1475,20 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if rchan in self.channel_ids:
 			cid = self.channel_ids[rchan]
 		else:
-			output.privrs.append(u'{} is not a valid channel code.'.format(rchan))
+			self.mb.add(nick, u'{} is not a valid channel code.'.format(rchan))
 			return
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		add_to_ph = []
@@ -1507,20 +1510,19 @@ class wormgas(SingleServerIRCBot):
 						m += d[u'oneshot_delete_result'][u'text']
 					else:
 						m += d[u'error'][u'text']
-					output.privrs.append(m)
+					self.mb.add(nick, m)
 			if otp_count == 0:
 				break
 
 		if len(add_to_ph) > 0:
 			add_to_ph.extend(self.ph.items(nick))
 			self.ph.set(nick, add_to_ph)
-			output.privrs.append(u'All done.')
 		else:
 			m = u'No One-Time Plays scheduled on the {}.'
-			output.privrs.append(m.format(self.rw.channel_id_to_name(cid)))
+			self.mb.add(nick, m.format(self.rw.channel_id_to_name(cid)))
 
 	@command_handler(u'^!ph (removealbum|ra) (?P<album_id>\d+)')
-	def handle_ph_removealbum(self, nick, channel, output, album_id):
+	def handle_ph_removealbum(self, nick, channel, album_id):
 		'''Remove all songs in an album from this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph removealbum'.format(nick))
@@ -1528,12 +1530,14 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		album_id = int(album_id)
@@ -1541,16 +1545,15 @@ class wormgas(SingleServerIRCBot):
 			song_ids = self.rw.get_song_ids_in_album(album_id, **api_auth)
 		except rainwave.RainwaveClientException as e:
 			log.exception(e)
-			output.privrs.append(str(e))
+			self.mb.add(nick, str(e))
 			return
 
 		for song_id in song_ids:
 			song_id = int(song_id)
-			self.handle_ph_removesong(nick, channel, output, song_id)
-		output.privrs.append(u'All done.')
+			self._ph_removesong(nick, song_id)
 
 	@command_handler(u'^!ph (remove|rm|removesong|rs) (?P<song_id>\d+)')
-	def handle_ph_removesong(self, nick, channel, output, song_id):
+	def handle_ph_removesong(self, nick, channel, song_id):
 		'''Remove a song from this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph removesong'.format(nick))
@@ -1558,23 +1561,26 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		song_id = int(song_id)
-		m = self._get_song_info_string(song_id)
+		self._ph_removesong(nick, song_id)
 
+	def _ph_removesong(self, nick, song_id):
+		m = self._get_song_info_string(song_id)
 		if song_id in self.ph.items(nick):
 			self.ph.remove(nick, song_id)
-			m += u' removed from your Power Hour planning list.'
+			m = u'{} removed from your Power Hour planning list.'.format(m)
 		else:
-			m += u' is not in your Power Hour planning list.'
-
-		output.privrs.append(m)
+			m = u'{} is not in your Power Hour planning list.'.format(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'^!ph (shuffle|sh)')
-	def handle_ph_shuffle(self, nick, channel, output):
+	def handle_ph_shuffle(self, nick, channel):
 		'''Randomize the songs in this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph shuffle'.format(nick))
@@ -1582,15 +1588,17 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		self.ph.shuffle(nick)
-		self.handle_ph_list(nick, channel, output)
+		self._ph_list(nick)
 
 	@command_handler(u'^!ph up (?P<song_id>\d+)')
-	def handle_ph_up(self, nick, channel, output, song_id):
+	def handle_ph_up(self, nick, channel, song_id):
 		'''Move a song up in this user's Power Hour planning list'''
 
 		log.info(u'{} used !ph up'.format(nick))
@@ -1598,8 +1606,10 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !ph'.format(nick))
 			return
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(self.rwdberr)
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		song_id = int(song_id)
@@ -1611,11 +1621,11 @@ class wormgas(SingleServerIRCBot):
 		else:
 			m += u' is not in your Power Hour planning list.'
 
-		output.privrs.append(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
 	@command_handler(u'!pp(?P<rchan>\w+)?(\s(?P<index>\d))?')
-	def handle_prevplayed(self, nick, channel, output, rchan=None, index=0):
+	def handle_prevplayed(self, nick, channel, rchan=None, index=0):
 		'''Report what was previously playing on the radio
 
 		Arguments:
@@ -1625,7 +1635,7 @@ class wormgas(SingleServerIRCBot):
 
 		log.info(u'{} used !prevplayed'.format(nick))
 
-		rs = []
+		self.mb.clear(nick)
 
 		if rchan:
 			rchan = rchan.lower()
@@ -1634,14 +1644,14 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel')
-				self.handle_help(nick, channel, output, topic=u'prevplayed')
+				self.mb.add(nick, u'I cannot determine the channel')
+				self._help(nick, topic=u'prevplayed')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids.get(rchan)
 		else:
-			self.handle_help(nick, channel, output, topic=u'prevplayed')
+			self._help(nick, topic=u'prevplayed')
 			return
 		rchn = self.rw.channel_id_to_name(cid)
 
@@ -1650,7 +1660,7 @@ class wormgas(SingleServerIRCBot):
 		except TypeError:
 			index = 0
 		if index not in [0, 1, 2]:
-			self.handle_help(nick, channel, output, topic=u'prevplayed')
+			self._help(nick, topic=u'prevplayed')
 			return
 
 		data = self.rw.get_timeline(cid)
@@ -1685,27 +1695,25 @@ class wormgas(SingleServerIRCBot):
 			elif type in (0, 1):
 				r += u', conflict'
 			r += u')'
-			rs.append(r)
 		else:
 			r = u'{}: I have no idea (sched_type = {})'.format(rchn, sched_type)
-			rs.append(r)
 
 		if channel == PRIVMSG:
-			output.default.extend(rs)
+			self.mb.add(nick, r)
 			return
 
 		if sched_id == int(self.config.get(u'pp:{}:{}'.format(cid, index), 0)):
-			output.privrs.extend(rs)
+			self.mb.add(nick, r)
 			r = u'I am cooling down. You can only use !prevplayed in '
 			r += u'{} once per song.'.format(channel)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 		else:
-			output.default.extend(rs)
+			self.mb.add(channel, r)
 			self.config.set(u'pp:{}:{}'.format(cid, index), sched_id)
 
 	@command_handler(u'^!rate(\s(?P<rchan>\S+))?(\s(?P<rating>\S+))?')
 	@command_handler(u'^!rt(?P<rchan>\S+)?(\s(?P<rating>\S+))?')
-	def handle_rate(self, nick, channel, output, rchan=None, rating=None):
+	def handle_rate(self, nick, channel, rchan=None, rating=None):
 		'''Rate the currently playing song
 
 		Arguments:
@@ -1714,12 +1722,14 @@ class wormgas(SingleServerIRCBot):
 
 		log.info(u'{} used !rate'.format(nick))
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		if rating is None:
@@ -1733,14 +1743,14 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'I cannot determine the channel.')
-				self.handle_help(nick, channel, output, topic=u'rate')
+				self.mb.add(nick, u'I cannot determine the channel.')
+				self._help(nick, topic=u'rate')
 				return
 
 		if rchan in self.channel_ids:
 			cid = self.channel_ids.get(rchan)
 		else:
-			self.handle_help(nick, channel, output, topic=u'prevplayed')
+			self._help(nick, topic=u'prevplayed')
 			return
 
 		# Get the song_id
@@ -1751,12 +1761,12 @@ class wormgas(SingleServerIRCBot):
 		data = self.rw.rate(cid, song_id, rating, **api_auth)
 
 		if u'rate_result' in data:
-			output.privrs.append(data[u'rate_result'][u'text'])
+			self.mb.add(nick, data[u'rate_result'][u'text'])
 		else:
-			output.privrs.append(data[u'error'][u'text'])
+			self.mb.add(nick, data[u'error'][u'text'])
 
 	@command_handler(u'^!refresh(\s(?P<rchan>\w+))?')
-	def handle_refresh(self, nick, channel, output, rchan=None):
+	def handle_refresh(self, nick, channel, rchan=None):
 		'''See the status of or initiate a playlist refresh'''
 
 		log.info(u'{} used !refresh'.format(nick))
@@ -1765,10 +1775,10 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !refresh'.format(nick))
 			return
 
-		# This command requires the Rainwave database
+		self.mb.clear(nick)
 
 		if self.rwdb is None:
-			output.privrs.append(u'The Rainwave database is unavailable.')
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		if rchan:
@@ -1780,33 +1790,35 @@ class wormgas(SingleServerIRCBot):
 
 		for pending in self.rwdb.get_pending_refresh_jobs():
 			m = u'Pending playlist refresh on the {}.'
-			output.privrs.append(m.format(self.rw.channel_id_to_name(pending)))
+			self.mb.add(nick, m.format(self.rw.channel_id_to_name(pending)))
 
 		for running in self.rwdb.get_running_refresh_jobs():
 			m = u'Running playlist refresh on the {}.'
 			channel_name = self.rw.channel_id_to_name(self.channel_ids.get(running))
-			output.privrs.append(m.format(channel_name))
+			self.mb.add(nick, m.format(channel_name))
 
-		if len(output.privrs) == 0:
-			output.privrs.append(u'No pending or running playlist refresh jobs.')
+		if not self.mb.items(nick):
+			self.mb.add(nick, u'No pending or running playlist refresh jobs.')
 
 	@command_handler(u'!restart')
-	def handle_restart(self, nick, channel, output):
+	def handle_restart(self, nick, channel):
 		'''Restart the bot'''
 
 		log.info(u'{} used !restart'.format(nick))
 
 		if self._is_admin(nick):
 			self.config.set(u'restart_on_stop', 1)
-			self.handle_stop(nick, channel, output)
+			self.handle_stop(nick, channel)
 		else:
 			log.warning(u'{} does not have privs to use !restart'.format(nick))
 
 	@command_handler(u'!roll(\s(?P<dice>\d+)(d(?P<sides>\d+))?)?')
-	def handle_roll(self, nick, channel, output, dice=None, sides=None):
+	def handle_roll(self, nick, channel, dice=None, sides=None):
 		'''Roll some dice'''
 
 		log.info(u'{} used !roll'.format(nick))
+
+		self.mb.clear(nick)
 
 		try:
 			dice = min(int(dice), 100)
@@ -1828,23 +1840,23 @@ class wormgas(SingleServerIRCBot):
 		r += u'{}'.format(sum(rolls))
 
 		if channel == PRIVMSG:
-			output.default.append(r)
+			self.mb.add(nick, r)
 			return
 
 		ltr = int(self.config.get(u'lasttime:roll', 0))
 		wr = int(self.config.get(u'wait:roll', 0))
 		if ltr < time.time() - wr:
-			output.default.append(r)
+			self.mb.add(channel, r)
 			self.config.set(u'lasttime:roll', time.time())
 		else:
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 			wait = ltr + wr - int(time.time())
 			r = u'I am cooling down. You cannot use !roll in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'!(?P<mode>rock|paper|scissors)')
-	def handle_rps(self, nick, channel, output, mode=None):
+	def handle_rps(self, nick, channel, mode=None):
 		'''Rock, paper, scissors'''
 
 		if mode is None:
@@ -1853,6 +1865,8 @@ class wormgas(SingleServerIRCBot):
 			mode = mode.lower()
 
 		log.info(u'{} used !{}'.format(nick, mode))
+
+		self.mb.clear(nick)
 
 		rps = [u'rock', u'paper', u'scissors']
 		challenge = rps.index(mode)
@@ -1877,26 +1891,28 @@ class wormgas(SingleServerIRCBot):
 		r += u'{}-{}-{} or {}%-{}%-{}% (w-d-l).'.format(w, d, l, pw, pd, pl)
 
 		if channel == PRIVMSG:
-			output.default.append(r)
+			self.mb.add(nick, r)
 			return
 
 		ltr = int(self.config.get(u'lasttime:rps', 0))
 		wr = int(self.config.get(u'wait:rps', 0))
 		if ltr < time.time() - wr:
-			output.default.append(r)
+			self.mb.add(channel, r)
 			self.config.set(u'lasttime:rps', time.time())
 		else:
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 			wait = ltr + wr - int(time.time())
 			r = u'I am cooling down. You cannot use !{} in {} '.format(mode, channel)
 			r += u'for another {} seconds.'.format(wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'^!rps record(\s(?P<target>\S+))?')
-	def handle_rps_record(self, nick, channel, output, target=None):
+	def handle_rps_record(self, nick, channel, target=None):
 		'''Report RPS record for a nick'''
 
 		log.info(u'{} used !rps record'.format(nick))
+
+		self.mb.clear(nick)
 
 		if target is None:
 			target = nick
@@ -1909,47 +1925,52 @@ class wormgas(SingleServerIRCBot):
 		r += u') is {}-{}-{} (w-d-l).'.format(w, d, l)
 
 		if channel == PRIVMSG:
-			output.default.append(r)
+			self.mb.add(nick, r)
 			return
 
 		ltr = int(self.config.get(u'lasttime:rps', 0))
 		wr = int(self.config.get(u'wait:rps', 0))
 		if ltr < time.time() - wr:
-			output.default.append(r)
+			self.mb.add(channel, r)
 			self.config.set(u'lasttime:rps', time.time())
 		else:
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 			wait = ltr + wr - int(time.time())
 			m = u'I am cooling down. You cannot use !rps in '
 			m += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(m)
+			self.mb.add(nick, m)
 
 	@command_handler(u'!rps rename(\s(?P<old>\S+))?(\s(?P<new>\S+))?')
-	def handle_rps_rename(self, nick, channel, output, old=None, new=None):
+	def handle_rps_rename(self, nick, channel, old=None, new=None):
 		'''Rename an RPS nick, useful for merging game histories'''
 
 		log.info(u'{} used !rps rename'.format(nick))
 
 		if self._is_admin(nick) and old and new:
+			self.mb.clear(nick)
 			self.config.rename_rps_player(old, new)
 			r = u'I assigned the RPS game history for {} to {}.'.format(old, new)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'^!rps reset')
-	def handle_rps_reset(self, nick, channel, output):
+	def handle_rps_reset(self, nick, channel):
 		'''Reset RPS stats and delete game history for a nick'''
 
 		log.info(u'{} used !rps reset'.format(nick))
 
+		self.mb.clear(nick)
+
 		self.config.reset_rps_record(nick)
 		r = u'I reset your RPS record and deleted your game history.'
-		output.privrs.append(r)
+		self.mb.add(nick, r)
 
 	@command_handler(u'!rps stats(\s(?P<target>\S+))?')
-	def handle_rps_stats(self, nick, channel, output, target=None):
+	def handle_rps_stats(self, nick, channel, target=None):
 		'''Get some RPS statistics for a player'''
 
 		log.info(u'{} used !rps stats'.format(nick))
+
+		self.mb.clear(nick)
 
 		if target is None:
 			target = nick
@@ -1968,28 +1989,29 @@ class wormgas(SingleServerIRCBot):
 			r = u'{} does not play. :('.format(target)
 
 		if channel == PRIVMSG:
-			output.default.append(r)
+			self.mb.add(nick, r)
 			return
 
 		ltr = int(self.config.get(u'lasttime:rps', 0))
 		wr = int(self.config.get(u'wait:rps', 0))
 		if ltr < time.time() - wr:
-			output.default.append(r)
+			self.mb.add(channel, r)
 			self.config.set(u'lasttime:rps', time.time())
 		else:
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 			wait = ltr + wr - int(time.time())
 			r = u'I am cooling down. You cannot use !rps in {} '.format(channel)
 			r += u'for another {} seconds.'.format(wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'^!rps who')
-	def handle_rps_who(self, nick, channel, output):
+	def handle_rps_who(self, nick, channel):
 		'''List all players in the RPS game history'''
 
 		log.info(u'{} used !rps who'.format(nick))
 
-		rs = []
+		self.mb.clear(nick)
+
 		players = self.config.get_rps_players()
 
 		mlnl = int(self.config.get(u'maxlength:nicklist', 10))
@@ -1997,93 +2019,82 @@ class wormgas(SingleServerIRCBot):
 			plist = players[:mlnl]
 			players[:mlnl] = []
 			r = u'RPS players: ' + u', '.join(plist)
-			rs.append(r)
+			self.mb.add(nick, r)
 		r = u'RPS players: ' + u', '.join(players)
-		rs.append(r)
-
-		if channel == PRIVMSG:
-			output.default.extend(rs)
-			return
-
-		ltr = int(self.config.get(u'lasttime:rps', 0))
-		wr = int(self.config.get(u'wait:rps', 0))
-		if ltr < time.time() - wr:
-			output.default.extend(rs)
-			self.config.set(u'lasttime:rps', time.time())
-		else:
-			output.privrs.extend(rs)
-			wait = ltr + wr - int(time.time())
-			r = u'I am cooling down. You cannot use !rps in {} '.format(channel)
-			r += u'for another {} seconds.'.format(wait)
-			output.privrs.append(r)
+		self.mb.add(nick, r)
 
 	@command_handler(u'^!rq (?P<song_id>\d+)')
-	def handle_rq(self, nick, channel, output, song_id):
+	def handle_rq(self, nick, channel, song_id):
 		'''Add a song to your request queue'''
 
 		log.info(u'{} used !rq'.format(nick))
 
+		self.mb.clear(nick)
+
 		# detect radio channel, return if not tuned in
 		radio_channel_id = self._get_current_channel_for_nick(nick)
 		if radio_channel_id is None:
-			output.privrs.append(u'You must be tuned in to request')
+			self.mb.add(nick, u'You must be tuned in to request.')
 			return
 		radio_channel_id = int(radio_channel_id)
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		song_id = int(song_id)
 		song_info = self._get_song_info_string(song_id)
-		output.privrs.append(u'Attempting request: {}'.format(song_info))
+		self.mb.add(nick, u'Attempting request: {}'.format(song_info))
 
 		data = self.rw.request(radio_channel_id, song_id, **api_auth)
 		if u'request_result' in data:
-			output.privrs.append(data[u'request_result'][u'text'])
+			self.mb.add(nick, data[u'request_result'][u'text'])
 		else:
-			output.privrs.append(data[u'error'][u'text'])
+			self.mb.add(nick, data[u'error'][u'text'])
 
 	@command_handler(u'^!rq clearstash$')
-	def handle_rq_clearstash(self, nick, channel, output):
+	def handle_rq_clearstash(self, nick, channel):
 		'''Clear a user's request stash'''
 
 		log.info(u'{} used !rq clearstash'.format(nick))
+		self.mb.clear(nick)
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 
 		self.rq.clear(str(api_auth[u'user_id']))
-		output.privrs.append(u'I cleared your request stash.')
+		self.mb.add(nick, u'I cleared your request stash.')
 
 	@command_handler(u'^!rq fav(\s(?P<limit>\d+))?')
-	def handle_rq_fav(self, nick, channel, output, limit=None):
+	def handle_rq_fav(self, nick, channel, limit=None):
 		'''Request favourite songs up to limit'''
 
 		log.info(u'{} used !rq fav'.format(nick))
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(u'The Rainwave database is unavailable.')
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		# detect radio channel, return if not tuned in
 		radio_channel_id = self._get_current_channel_for_nick(nick)
 		if radio_channel_id is None:
-			output.privrs.append(u'You must be tuned in to request')
+			self.mb.add(nick, u'You must be tuned in to request')
 			return
 		radio_channel_id = int(radio_channel_id)
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		if limit is None:
@@ -2093,7 +2104,7 @@ class wormgas(SingleServerIRCBot):
 		favourite = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
 
 		if len(favourite) == 0:
-			output.privrs.append(u'No favourite songs.')
+			self.mb.add(nick, u'No favourite songs.')
 			return
 
 		i = 0
@@ -2101,85 +2112,86 @@ class wormgas(SingleServerIRCBot):
 			if len(favourite) > 0:
 				song_id = favourite.pop(0)
 			else:
-				output.privrs.append(u'No more albums with favourite songs.')
+				self.mb.add(nick, u'No more albums with favourite songs.')
 				return
 			song_info = self._get_song_info_string(song_id)
-			output.privrs.append(u'Attempting request: {}'.format(song_info))
+			self.mb.add(nick, u'Attempting request: {}'.format(song_info))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
 				if data[u'request_result'][u'code'] == 1:
-					output.privrs.append(data[u'request_result'][u'text'])
+					self.mb.add(nick, data[u'request_result'][u'text'])
 					i += 1
 				elif data[u'request_result'][u'code'] == -6:
-					output.privrs.append(data[u'request_result'][u'text'])
+					self.mb.add(nick, data[u'request_result'][u'text'])
 					return
 				else:
 					fail = data[u'request_result'][u'text']
-					output.privrs.append(u'Request failed. ({})'.format(fail))
+					self.mb.add(nick, u'Request failed. ({})'.format(fail))
 			else:
-				output.privrs.append(data[u'error'][u'text'])
-				output.privrs.append(u'I ran into a problem. I will stop here.')
+				self.mb.add(nick, data[u'error'][u'text'])
+				self.mb.add(nick, u'I ran into a problem. I will stop here.')
 				return
 
-		output.privrs.append(u'All done.')
-
 	@command_handler(u'^!rq loadstash$')
-	def handle_rq_loadstash(self, nick, channel, output):
+	def handle_rq_loadstash(self, nick, channel):
 		'''Load a user's request stash into his radio request queue'''
 
 		log.info(u'{} used !rq loadstash'.format(nick))
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		stash = self.rq.items(str(api_auth[u'user_id']))[:]
 		if len(stash) < 1:
-			output.privrs.append(u'Your request stash is empty.')
+			self.mb.add(nick, u'Your request stash is empty.')
 			return
 
 		radio_channel_id = self._get_current_channel_for_nick(nick)
 		if radio_channel_id is None:
-			output.privrs.append(u'You must be tuned in to request.')
+			self.mb.add(nick, u'You must be tuned in to request.')
 			return
 		radio_channel_id = int(radio_channel_id)
 
 		for song_id in stash:
 			song_id = int(song_id)
 			song_info = self._get_song_info_string(song_id)
-			output.privrs.append(u'Attempting request: {}'.format(song_info))
+			self.mb.add(nick, u'Attempting request: {}'.format(song_info))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
-				output.privrs.append(data[u'request_result'][u'text'])
+				self.mb.add(nick, data[u'request_result'][u'text'])
 				if data[u'request_result'][u'code'] == 1:
-					output.privrs.append(u'Removing from stash: {}'.format(song_info))
+					self.mb.add(nick, u'Removing from stash: {}'.format(song_info))
 					self.rq.remove(str(api_auth[u'user_id']), song_id)
 				else:
 					m = u'I ran into a problem. I will stop here and leave the rest of '
 					m += u'your stash intact.'
-					output.privrs.append(m)
+					self.mb.add(nick, m)
 					return
 			else:
-				output.privrs.append(data[u'error'][u'text'])
+				self.mb.add(nick, data[u'error'][u'text'])
 				m = u'I ran into a problem. I will stop here and leave the rest of '
 				m += u'your stash intact.'
-				output.privrs.append(m)
+				self.mb.add(nick, m)
 				return
-		output.privrs.append(u'All done.')
 
 	@command_handler(u'^!rq showstash$')
-	def handle_rq_showstash(self, nick, channel, output):
+	def handle_rq_showstash(self, nick, channel):
 		'''Show what is in a user's rq stash'''
 
 		log.info(u'{} used !rq showstash')
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 
 		count = len(self.rq.items(str(api_auth[u'user_id'])))
@@ -2188,24 +2200,26 @@ class wormgas(SingleServerIRCBot):
 				m = u'There is 1 song in your request stash.'
 			else:
 				m = u'There are {} songs in your request stash.'.format(count)
-			output.privrs.append(m)
+			self.mb.add(nick, m)
 			for song_id in self.rq.items(str(api_auth[u'user_id'])):
-				output.privrs.append(self._get_song_info_string(song_id))
+				self.mb.add(nick, self._get_song_info_string(song_id))
 		else:
-			output.privrs.append(u'Your request stash is empty.')
+			self.mb.add(nick, u'Your request stash is empty.')
 
 	@command_handler(u'^!rq stash$')
-	def handle_rq_stash(self, nick, channel, output):
+	def handle_rq_stash(self, nick, channel):
 		'''Pull a user's requests from the radio and stash locally'''
 
 		log.info(u'{} used !rq stash'.format(nick))
 
+		self.mb.clear(nick)
+
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		self.rq.clear(str(api_auth[u'user_id']))
@@ -2224,31 +2238,33 @@ class wormgas(SingleServerIRCBot):
 		else:
 			m = u'Your radio request queue is empty.'
 
-		output.privrs.append(m)
+		self.mb.add(nick, m)
 
 	@command_handler(u'^!rq unrated(\s(?P<limit>\d+))?')
-	def handle_rq_unrated(self, nick, channel, output, limit=None):
+	def handle_rq_unrated(self, nick, channel, limit=None):
 		'''Request unrated songs up to limit'''
 
 		log.info(u'{} used !rq unrated'.format(nick))
 
+		self.mb.clear(nick)
+
 		if self.rwdb is None:
-			output.privrs.append(u'The Rainwave database is unavailable.')
+			self.mb.add(nick, self.rwdberr)
 			return
 
 		# detect radio channel, return if not tuned in
 		radio_channel_id = self._get_current_channel_for_nick(nick)
 		if radio_channel_id is None:
-			output.privrs.append(u'You must be tuned in to request')
+			self.mb.add(nick, u'You must be tuned in to request')
 			return
 		radio_channel_id = int(radio_channel_id)
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		if limit is None:
@@ -2258,7 +2274,7 @@ class wormgas(SingleServerIRCBot):
 		unrated = self.rwdb.get_unrated_songs(api_auth[u'user_id'], radio_channel_id)
 
 		if len(unrated) == 0:
-			output.privrs.append(u'No unrated songs.')
+			self.mb.add(nick, u'No unrated songs.')
 			return
 
 		def available_key(record):
@@ -2277,45 +2293,46 @@ class wormgas(SingleServerIRCBot):
 				unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
 				song_id = song.get(u'id')
 			else:
-				output.privrs.append(u'No more albums with unrated songs.')
+				self.mb.add(nick, u'No more albums with unrated songs.')
 				return
 			song_info_string = self._get_song_info_string(song_id)
-			output.privrs.append(u'Attempting request: {}'.format(song_info_string))
+			self.mb.add(nick, u'Attempting request: {}'.format(song_info_string))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
 				if data[u'request_result'][u'code'] == 1:
-					output.privrs.append(data[u'request_result'][u'text'])
+					self.mb.add(nick, data[u'request_result'][u'text'])
 					i += 1
 				elif data[u'request_result'][u'code'] == -6:
-					output.privrs.append(data[u'request_result'][u'text'])
+					self.mb.add(nick, data[u'request_result'][u'text'])
 					return
 				else:
 					failure_text = data[u'request_result'][u'text']
-					output.privrs.append(u'Request failed. ({})'.format(failure_text))
+					self.mb.add(nick, u'Request failed. ({})'.format(failure_text))
 			else:
-				output.privrs.append(data[u'error'][u'text'])
-				output.privrs.append(u'I ran into a problem. I will stop here.')
+				self.mb.add(nick, data[u'error'][u'text'])
+				self.mb.add(nick, u'I ran into a problem. I will stop here.')
 				return
 
-		output.privrs.append(u'All done.')
-
 	@command_handler(u'^!set(\s(?P<id>\S+))?(\s(?P<value>.+))?')
-	def handle_set(self, nick, channel, output, id=None, value=None):
+	def handle_set(self, nick, channel, id=None, value=None):
 		'''View and set bot configuration'''
 
 		log.info(u'{} used !set'.format(nick))
 
+		self.mb.clear(nick)
+
 		if self._is_admin(nick):
-			output.privrs.extend(self.config.handle(id, value))
+			self.mb.set(nick, self.config.handle(id, value))
 		else:
 			log.warning(u'{} does not have privs to use !set'.format(nick))
-			self.handle_help(nick, channel, output, topic=u'set')
 
 	@command_handler(u'!stats(\s(?P<rchan>\w+))?')
-	def handle_stats(self, nick, channel, output, rchan=None):
+	def handle_stats(self, nick, channel, rchan=None):
 		'''Report radio statistics'''
 
 		log.info(u'{} used !stats'.format(nick))
+
+		self.mb.clear(nick)
 
 		if rchan:
 			rchan = rchan.lower()
@@ -2329,23 +2346,23 @@ class wormgas(SingleServerIRCBot):
 			r = u'The Rainwave database is unavailable.'
 
 		if channel == PRIVMSG:
-			output.default.append(r)
+			self.mb.add(nick, r)
 			return
 
 		lts = int(self.config.get(u'lasttime:stats', 0))
 		ws = int(self.config.get(u'wait:stats', 0))
 		if lts < time.time() - ws:
-			output.default.append(r)
+			self.mb.add(channel, r)
 			self.config.set(u'lasttime:stats', time.time())
 		else:
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 			wait = lts + ws - int(time.time())
 			r = u'I am cooling down. You cannot use !stats in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'!stop')
-	def handle_stop(self, nick, channel, output):
+	def handle_stop(self, nick, channel):
 		'''Shut down the bot'''
 
 		log.info(u'{} used !stop'.format(nick))
@@ -2360,13 +2377,19 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !stop'.format(nick))
 
 	@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
-	def handle_unrated(self, nick, channel, output, rchan=None, num=None):
+	def handle_unrated(self, nick, channel, rchan=None, num=None):
 		'''Report unrated songs'''
 
 		log.info(u'{} used !unrated'.format(nick))
 
+		self.mb.clear(nick)
+
+		if self.rwdb is None:
+			self.mb.add(nick, self.rwdberr)
+			return
+
 		if rchan is None:
-			self.handle_help(nick, channel, output, topic=u'unrated')
+			self._help(nick, topic=u'unrated')
 			return
 		else:
 			rchan = rchan.lower()
@@ -2381,7 +2404,7 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				self.handle_help(nick, channel, output, topic=u'unrated')
+				self._help(nick, topic=u'unrated')
 				return
 
 		cid = self.channel_ids.get(rchan)
@@ -2393,17 +2416,13 @@ class wormgas(SingleServerIRCBot):
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
-			return
-
-		if self.rwdb is None:
-			output.privrs.append(u'The Rainwave database is unavailable.')
+			self.mb.add(nick, self.missing_user_id)
 			return
 
 		unrated = self.rwdb.get_unrated_songs(api_auth[u'user_id'], cid)
 
 		if len(unrated) == 0:
-			output.privrs.append(u'No unrated songs.')
+			self.mb.add(nick, u'No unrated songs.')
 			return
 
 		def available_key(record):
@@ -2422,9 +2441,9 @@ class wormgas(SingleServerIRCBot):
 				unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
 				song_id = song.get(u'id')
 			else:
-				output.privrs.append(u'No more albums with unrated songs.')
+				self.mb.add(nick, u'No more albums with unrated songs.')
 				return
-			output.privrs.append(self._get_song_info_string(song_id))
+			self.mb.add(nick, self._get_song_info_string(song_id))
 			i += 1
 
 		albums_left = len(set([song.get(u'album_id') for song in unrated]))
@@ -2433,10 +2452,10 @@ class wormgas(SingleServerIRCBot):
 			if albums_left > 1:
 				m += u's'
 			m += u' with unrated songs.'
-			output.privrs.append(m)
+			self.mb.add(nick, m)
 
 	@command_handler(u'^!unset(\s(?P<id>\S+))?')
-	def handle_unset(self, nick, channel, output, id=None):
+	def handle_unset(self, nick, channel, id=None):
 		'''Unset a configuration item'''
 
 		log.info(u'{} used !unset'.format(nick))
@@ -2444,18 +2463,19 @@ class wormgas(SingleServerIRCBot):
 		if self._is_admin(nick):
 			if id:
 				self.config.unset(id)
-				output.privrs.append(u'{} has been unset.'.format(id))
+				self.mb.clear(nick)
+				self.mb.add(nick, u'{} has been unset.'.format(id))
 				return
 		else:
 			log.warning(u'{} does not have privs to use !unset'.format(nick))
 
-		self.handle_help(nick, channel, output, topic=u'unset')
-
 	@command_handler(u'!ustats(\s(?P<target>.+))?')
-	def handle_ustats(self, nick, channel, output, target=None):
+	def handle_ustats(self, nick, channel, target=None):
 		'''Report user statistics'''
 
 		log.info(u'{} used !ustats'.format(nick))
+
+		self.mb.clear(nick)
 
 		rs = []
 
@@ -2465,7 +2485,10 @@ class wormgas(SingleServerIRCBot):
 		api_auth = self._get_api_auth_for_nick(target)
 		if u'user_id' not in api_auth:
 			m = u'I do not recognize the username \'{}\'.'.format(target)
-			output.default.append(m)
+			if channel == PRIVMSG:
+				self.mb.add(nick, m)
+			else:
+				self.mb.add(channel, m)
 			return
 
 		uid = self.config.get(u'api:user_id', 0)
@@ -2523,31 +2546,33 @@ class wormgas(SingleServerIRCBot):
 			rs.append(data[u'error'][u'text'])
 
 		if channel == PRIVMSG:
-			output.default.extend(rs)
+			self.mb.set(nick, rs)
 			return
 
 		ltu = int(self.config.get(u'lasttime:ustats', 0))
 		wu = int(self.config.get(u'wait:ustats', 0))
 		if ltu < time.time() - wu:
-			output.default.extend(rs)
+			self.mb.set(channel, rs)
 			self.config.set(u'lasttime:ustats', time.time())
 		else:
-			output.privrs.extend(rs)
+			self.mb.set(nick, rs)
 			wait = ltu + wu - int(time.time())
 			r = u'I am cooling down. You cannot use !ustats in '
 			r += u'{} for another {} seconds.'.format(channel, wait)
-			output.privrs.append(r)
+			self.mb.add(nick, r)
 
 	@command_handler(u'!vote(\s(?P<rchan>\w+))?(\s(?P<index>\d+))?')
 	@command_handler(u'!vt(?P<rchan>\w+)?(\s(?P<index>\d+))?')
-	def handle_vote(self, nick, channel, output, rchan=None, index=None):
+	def handle_vote(self, nick, channel, rchan=None, index=None):
 		'''Vote in the current election'''
 
 		log.info(u'{} used !vote'.format(nick))
 
+		self.mb.clear(nick)
+
 		if rchan is None:
 			if index is None:
-				self.handle_help(nick, channel, output, topic=u'vote')
+				self._help(nick, topic=u'vote')
 				return
 			rchan = 0
 		else:
@@ -2565,7 +2590,7 @@ class wormgas(SingleServerIRCBot):
 			if cur_cid:
 				rchan = self.channel_codes[cur_cid]
 			else:
-				output.privrs.append(u'Either you are not tuned in or your IRC '
+				self.mb.add(nick, u'Either you are not tuned in or your IRC '
 					u'nick does not match your forum username. Tune in to a '
 					u'channel or link your Rainwave account to this IRC nick '
 					u'using \x02!id\x02.')
@@ -2576,19 +2601,19 @@ class wormgas(SingleServerIRCBot):
 		try:
 			index = int(index)
 		except:
-			self.handle_help(nick, channel, output, topic=u'vote')
+			self._help(nick, topic=u'vote')
 			return
 
 		if index not in [1, 2, 3]:
-			self.handle_help(nick, channel, output, topic=u'vote')
+			self._help(nick, topic=u'vote')
 			return
 
 		api_auth = self._get_api_auth_for_nick(nick)
 		if u'user_id' not in api_auth:
-			output.privrs.append(self.missing_user_id)
+			self.mb.add(nick, self.missing_user_id)
 			return
 		if u'key' not in api_auth:
-			output.privrs.append(self.missing_key)
+			self.mb.add(nick, self.missing_key)
 			return
 
 		# Get the elec_entry_id
@@ -2603,9 +2628,9 @@ class wormgas(SingleServerIRCBot):
 		data = self.rw.vote(cid, elec_entry_id, **api_auth)
 
 		if data[u'vote_result']:
-			output.privrs.append(data[u'vote_result'][u'text'])
+			self.mb.add(nick, data[u'vote_result'][u'text'])
 		else:
-			output.privrs.append(data[u'error'][u'text'])
+			self.mb.add(nick, data[u'error'][u'text'])
 
 	def on_join(self, c, e):
 		'''This method is called when an IRC join event happens
@@ -2641,32 +2666,35 @@ class wormgas(SingleServerIRCBot):
 
 		nick = e.source.nick
 		msg = e.arguments[0].strip()
-
-		rs = []
-		privrs = []
+		chan = self.config.get(u'irc:channel')
 
 		# Try all the command handlers
-
-		output = Output(u'private')
 		for command in _commands:
-			if command(self, nick, msg, PRIVMSG, output):
-				rs = output.rs
-				privrs = output.privrs
+			if command(self, nick, msg, PRIVMSG):
 				break
 
-		if len(rs) + len(privrs) == 0:
+		if not self.mb.items(nick) and not self.mb.items(chan):
 			# No responses from the commands, punt to the brain
-
-			privrs.extend(self._talk(msg))
+			self.mb.add(nick, self._talk(msg))
 
 		# Send responses
+		while self.mb.items(chan):
+			self._to_irc(c, u'privmsg', chan, self.mb.pop(chan, 0))
 
-		channel = self.config.get(u'irc:channel')
+		rs = list()
+		while len(rs) < 7 and self.mb.items(nick):
+			rs.append(self.mb.pop(nick, 0))
+
+		if len(self.mb.items(nick)) == 1:
+			rs.append(self.mb.pop(nick, 0))
+
+		if len(self.mb.items(nick)) > 1:
+			num = len(self.mb.items(nick))
+			r = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
+			rs.append(r)
+
 		for r in rs:
-			self._to_irc(c, u'privmsg', channel, r)
-
-		for privr in privrs:
-			self._to_irc(c, u'privmsg', nick, privr)
+			self._to_irc(c, u'privmsg', nick, r)
 
 	def on_pubmsg(self, c, e):
 		'''This method is called when a message is sent to the channel the bot
@@ -2677,24 +2705,16 @@ class wormgas(SingleServerIRCBot):
 			e: the Event object'''
 
 		nick = e.source.nick
-		chan = e.target
 		msg = e.arguments[0].strip()
-
-		rs = []
-		privrs = []
+		chan = e.target
 
 		# Try all the command handlers
-
-		output = Output(u'public')
 		for command in _commands:
-			if command(self, nick, msg, chan, output):
-				rs = output.rs
-				privrs = output.privrs
+			if command(self, nick, msg, chan):
 				break
 
 		# If there are no responses from the commands, look for URLs
-
-		if len(rs) + len(privrs) == 0:
+		if not self.mb.items(nick) and not self.mb.items(chan):
 			urls = self._find_urls(msg)
 			for url in urls:
 				title = None
@@ -2704,13 +2724,12 @@ class wormgas(SingleServerIRCBot):
 					log.exception(e)
 				if title:
 					log.info(u'Found a title: {}'.format(title))
-					rs.append(u'[ {} ]'.format(title))
+					self.mb.add(chan, u'[ {} ]'.format(title))
 
 		# If there are no URLs, punt to the brain
-
-		if len(rs) + len(privrs) == 0:
-			talkrs = self._talk(msg)
-			if len(talkrs) > 0:
+		if not self.mb.items(nick) and not self.mb.items(chan):
+			talkr = self._talk(msg)
+			if talkr:
 				self.config.set(u'msg:last', msg)
 				self.config.set(u'lasttime:msg', time.time())
 				ltr = int(self.config.get(u'lasttime:respond', 0))
@@ -2718,24 +2737,35 @@ class wormgas(SingleServerIRCBot):
 
 				if self.config.get(u'irc:nick') in msg:
 					if time.time() > ltr + wr:
-						rs.extend(talkrs)
-						self.config.set(u'msg:last', talkrs[0])
+						self.mb.add(chan, talkr)
+						self.config.set(u'msg:last', talkr)
 						self.config.set(u'lasttime:respond', time.time())
 					else:
-						privrs.extend(talkrs)
+						self.mb.add(nick, talkr)
 						wait = ltr + wr - int(time.time())
 						r = u'I am cooling down. I cannot respond in '
 						r += u'{} for another {} seconds.'.format(chan, wait)
-						privrs.append(r)
+						self.mb.add(nick, r)
 
 		# Send responses
-
-		for r in rs:
-			r = u'{}: {}'.format(nick, r)
+		while self.mb.items(chan):
+			r = u'{}: {}'.format(nick, self.mb.pop(chan, 0))
 			self._to_irc(c, u'privmsg', chan, r)
 
-		for privr in privrs:
-			self._to_irc(c, u'privmsg', nick, privr)
+		rs = list()
+		while len(rs) < 7 and self.mb.items(nick):
+			rs.append(self.mb.pop(nick, 0))
+
+		if len(self.mb.items(nick)) == 1:
+			rs.append(self.mb.pop(nick, 0))
+
+		if len(self.mb.items(nick)) > 1:
+			num = len(self.mb.items(nick))
+			r = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
+			rs.append(r)
+
+		for r in rs:
+			self._to_irc(c, u'privmsg', nick, r)
 
 	def on_topic(self, c, e):
 		'''This method is called when the topic is set
@@ -2933,34 +2963,33 @@ class wormgas(SingleServerIRCBot):
 
 		nick = self.config.get(u'irc:nick')
 		chan = self.config.get(u'irc:channel')
-		output = Output(u'public')
 
 		ltfc = int(self.config.get(u'lasttime:forumcheck', 0))
 		tofc = int(self.config.get(u'timeout:forumcheck', 3600))
 		if int(time.time()) > ltfc + tofc:
 			log.info(u'Forum check timeout exceeded')
-			self.handle_forum(nick, chan, output, force=False)
+			self.handle_forum(nick, chan, force=False)
 
 		ltmc = int(self.config.get(u'lasttime:musiccheck', 0))
 		tomc = int(self.config.get(u'timeout:musiccheck', 3600))
 		if int(time.time()) > ltmc + tomc:
 			log.info(u'Music check timeout exceeded')
 			for rchan in self.channel_ids.keys():
-				self.handle_newmusic(nick, chan, output, rchan=rchan, force=False)
+				self.handle_newmusic(nick, chan, rchan=rchan, force=False)
 
 		ltm = int(self.config.get(u'lasttime:msg', 0))
 		toc = int(self.config.get(u'timeout:chat', 3600))
 		if int(time.time()) > ltm + toc:
 			log.info(u'Chat timeout exceeded, keep the conversation moving')
-			talkrs = self._talk()
-			for talkr in talkrs:
+			talkr = self._talk()
+			if talkr:
 				self.config.set(u'msg:last', talkr)
 				self.config.set(u'lasttime:msg', time.time())
 				self.config.set(u'lasttime:respond', time.time())
-				output.rs.append(talkr)
+				self.mb.add(chan, talkr)
 
-		for r in output.rs:
-			self._to_irc(c, u'privmsg', chan, r)
+		while self.mb.items(chan):
+			self._to_irc(c, u'privmsg', chan, self.mb.pop(chan, 0))
 
 	def _post_to_forum(self, forum_id, topic_id, m):
 		'''Post a message to the phpBB forum
@@ -3018,19 +3047,19 @@ class wormgas(SingleServerIRCBot):
 		Arguments:
 			msg: the message to learn and possible reply to
 
-		Returns: a list of strings'''
+		Returns: a string'''
 
 		# If I am not replying to anything in particular, use the last message
 		if msg is None:
 			msg = self.config.get(u'msg:last')
 		if msg is None:
-			return []
+			return None
 
 		# Ignore messages with certain words
 		if self.reignore:
 			result = self.reignore.search(msg)
 			if result is not None:
-				return []
+				return None
 
 		# Clean up the message before sending to the brain
 		tobrain = msg
@@ -3039,7 +3068,7 @@ class wormgas(SingleServerIRCBot):
 
 		self.brain.learn(tobrain)
 
-		return [self.brain.reply(tobrain)]
+		return self.brain.reply(tobrain)
 
 	def _to_irc(self, c, msgtype, target, msg):
 		'''Send an IRC message'''

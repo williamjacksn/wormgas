@@ -830,7 +830,6 @@ class RainwaveDatabase(object):
 				'album_name': string,
 				'album_id': string
 			}
-				unreported results: int, number of results over the limit.
 		'''
 		sql = (u'select album_name, album_id from rw_albums where '
 			u'album_verified is true and sid = %s and album_name ilike %s '
