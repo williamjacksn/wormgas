@@ -475,7 +475,7 @@ class wormgas(SingleServerIRCBot):
 	def handle_fav(self, nick, channel, argstring=u''):
 		'''Show a list of favourite songs for a user'''
 
-		log.info(u'{} use !fav'.format(nick))
+		log.info(u'{} used !fav'.format(nick))
 
 		self.mb.clear(nick)
 
