@@ -2734,7 +2734,7 @@ class wormgas(SingleServerIRCBot):
 					self.mb.add(chan, u'[ {} ]'.format(title))
 
 		# If there are no URLs, punt to the brain
-		if not command_handled and not title_found:
+		if not (command_handled or title_found):
 			talkr = self._talk(msg)
 			if talkr:
 				self.config.set(u'msg:last', msg)
@@ -2748,11 +2748,11 @@ class wormgas(SingleServerIRCBot):
 						self.config.set(u'msg:last', talkr)
 						self.config.set(u'lasttime:respond', time.time())
 					else:
-						self.mb.add(nick, talkr)
+						self._to_irc(c, u'privmsg', nick, talkr)
 						wait = ltr + wr - int(time.time())
 						r = u'I am cooling down. I cannot respond in '
 						r += u'{} for another {} seconds.'.format(chan, wait)
-						self.mb.add(nick, r)
+						self._to_irc(c, u'privmsg', nick, r)
 
 		# Send responses
 		while self.mb.items(chan):
