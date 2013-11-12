@@ -2759,20 +2759,21 @@ class wormgas(SingleServerIRCBot):
 			r = u'{}: {}'.format(nick, self.mb.pop(chan, 0))
 			self._to_irc(c, u'privmsg', chan, r)
 
-		rs = list()
-		while len(rs) < 7 and self.mb.items(nick):
-			rs.append(self.mb.pop(nick, 0))
+		if command_handled:
+			rs = list()
+			while len(rs) < 7 and self.mb.items(nick):
+				rs.append(self.mb.pop(nick, 0))
 
-		if len(self.mb.items(nick)) == 1:
-			rs.append(self.mb.pop(nick, 0))
+			if len(self.mb.items(nick)) == 1:
+				rs.append(self.mb.pop(nick, 0))
 
-		if len(self.mb.items(nick)) > 1:
-			num = len(self.mb.items(nick))
-			r = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
-			rs.append(r)
+			if len(self.mb.items(nick)) > 1:
+				num = len(self.mb.items(nick))
+				r = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
+				rs.append(r)
 
-		for r in rs:
-			self._to_irc(c, u'privmsg', nick, r)
+			for r in rs:
+				self._to_irc(c, u'privmsg', nick, r)
 
 	def on_topic(self, c, e):
 		'''This method is called when the topic is set
