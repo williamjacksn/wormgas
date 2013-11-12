@@ -2669,12 +2669,15 @@ class wormgas(SingleServerIRCBot):
 		chan = self.config.get(u'irc:channel')
 
 		# Try all the command handlers
+		command_handled = False
 		for command in _commands:
 			if command(self, nick, msg, PRIVMSG):
+				command_handled = True
 				break
 
-		if not self.mb.items(nick) and not self.mb.items(chan):
+		if not command_handled:
 			# No responses from the commands, punt to the brain
+			self.mb.clear(nick)
 			self.mb.add(nick, self._talk(msg))
 
 		# Send responses
@@ -2709,12 +2712,15 @@ class wormgas(SingleServerIRCBot):
 		chan = e.target
 
 		# Try all the command handlers
+		command_handled = False
 		for command in _commands:
 			if command(self, nick, msg, chan):
+				command_handled = True
 				break
 
 		# If there are no responses from the commands, look for URLs
-		if not self.mb.items(nick) and not self.mb.items(chan):
+		title_found = False
+		if not command_handled:
 			urls = self._find_urls(msg)
 			for url in urls:
 				title = None
@@ -2724,10 +2730,11 @@ class wormgas(SingleServerIRCBot):
 					log.exception(e)
 				if title:
 					log.info(u'Found a title: {}'.format(title))
+					title_found = True
 					self.mb.add(chan, u'[ {} ]'.format(title))
 
 		# If there are no URLs, punt to the brain
-		if not self.mb.items(nick) and not self.mb.items(chan):
+		if not command_handled and not title_found:
 			talkr = self._talk(msg)
 			if talkr:
 				self.config.set(u'msg:last', msg)
