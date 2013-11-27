@@ -507,22 +507,23 @@ class RainwaveDatabase(object):
 		return cur_chan
 
 	def get_fav_songs(self, user_id, cid):
-		'''Get favourite songs, each in a different album'''
+		'''Get favourite songs'''
 
 		m = u'Getting favourite songs for user {} on channel {}'
 		log.info(m.format(user_id, cid))
 
-		song_ids = []
-		sql = (u'select song_id from (select distinct on (album_id) song_id, '
-			u'song_available, song_releasetime from rw_songs where sid = %s and '
-			u'song_verified is true and song_rating_id in (select song_rating_id '
-			u'from rw_songfavourites where user_id = %s) order by album_id, '
-			u'song_available desc, song_releasetime) as favs order by song_available '
-			u'desc, song_releasetime')
+		sql = (
+			u'select song_id, album_id, song_available, song_releasetime from '
+			u'rw_songfavourites join rw_songs using (song_rating_id) where '
+			u'sid = %s and user_id = %s')
 		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
-			song_ids.append(r[0])
-		return song_ids
+			yield {
+				u'id': int(r[0]),
+				u'album_id': int(r[1]),
+				u'available': bool(r[2]),
+				u'release_time': int(r[3])
+			}
 
 	def get_forum_post_info(self, post_id=None):
 		'''Return a string of information and a url for a forum post, default
@@ -759,7 +760,6 @@ class RainwaveDatabase(object):
 		m = u'Getting unrated songs for user {} on channel {}'
 		log.info(m.format(user_id, cid))
 
-		songs = []
 		sql = (u'with rated_songs as (select song_rating_id from '
 			u'rw_songratings where user_id = %s), unrated_songs as (select '
 			u'song_id, album_id, song_available, song_releasetime from '
@@ -773,15 +773,13 @@ class RainwaveDatabase(object):
 			u'join album_unrated_counts using (album_id)')
 		self.rcur.execute(sql, (user_id, cid))
 		for r in self.rcur:
-			this_song = {
+			yield {
 				u'id': int(r[0]),
 				u'album_id': int(r[1]),
 				u'available': bool(r[2]),
 				u'release_time': int(r[3]),
 				u'unrated_songs_in_album': int(r[4])
 			}
-			songs.append(this_song)
-		return songs
 
 	def request_playlist_refresh(self, cid):
 		'''Request a playlist refresh for a channel'''

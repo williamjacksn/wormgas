@@ -2101,21 +2101,44 @@ class wormgas(SingleServerIRCBot):
 			limit = self.config.get(u'maxlength:unrated', 12)
 		limit = int(limit)
 
-		favourite = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
+		faves = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
 
-		if len(favourite) == 0:
+		if len(faves) == 0:
 			self.mb.add(nick, u'No favourite songs.')
 			return
 
+		def split_on_available(list_of_faves):
+			available = list()
+			unavailable = list()
+			for record in list_of_favourites:
+				if record.get(u'available'):
+					available.append(record)
+				else:
+					unavailable.append(record)
+			return available, unavailable
+
+		available, unavailable = split_on_available(faves)
+
+		random.shuffle(available)
+
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unavailable.sort(key=release_time_key)
+
+		faves = available.extend(unavailable)
+
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
-			if len(favourite) > 0:
-				song_id = favourite.pop(0)
+			if len(faves) > 0:
+				song = faves.pop(0)
+				faves[:] = [d for d in faves if d.get(u'album_id') != song.get(u'album_id')]
+				song_id = song.get(u'id')
 			else:
 				self.mb.add(nick, u'No more albums with favourite songs.')
 				return
-			song_info = self._get_song_info_string(song_id)
-			self.mb.add(nick, u'Attempting request: {}'.format(song_info))
+			song_info_string = self._get_song_info_string(song_id)
+			self.mb.add(nick, u'Attempting request: {}'.format(song_info_string))
 			data = self.rw.request(radio_channel_id, song_id, **api_auth)
 			if u'request_result' in data:
 				if data[u'request_result'][u'code'] == 1:
@@ -2125,8 +2148,8 @@ class wormgas(SingleServerIRCBot):
 					self.mb.add(nick, data[u'request_result'][u'text'])
 					return
 				else:
-					fail = data[u'request_result'][u'text']
-					self.mb.add(nick, u'Request failed. ({})'.format(fail))
+					failure_text = data[u'request_result'][u'text']
+					self.mb.add(nick, u'Request failed. ({})'.format(failure_text))
 			else:
 				self.mb.add(nick, data[u'error'][u'text'])
 				self.mb.add(nick, u'I ran into a problem. I will stop here.')
