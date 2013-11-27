@@ -510,16 +510,39 @@ class wormgas(SingleServerIRCBot):
 			return
 		radio_channel_id = int(radio_channel_id)
 
-		fav = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
+		faves = self.rwdb.get_fav_songs(api_auth[u'user_id'], radio_channel_id)
 
-		if len(fav) == 0:
+		if len(faves) == 0:
 			self.mb.add(nick, u'No favourite songs.')
 			return
 
+		def split_on_available(list_of_faves):
+			available = list()
+			unavailable = list()
+			for record in list_of_faves:
+				if record.get(u'available'):
+					available.append(record)
+				else:
+					unavailable.append(record)
+			return available, unavailable
+
+		available, unavailable = split_on_available(faves)
+
+		random.shuffle(available)
+
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unavailable.sort(key=release_time_key)
+
+		faves = available + unavailable
+
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
-			if len(fav) > 0:
-				song_id = fav.pop(0)
+			if len(faves) > 0:
+				song = faves.pop(0)
+				faves[:] = [d for d in faves if d.get(u'album_id') != song.get(u'album_id')]
+				song_id = song.get(u'id')
 			else:
 				self.mb.add(nick, u'No more albums with favourite songs.')
 				return
