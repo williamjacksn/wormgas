@@ -2110,7 +2110,7 @@ class wormgas(SingleServerIRCBot):
 		def split_on_available(list_of_faves):
 			available = list()
 			unavailable = list()
-			for record in list_of_favourites:
+			for record in list_of_faves:
 				if record.get(u'available'):
 					available.append(record)
 				else:
