@@ -2458,7 +2458,7 @@ class wormgas(SingleServerIRCBot):
 		unrated.sort(key=available_key, reverse=True)
 
 		i = 0
-		while i < num and i < int(self.config.get(u'maxlength:unrated')):
+		while i < num and i < int(self.config.get(u'maxlength:unrated', 12)):
 			if len(unrated) > 0:
 				song = unrated.pop(0)
 				unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
