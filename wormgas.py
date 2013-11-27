@@ -2126,7 +2126,7 @@ class wormgas(SingleServerIRCBot):
 
 		unavailable.sort(key=release_time_key)
 
-		faves = available.extend(unavailable)
+		faves = available + unavailable
 
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
