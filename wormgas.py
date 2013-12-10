@@ -3095,6 +3095,30 @@ class wormgas(SingleServerIRCBot):
 
 		return u''
 
+	quotes = [
+		u'Attack the evil that is within yourself, rather than attacking the evil that is in others.',
+		u'Before you embark on a journey of revenge, dig two graves.',
+		u'Better a diamond with a flaw than a pebble without.',
+		u'Everything has beauty, but not everyone sees it.',
+		u'He who knows all the answers has not been asked all the questions.',
+		u'He who learns but does not think, is lost! He who thinks but does not learn is in great danger.',
+		u'I hear and I forget. I see and I remember. I do and I understand.',
+		u'If what one has to say is not better than silence, then one should keep silent.',
+		u'If you make a mistake and do not correct it, this is called a mistake.',
+		u'Ignorance is the night of the mind but a night without moon and star.',
+		u'Music produces a kind of pleasure which human nature cannot do without.',
+		u'Only the wisest and stupidest of men never change.',
+		u'Our greatest glory is not in never falling, but in rising every time we fall.',
+		u'Respect yourself and others will respect you.',
+		u'Silence is a true friend who never betrays.',
+		u'The hardest thing of all is to find a black cat in a dark room, especially if there is no cat.',
+		u'The man who asks a question is a fool for a minute, the man who does not ask is a fool for life.',
+		u'The superior man is modest in his speech, but exceeds in his actions.',
+		u'To be wronged is nothing, unless you continue to remember it.',
+		u'To see what is right and not to do it, is want of courage or of principle.',
+		u'What you know, you know, what you don\'t know, you don\'t know. This is true wisdom.'
+	]
+
 	def _talk(self, msg=None):
 		'''Engage the brain, respond when appropriate
 
@@ -3107,13 +3131,13 @@ class wormgas(SingleServerIRCBot):
 		if msg is None:
 			msg = self.config.get(u'msg:last')
 		if msg is None:
-			return None
+			return random.choice(self.quotes)
 
 		# Ignore messages with certain words
 		if self.reignore:
 			result = self.reignore.search(msg)
 			if result is not None:
-				return None
+				return random.choice(self.quotes)
 
 		# Clean up the message before sending to the brain
 		tobrain = msg
