@@ -482,8 +482,8 @@ class wormgas(SingleServerIRCBot):
 					split_false.append(record)
 			return split_true, split_false
 
-		available, unavailable = split_list(list_of_faves, u'available')
-		blocked, not_blocked = split_list(available, u'blocked')
+		available, unavailable = _split_list(list_of_faves, u'available')
+		blocked, not_blocked = _split_list(available, u'blocked')
 
 		random.shuffle(blocked)
 		random.shuffle(not_blocked)
