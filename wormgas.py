@@ -471,6 +471,30 @@ class wormgas(SingleServerIRCBot):
 				text += u' (conflict)'
 		return elec[u'sched_id'], text
 
+	def _sort_faves(self, list_of_faves):
+		def _split_list(list_of_faves, split_on):
+			split_true = list()
+			split_false = list()
+			for record in list_of_faves:
+				if record.get(split_on):
+					split_true.append(record)
+				else:
+					split_false.append(record)
+			return split_true, split_false
+
+		available, unavailable = split_list(list_of_faves, u'available')
+		blocked, not_blocked = split_list(available, u'blocked')
+
+		random.shuffle(blocked)
+		random.shuffle(not_blocked)
+
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unavailable.sort(key=release_time_key)
+
+		return not_blocked + blocked + unavailable
+
 	@command_handler(u'^!fav(?P<argstring>.*)')
 	def handle_fav(self, nick, channel, argstring=u''):
 		'''Show a list of favourite songs for a user'''
@@ -516,26 +540,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, u'No favourite songs.')
 			return
 
-		def split_on_available(list_of_faves):
-			available = list()
-			unavailable = list()
-			for record in list_of_faves:
-				if record.get(u'available'):
-					available.append(record)
-				else:
-					unavailable.append(record)
-			return available, unavailable
-
-		available, unavailable = split_on_available(faves)
-
-		random.shuffle(available)
-
-		def release_time_key(record):
-			return record.get(u'release_time')
-
-		unavailable.sort(key=release_time_key)
-
-		faves = available + unavailable
+		faves = self._sort_faves(faves)
 
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
@@ -2130,26 +2135,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, u'No favourite songs.')
 			return
 
-		def split_on_available(list_of_faves):
-			available = list()
-			unavailable = list()
-			for record in list_of_faves:
-				if record.get(u'available'):
-					available.append(record)
-				else:
-					unavailable.append(record)
-			return available, unavailable
-
-		available, unavailable = split_on_available(faves)
-
-		random.shuffle(available)
-
-		def release_time_key(record):
-			return record.get(u'release_time')
-
-		unavailable.sort(key=release_time_key)
-
-		faves = available + unavailable
+		faves = self._sort_faves(faves)
 
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):

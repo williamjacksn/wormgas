@@ -514,16 +514,20 @@ class RainwaveDatabase(object):
 
 		faves = list()
 		sql = (
-			u'select song_id, album_id, song_available, song_releasetime from '
-			u'rw_songfavourites join rw_songs using (song_rating_id) where '
-			u'sid = %s and user_id = %s')
+			u'select song_id, album_id, song_available, song_releasetime, '
+			u'album_electionblock or coalesce(oac_electionblock, false) from '
+			u'rw_songfavourites join rw_songs using (song_rating_id) join '
+			u'rw_albums using (album_id) left join rw_song_oa_cat using '
+			u'(song_id) left join rw_oa_categories using (oac_id) where '
+			u'song_verified is true and rw_songs.sid = %s and user_id = %s')
 		self.rcur.execute(sql, (cid, user_id))
 		for r in self.rcur:
 			faves.append({
 				u'id': int(r[0]),
 				u'album_id': int(r[1]),
 				u'available': bool(r[2]),
-				u'release_time': int(r[3])
+				u'release_time': int(r[3]),
+				u'blocked': bool(r[4])
 			})
 		return faves
 
