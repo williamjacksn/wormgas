@@ -610,7 +610,7 @@ class wormgas(SingleServerIRCBot):
 		if newmaxid > int(self.config.get(u'maxid:forum', 0)):
 			r, url = self.rwdb.get_forum_post_info()
 			surl = self._shorten(url)
-			self.mb.add(channel, u'New on the forums! {} <{}>'.format(r, surl))
+			self.mb.add(channel, u'New on the forums! {} [ {} ]'.format(r, surl))
 			self.config.set(u'maxid:forum', newmaxid)
 
 	@command_handler(u'^!help(\s(?P<topic>\w+))?')
@@ -1180,7 +1180,7 @@ class wormgas(SingleServerIRCBot):
 			for r, url in songs:
 				msg = u'New on the {}: {}'.format(rchn, r)
 				if u'http' in url:
-					msg += u' <{}>'.format(self._shorten(url))
+					msg += u' [ {} ]'.format(self._shorten(url))
 				self.mb.add(channel, msg)
 			self.config.set(u'maxid:{}'.format(cid), newmaxid)
 
@@ -1228,7 +1228,7 @@ class wormgas(SingleServerIRCBot):
 			r += u'{}: {} / {} by {}'.format(rchn, album, song, artt)
 			url = np[u'song_url']
 			if url and u'http' in url:
-				r += u' <{}>'.format(self._shorten(url))
+				r += u' [ {} ]'.format(self._shorten(url))
 
 			if u'elec_votes' in np:
 				votes = np[u'elec_votes']
