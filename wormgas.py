@@ -2309,14 +2309,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, u'No unrated songs.')
 			return
 
-		def available_key(record):
-			return record.get(u'available')
-
-		def unrated_songs_in_album_key(record):
-			return record.get(u'unrated_songs_in_album')
-
-		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
-		unrated.sort(key=available_key, reverse=True)
+		unrated = self._sort_unrated(unrated)
 
 		i = 0
 		while i < limit and i < int(self.config.get(u'maxlength:unrated', 12)):
@@ -2408,6 +2401,17 @@ class wormgas(SingleServerIRCBot):
 		else:
 			log.warning(u'{} does not have privs to use !stop'.format(nick))
 
+	def _sort_unrated(self, unrated):
+		def available_key(record):
+			return record.get(u'available')
+
+		def unrated_songs_in_album_key(record):
+			return record.get(u'unrated_songs_in_album')
+
+		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
+		unrated.sort(key=available_key, reverse=True)
+		return unrated
+
 	@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
 	def handle_unrated(self, nick, channel, rchan=None, num=None):
 		'''Report unrated songs'''
@@ -2457,14 +2461,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, u'No unrated songs.')
 			return
 
-		def available_key(record):
-			return record.get(u'available')
-
-		def unrated_songs_in_album_key(record):
-			return record.get(u'unrated_songs_in_album')
-
-		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
-		unrated.sort(key=available_key, reverse=True)
+		unrated = self._sort_unrated(unrated)
 
 		i = 0
 		while i < num and i < int(self.config.get(u'maxlength:unrated', 12)):
