@@ -2402,15 +2402,29 @@ class wormgas(SingleServerIRCBot):
 			log.warning(u'{} does not have privs to use !stop'.format(nick))
 
 	def _sort_unrated(self, unrated):
-		def available_key(record):
-			return record.get(u'available')
+		def _split_list(list_of_unrated, split_on):
+			split_true = list()
+			split_false = list()
+			for record in list_of_unrated:
+				if record.get(split_on):
+					split_true.append(record)
+				else:
+					split_false.append(record)
+			return split_true, split_false
+
+		available, unavailable = _split_list(list_of_faves, u'available')
 
 		def unrated_songs_in_album_key(record):
 			return record.get(u'unrated_songs_in_album')
 
-		unrated.sort(key=unrated_songs_in_album_key, reverse=True)
-		unrated.sort(key=available_key, reverse=True)
-		return unrated
+		available.sort(key=unrated_songs_in_album_key, reverse=True)
+
+		def release_time_key(record):
+			return record.get(u'release_time')
+
+		unavailable.sort(key=release_time_key)
+
+		return available + unavailable
 
 	@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
 	def handle_unrated(self, nick, channel, rchan=None, num=None):
