@@ -2412,7 +2412,7 @@ class wormgas(SingleServerIRCBot):
 					split_false.append(record)
 			return split_true, split_false
 
-		available, unavailable = _split_list(list_of_faves, u'available')
+		available, unavailable = _split_list(unrated, u'available')
 
 		def unrated_songs_in_album_key(record):
 			return record.get(u'unrated_songs_in_album')
