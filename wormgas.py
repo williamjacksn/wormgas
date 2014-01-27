@@ -119,7 +119,7 @@ class wormgas(SingleServerIRCBot):
 		ignore = self.config.get(u'msg:ignore', u'')
 		self.reignore = None
 		if ignore:
-			self.reignore = re.compile(ignore)
+			self.reignore = re.compile(ignore, re.IGNORECASE)
 
 		server = self.config.get(u'irc:server')
 		nick = self.config.get(u'irc:nick')
