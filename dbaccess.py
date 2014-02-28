@@ -664,7 +664,7 @@ class RainwaveDatabase(object):
 		job'''
 
 		cids = []
-		sql = u'select sid from rw_commands where command_name = \'regenplaylist\' command_return = 0'
+		sql = u'select sid from rw_commands where command_name = \'regenplaylist\' and command_return = 0'
 		self.rcur.execute(sql)
 		for row in self.rcur.fetchall():
 			cids.extend(row)
