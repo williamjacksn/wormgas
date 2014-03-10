@@ -238,8 +238,8 @@ class wormgas(SingleServerIRCBot):
 		log.info(u'{} used !'.format(nick))
 		pass
 
-	@command_handler(u'^!c(ool)?d(own)? add(\s(?P<unit>\w+))?'
-		u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
+	#@command_handler(u'^!c(ool)?d(own)? add(\s(?P<unit>\w+))?'
+	#	u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
 	def handle_cooldown_add(self, nick, channel, unit=None,
 		unit_id=None, cdg_name=None):
 		'''Add a song or album to a cooldown group.'''
@@ -300,8 +300,8 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self._help(nick, topic=u'cooldown')
 
-	@command_handler(u'^!c(ool)?d(own)? drop(\s(?P<unit>\w+))?'
-		u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
+	#@command_handler(u'^!c(ool)?d(own)? drop(\s(?P<unit>\w+))?'
+	#	u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
 	def handle_cooldown_drop(self, nick, channel, unit=None,
 		unit_id=None, cdg_name=None):
 		'''Remove a song or album from a cooldown group'''
@@ -380,8 +380,8 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self._help(nick, topic=u'cooldown')
 
-	@command_handler(u'!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
-	@command_handler(u'!el(?P<rchan>\w+)?(\s(?P<index>\d))?')
+	#@command_handler(u'!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
+	#@command_handler(u'!el(?P<rchan>\w+)?(\s(?P<index>\d))?')
 	def handle_election(self, nick, channel, rchan=None, index=None):
 		'''Show the candidates in an election'''
 
@@ -495,7 +495,7 @@ class wormgas(SingleServerIRCBot):
 
 		return not_blocked + blocked + unavailable
 
-	@command_handler(u'^!fav(?P<argstring>.*)')
+	#@command_handler(u'^!fav(?P<argstring>.*)')
 	def handle_fav(self, nick, channel, argstring=u''):
 		'''Show a list of favourite songs for a user'''
 
@@ -580,7 +580,7 @@ class wormgas(SingleServerIRCBot):
 			r += u'for another {} seconds.'.format(wait)
 			self.mb.add(nick, r)
 
-	@command_handler(u'!forum')
+	#@command_handler(u'!forum')
 	def handle_forum(self, nick, channel, force=True):
 		'''Check for new forum posts, excluding forums where the anonymous user
 		has no access'''
@@ -831,8 +831,8 @@ class wormgas(SingleServerIRCBot):
 		for r in rs:
 			self.mb.add(nick, r)
 
-	@command_handler(u'!history(\s(?P<rchan>\w+))?')
-	@command_handler(u'!hs(?P<rchan>\w+)?')
+	#@command_handler(u'!history(\s(?P<rchan>\w+))?')
+	#@command_handler(u'!hs(?P<rchan>\w+)?')
 	def handle_history(self, nick, channel, rchan=None):
 		'''Show the last several songs that played on the radio'''
 
@@ -937,10 +937,10 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self._help(nick, topic=u'key')
 
-	@command_handler(u'^!lookup(\s(?P<rchan>\w+))?(\s(?P<mode>\w+))?'
-		u'(\s(?P<text>.+))?')
-	@command_handler(u'^!lu(?P<rchan>\w+)?(\s(?P<mode>\w+))?'
-		u'(\s(?P<text>.+))?')
+	#@command_handler(u'^!lookup(\s(?P<rchan>\w+))?(\s(?P<mode>\w+))?'
+	#	u'(\s(?P<text>.+))?')
+	#@command_handler(u'^!lu(?P<rchan>\w+)?(\s(?P<mode>\w+))?'
+	#	u'(\s(?P<text>.+))?')
 	def handle_lookup(self, nick, channel, rchan, mode, text):
 		'''Look up (search for) a song or album'''
 
@@ -992,7 +992,7 @@ class wormgas(SingleServerIRCBot):
 		if not self.mb.items(nick):
 			self.mb.add(nick, u'No results.')
 
-	@command_handler(u'^!lstats(\s(?P<rchan>\w+))?(\s(?P<days>\d+))?')
+	#@command_handler(u'^!lstats(\s(?P<rchan>\w+))?(\s(?P<days>\d+))?')
 	def handle_lstats(self, nick, channel, rchan=None, days=30):
 		'''Reports listener statistics, as numbers or a chart
 
@@ -1137,7 +1137,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, u'I am cooling down. You cannot use !lstats in '
 				u'{} for another {} seconds.'.format(channel, wait))
 
-	@command_handler(u'!newmusic(\s(?P<rchan>\w+))?')
+	#@command_handler(u'!newmusic(\s(?P<rchan>\w+))?')
 	def handle_newmusic(self, nick, channel, rchan=None, force=True):
 		'''Check for new music and announce up to three new songs per station'''
 
@@ -1184,8 +1184,8 @@ class wormgas(SingleServerIRCBot):
 				self.mb.add(channel, msg)
 			self.config.set(u'maxid:{}'.format(cid), newmaxid)
 
-	@command_handler(u'!nowplaying(\s(?P<rchan>\w+))?')
-	@command_handler(u'!np(?P<rchan>\w+)?')
+	#@command_handler(u'!nowplaying(\s(?P<rchan>\w+))?')
+	#@command_handler(u'!np(?P<rchan>\w+)?')
 	def handle_nowplaying(self, nick, channel, rchan=None):
 		'''Report what is currently playing on the radio'''
 
@@ -1267,7 +1267,7 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(channel, r)
 			self.config.set(u'np:{}'.format(cid), sched_id)
 
-	@command_handler(u'^!otp')
+	#@command_handler(u'^!otp')
 	def handle_otp(self, nick, channel):
 		log.info(u'{} used !otp'.format(nick))
 		if not self._is_admin(nick):
@@ -1284,7 +1284,7 @@ class wormgas(SingleServerIRCBot):
 			r = u'{} [{}] {} / {}'.format(self.rw.channel_id_to_name(o[0]), *o[1:])
 			self.mb.add(nick, r)
 
-	@command_handler(u'^!ph (addalbum|aa) (?P<album_id>\d+)')
+	#@command_handler(u'^!ph (addalbum|aa) (?P<album_id>\d+)')
 	def handle_ph_addalbum(self, nick, channel, album_id):
 		'''Add all songs from an album to this user's Power Hour planning list'''
 
@@ -1315,7 +1315,7 @@ class wormgas(SingleServerIRCBot):
 			song_id = int(song_id)
 			self._ph_addsong(nick, song_id)
 
-	@command_handler(u'^!ph (addsong|add|as) (?P<song_id>\d+)')
+	#@command_handler(u'^!ph (addsong|add|as) (?P<song_id>\d+)')
 	def handle_ph_addsong(self, nick, channel, song_id):
 		'''Add a song to this user's Power Hour planning list'''
 
@@ -1342,7 +1342,7 @@ class wormgas(SingleServerIRCBot):
 			m = u'{} added to your Power Hour planning list.'.format(m)
 		self.mb.add(nick, m)
 
-	@command_handler(u'^!ph (clear|cl)')
+	#@command_handler(u'^!ph (clear|cl)')
 	def handle_ph_clear(self, nick, channel):
 		'''Remove all songs from this user's Power Hour planning list'''
 
@@ -1363,7 +1363,7 @@ class wormgas(SingleServerIRCBot):
 		self.ph.clear(nick)
 		self.mb.add(nick, u'Your Power Hour planning list has ben cleared.')
 
-	@command_handler(u'^!ph (down|dn) (?P<song_id>\d+)')
+	#@command_handler(u'^!ph (down|dn) (?P<song_id>\d+)')
 	def handle_ph_down(self, nick, channel, song_id):
 		'''Move a song down in this user's Power Hour planning list'''
 
@@ -1389,7 +1389,7 @@ class wormgas(SingleServerIRCBot):
 
 		self.mb.add(nick, m)
 
-	@command_handler(u'^!ph go (?P<rchan>\w+)')
+	#@command_handler(u'^!ph go (?P<rchan>\w+)')
 	def handle_ph_go(self, nick, channel, rchan):
 		'''Start a Power Hour on a channel using this user's Power Hour planning
 		list'''
@@ -1435,7 +1435,7 @@ class wormgas(SingleServerIRCBot):
 		if errors == 0:
 			self._ph_clear(nick)
 
-	@command_handler(u'!ph (length|len)')
+	#@command_handler(u'!ph (length|len)')
 	def handle_ph_length(self, nick, channel):
 		'''Show number of songs and total running time of this user's Power Hour
 		planning list'''
@@ -1469,7 +1469,7 @@ class wormgas(SingleServerIRCBot):
 
 		self.mb.add(nick, m)
 
-	@command_handler(u'^!ph (list|ls)')
+	#@command_handler(u'^!ph (list|ls)')
 	def handle_ph_list(self, nick, channel):
 		'''Show all songs in this user's Power Hour planning list'''
 
@@ -1493,7 +1493,7 @@ class wormgas(SingleServerIRCBot):
 			for song_id in self.ph.items(nick):
 				self.mb.add(nick, self._get_song_info_string(song_id))
 
-	@command_handler(u'^!ph pause (?P<rchan>\w+)')
+	#@command_handler(u'^!ph pause (?P<rchan>\w+)')
 	def handle_ph_pause(self, nick, channel, rchan):
 		'''Remove scheduled one-time plays from channel and put them in this user's
 		Power Hour planning list'''
@@ -1549,7 +1549,7 @@ class wormgas(SingleServerIRCBot):
 			m = u'No One-Time Plays scheduled on the {}.'
 			self.mb.add(nick, m.format(self.rw.channel_id_to_name(cid)))
 
-	@command_handler(u'^!ph (removealbum|ra) (?P<album_id>\d+)')
+	#@command_handler(u'^!ph (removealbum|ra) (?P<album_id>\d+)')
 	def handle_ph_removealbum(self, nick, channel, album_id):
 		'''Remove all songs in an album from this user's Power Hour planning list'''
 
@@ -1580,7 +1580,7 @@ class wormgas(SingleServerIRCBot):
 			song_id = int(song_id)
 			self._ph_removesong(nick, song_id)
 
-	@command_handler(u'^!ph (remove|rm|removesong|rs) (?P<song_id>\d+)')
+	#@command_handler(u'^!ph (remove|rm|removesong|rs) (?P<song_id>\d+)')
 	def handle_ph_removesong(self, nick, channel, song_id):
 		'''Remove a song from this user's Power Hour planning list'''
 
@@ -1607,7 +1607,7 @@ class wormgas(SingleServerIRCBot):
 			m = u'{} is not in your Power Hour planning list.'.format(m)
 		self.mb.add(nick, m)
 
-	@command_handler(u'^!ph (shuffle|sh)')
+	#@command_handler(u'^!ph (shuffle|sh)')
 	def handle_ph_shuffle(self, nick, channel):
 		'''Randomize the songs in this user's Power Hour planning list'''
 
@@ -1625,7 +1625,7 @@ class wormgas(SingleServerIRCBot):
 		self.ph.shuffle(nick)
 		self._ph_list(nick)
 
-	@command_handler(u'^!ph up (?P<song_id>\d+)')
+	#@command_handler(u'^!ph up (?P<song_id>\d+)')
 	def handle_ph_up(self, nick, channel, song_id):
 		'''Move a song up in this user's Power Hour planning list'''
 
@@ -1651,8 +1651,8 @@ class wormgas(SingleServerIRCBot):
 
 		self.mb.add(nick, m)
 
-	@command_handler(u'!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
-	@command_handler(u'!pp(?P<rchan>\w+)?(\s(?P<index>\d))?')
+	#@command_handler(u'!prevplayed(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
+	#@command_handler(u'!pp(?P<rchan>\w+)?(\s(?P<index>\d))?')
 	def handle_prevplayed(self, nick, channel, rchan=None, index=0):
 		'''Report what was previously playing on the radio
 
@@ -1739,8 +1739,8 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(channel, r)
 			self.config.set(u'pp:{}:{}'.format(cid, index), sched_id)
 
-	@command_handler(u'^!rate(\s(?P<rchan>\S+))?(\s(?P<rating>\S+))?')
-	@command_handler(u'^!rt(?P<rchan>\S+)?(\s(?P<rating>\S+))?')
+	#@command_handler(u'^!rate(\s(?P<rchan>\S+))?(\s(?P<rating>\S+))?')
+	#@command_handler(u'^!rt(?P<rchan>\S+)?(\s(?P<rating>\S+))?')
 	def handle_rate(self, nick, channel, rchan=None, rating=None):
 		'''Rate the currently playing song
 
@@ -1793,7 +1793,7 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self.mb.add(nick, data[u'error'][u'text'])
 
-	@command_handler(u'^!refresh(\s(?P<rchan>\w+))?')
+	#@command_handler(u'^!refresh(\s(?P<rchan>\w+))?')
 	def handle_refresh(self, nick, channel, rchan=None):
 		'''See the status of or initiate a playlist refresh'''
 
@@ -2051,7 +2051,7 @@ class wormgas(SingleServerIRCBot):
 		r = u'RPS players: ' + u', '.join(players)
 		self.mb.add(nick, r)
 
-	@command_handler(u'^!rq (?P<song_id>\d+)')
+	#@command_handler(u'^!rq (?P<song_id>\d+)')
 	def handle_rq(self, nick, channel, song_id):
 		'''Add a song to your request queue'''
 
@@ -2084,7 +2084,7 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self.mb.add(nick, data[u'error'][u'text'])
 
-	@command_handler(u'^!rq clearstash$')
+	#@command_handler(u'^!rq clearstash$')
 	def handle_rq_clearstash(self, nick, channel):
 		'''Clear a user's request stash'''
 
@@ -2098,7 +2098,7 @@ class wormgas(SingleServerIRCBot):
 		self.rq.clear(str(api_auth[u'user_id']))
 		self.mb.add(nick, u'I cleared your request stash.')
 
-	@command_handler(u'^!rq fav(\s(?P<limit>\d+))?')
+	#@command_handler(u'^!rq fav(\s(?P<limit>\d+))?')
 	def handle_rq_fav(self, nick, channel, limit=None):
 		'''Request favourite songs up to limit'''
 
@@ -2164,7 +2164,7 @@ class wormgas(SingleServerIRCBot):
 				self.mb.add(nick, u'I ran into a problem. I will stop here.')
 				return
 
-	@command_handler(u'^!rq loadstash$')
+	#@command_handler(u'^!rq loadstash$')
 	def handle_rq_loadstash(self, nick, channel):
 		'''Load a user's request stash into his radio request queue'''
 
@@ -2213,7 +2213,7 @@ class wormgas(SingleServerIRCBot):
 				self.mb.add(nick, m)
 				return
 
-	@command_handler(u'^!rq showstash$')
+	#@command_handler(u'^!rq showstash$')
 	def handle_rq_showstash(self, nick, channel):
 		'''Show what is in a user's rq stash'''
 
@@ -2238,7 +2238,7 @@ class wormgas(SingleServerIRCBot):
 		else:
 			self.mb.add(nick, u'Your request stash is empty.')
 
-	@command_handler(u'^!rq stash$')
+	#@command_handler(u'^!rq stash$')
 	def handle_rq_stash(self, nick, channel):
 		'''Pull a user's requests from the radio and stash locally'''
 
@@ -2272,7 +2272,7 @@ class wormgas(SingleServerIRCBot):
 
 		self.mb.add(nick, m)
 
-	@command_handler(u'^!rq unrated(\s(?P<limit>\d+))?')
+	#@command_handler(u'^!rq unrated(\s(?P<limit>\d+))?')
 	def handle_rq_unrated(self, nick, channel, limit=None):
 		'''Request unrated songs up to limit'''
 
@@ -2351,7 +2351,7 @@ class wormgas(SingleServerIRCBot):
 		else:
 			log.warning(u'{} does not have privs to use !set'.format(nick))
 
-	@command_handler(u'!stats(\s(?P<rchan>\w+))?')
+	#@command_handler(u'!stats(\s(?P<rchan>\w+))?')
 	def handle_stats(self, nick, channel, rchan=None):
 		'''Report radio statistics'''
 
@@ -2426,7 +2426,7 @@ class wormgas(SingleServerIRCBot):
 
 		return available + unavailable
 
-	@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
+	#@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
 	def handle_unrated(self, nick, channel, rchan=None, num=None):
 		'''Report unrated songs'''
 
@@ -2512,7 +2512,7 @@ class wormgas(SingleServerIRCBot):
 		else:
 			log.warning(u'{} does not have privs to use !unset'.format(nick))
 
-	@command_handler(u'!ustats(\s(?P<target>.+))?')
+	#@command_handler(u'!ustats(\s(?P<target>.+))?')
 	def handle_ustats(self, nick, channel, target=None):
 		'''Report user statistics'''
 
@@ -2604,8 +2604,8 @@ class wormgas(SingleServerIRCBot):
 			r += u'{} for another {} seconds.'.format(channel, wait)
 			self.mb.add(nick, r)
 
-	@command_handler(u'!vote(\s(?P<rchan>\w+))?(\s(?P<index>\d+))?')
-	@command_handler(u'!vt(?P<rchan>\w+)?(\s(?P<index>\d+))?')
+	#@command_handler(u'!vote(\s(?P<rchan>\w+))?(\s(?P<index>\d+))?')
+	#@command_handler(u'!vt(?P<rchan>\w+)?(\s(?P<index>\d+))?')
 	def handle_vote(self, nick, channel, rchan=None, index=None):
 		'''Vote in the current election'''
 
@@ -3019,14 +3019,14 @@ class wormgas(SingleServerIRCBot):
 		tofc = int(self.config.get(u'timeout:forumcheck', 3600))
 		if int(time.time()) > ltfc + tofc:
 			log.info(u'Forum check timeout exceeded')
-			self.handle_forum(nick, chan, force=False)
+			#self.handle_forum(nick, chan, force=False)
 
 		ltmc = int(self.config.get(u'lasttime:musiccheck', 0))
 		tomc = int(self.config.get(u'timeout:musiccheck', 3600))
 		if int(time.time()) > ltmc + tomc:
 			log.info(u'Music check timeout exceeded')
-			for rchan in self.channel_ids.keys():
-				self.handle_newmusic(nick, chan, rchan=rchan, force=False)
+			#for rchan in self.channel_ids.keys():
+				#self.handle_newmusic(nick, chan, rchan=rchan, force=False)
 
 		ltm = int(self.config.get(u'lasttime:msg', 0))
 		toc = int(self.config.get(u'timeout:chat', 3600))
