@@ -4,9 +4,10 @@ dbaccess -- wrapper around Rainwave and Config DB calls for wormgas
 https://github.com/subtlecoolness/wormgas
 '''
 
+import datetime
 import logging
-import sqlite3
 import time
+import util
 
 log = logging.getLogger(u'wormgas')
 
@@ -20,7 +21,7 @@ except:
 class Config(object):
 	'''Connects to, retrieves from, and sets values in the local sqlite db.'''
 
-	default_bot_config = {
+	default_config = {
 		# A regex that prevents matching words from being learned by the brain.
 		# Special case: empty string will match no input and learn all words.
 		u'msg:ignore': u'',
@@ -49,119 +50,77 @@ class Config(object):
 		u'wait:ustats': 180
 	}
 
-	def __init__(self, path):
-		self.cdbh = sqlite3.connect(path, isolation_level=None,
-			check_same_thread=False)
-		self.ccur = self.cdbh.cursor()
+	def __init__(self, config_path, rps_path, apikeys_path):
+		self.config = util.PersistentDict(config_path)
+		self.rps = util.PersistentList(rps_path)
+		self.apikeys = util.PersistentDict(apikeys_path)
 
-		tables = {
-			u'botconfig': u'(config_id, config_value)',
-			u'known_users': u'(user_nick, user_userhost)',
-			u'rps_log': u'(timestamp, user_nick, challenge, response)',
-			u'user_keys': u'(user_nick, user_id, user_key)'
-		}
+		# Add any missing default config values.
+		for key, value in self.default_config.iteritems():
+			if self.config.get(key) is None:
+				self.config.set(key, value)
 
-		tsql = u'select name from sqlite_master where name = ?'
-
-		# Add any missing tables.
-		for t_name, t_def in tables.iteritems():
-			self.ccur.execute(tsql, (t_name,))
-			existing = self.ccur.fetchall()
-			if len(existing) < 1:
-				csql = u'create table {} {}'.format(t_name, t_def)
-				self.ccur.execute(csql)
-
-		# Add any missing default bot config values.
-		for key, value in self.default_bot_config.iteritems():
-			if self.get(key) is None:
-				self.set(key, value)
-
-	def __del__(self):
-		try:
-			self.cdbh.close()
-		except AttributeError:
-			# Never opened the db; no handle to close.
-			pass
-
-	def add_id_to_nick(self, id, nick):
-		sql = u'update user_keys set user_id = ? where user_nick = ?'
-		self.ccur.execute(sql, (id, nick))
+	def add_id_to_nick(self, _id, nick):
+		record = self.apikeys.get(nick, (None, None))
+		record[0] = _id
+		self.apikeys.set(nick, record)
 
 	def add_key_to_nick(self, key, nick):
-		sql = u'update user_keys set user_key = ? where user_nick = ?'
-		self.ccur.execute(sql, (key, nick))
+		record = self.apikeys.get(nick, (None, None))
+		record[1] = key
+		self.apikeys.set(nick, record)
 
 	def drop_id_for_nick(self, nick):
-		sql = u'update user_keys set user_id = null where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
+		record = self.apikeys.get(nick, (None, None))
+		record[0] = None
+		if all(x is None for x in record):
+			self.apikeys.remove(nick)
+		else:
+			self.apikeys.set(nick, record)
 
 	def drop_key_for_nick(self, nick):
-		sql = u'update user_keys set user_key = null where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
+		record = self.apikeys.get(nick, (None, None))
+		record[1] = None
+		if all(x is None for x in record):
+			self.apikeys.remove(nick)
+		else:
+			self.apikeys.set(nick, record)
 
-	def get(self, id, default=None):
+	def get(self, _id, default=None):
 		'''Read a value from the configuration database.
 
 		Arguments:
-			id: the config_id that you want to read
+			_id: the config_id that you want to read
 			default: the return value if the config_id does not exist
 
 		Returns: the config_value, or default if the config_id does not exist'''
 
-		config_value = default
-		sql = u'select config_value from botconfig where config_id = ?'
-		self.ccur.execute(sql, (id,))
-		for r in self.ccur:
-			config_value = r[0]
-		return config_value
+		return self.config.get(_id, default)
 
 	def get_bot_config(self):
 		'''Return a dict of all botconfig values.'''
-		results = {}
-		sql = u'select config_id, config_value from botconfig'
-		self.ccur.execute(sql)
-		for r in self.ccur:
-			results[r[0]] = r[1]
-		return results
+		return self.config.data
 
 	def get_id_for_nick(self, nick):
 		'''Return stored Rainwave ID for nick, or None if no ID is stored.'''
-		stored_id = None
-		sql = u'select user_id from user_keys where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
-		for r in self.ccur:
-			stored_id = r[0]
-		return stored_id
+		return self.apikeys.get(nick, (None, None))[0]
 
 	def get_key_for_nick(self, nick):
 		'''Return stored API key for nick, or None if no key is stored.'''
-		stored_id = None
-		sql = u'select user_key from user_keys where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
-		for r in self.ccur:
-			stored_id = r[0]
-		return stored_id
+		return self.apikeys.get(nick, (None, None))[1]
 
 	def get_rps_challenge_totals(self, nick):
 		'''Returns total times a player has challenged with each option'''
 		challenge_totals = [0, 0, 0]
-		sql = u'select challenge, response from rps_log where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
-		rows = self.ccur.fetchall()
-		for r in rows:
-			challenge_totals[int(r[0])] += 1
+		for record in self.rps.data:
+			if record[1] == nick:
+				challenge_totals[record[2]] += 1
 
 		return challenge_totals
 
 	def get_rps_players(self):
 		'''Get all players in the RPS history'''
-		players = []
-		sql = u'select distinct user_nick from rps_log order by user_nick'
-		self.ccur.execute(sql)
-		rows = self.ccur.fetchall()
-		for r in rows:
-			players.append(r[0])
-		return players
+		return sorted(set([x[1] for x in self.rps.data]))
 
 	def get_rps_record(self, nick):
 		'''Get the current RPS record for a particular nick. If nick is
@@ -173,14 +132,11 @@ class Config(object):
 		d = 0
 		l = 0
 
-		sql = u'select challenge, response from rps_log'
-		if nick != u'!global':
-			sql += u' where user_nick = ?'
-			self.ccur.execute(sql, (nick,))
+		if nick == u'!global':
+			games = [(x[2], x[3]) for x in self.rps.data]
 		else:
-			self.ccur.execute(sql)
+			games = [(x[2], x[3]) for x in self.rps.data if x[1] == nick]
 
-		games = self.ccur.fetchall()
 		for g in games:
 			c = int(g[0])
 			r = int(g[1])
@@ -193,11 +149,11 @@ class Config(object):
 
 		return w, d, l
 
-	def handle(self, id=None, value=None):
+	def handle(self, _id=None, value=None):
 		'''View or change config values.
 
 		Arguments:
-			id: the config_id you want to view or change (leave empty to show
+			_id: the config_id you want to view or change (leave empty to show
 				all available config_ids)
 			value: the value to change config_id to (leave empty to view current
 				value)
@@ -206,18 +162,13 @@ class Config(object):
 
 		rs = []
 
-		if id and value:
-			self.set(id, value)
-			rs.append(u'{} = {}'.format(id, value))
-		elif id:
-			rs.append(u'{} = {}'.format(id, self.get(id)))
+		if _id is not None and value is not None:
+			self.set(_id, value)
+			rs.append(u'{} = {}'.format(_id, value))
+		elif _id is not None:
+			rs.append(u'{} = {}'.format(_id, self.get(_id)))
 		else:
-			cids = []
-			sql = u'select distinct config_id from botconfig'
-			self.ccur.execute(sql)
-			for r in self.ccur:
-				cids.append(r[0])
-			cids.sort()
+			cids = sorted(self.config.keys())
 			mlcl = int(self.get(u'maxlength:configlist', 10))
 			while len(cids) > mlcl:
 				clist = cids[:mlcl]
@@ -229,55 +180,43 @@ class Config(object):
 
 	def log_rps(self, nick, challenge, response):
 		'''Record an RPS game in the database'''
-		sql = (u'insert into rps_log (timestamp, user_nick, challenge, '
-			u'response) values (datetime(\'now\'), ?, ?, ?)')
-		self.ccur.execute(sql, (nick, challenge, response))
+		now = str(datetime.datetime.utcnow())
+		self.rps.append([now, nick, challenge, response])
 
 	def rename_rps_player(self, old, new):
 		'''Change the nick in RPS history, useful for merging two nicks'''
-		sql = u'update rps_log set user_nick = ? where user_nick = ?'
-		self.ccur.execute(sql, (new, old))
+		new_list = list()
+		for record in self.rps.data:
+			if record[1] == old:
+				new_list.append([record[0], new, record[2], record[3]])
+			else:
+				new_list.append(record)
+		self.rps.replace(new_list)
 
 	def reset_rps_record(self, nick):
 		'''Reset the RPS record and delete game history for nick'''
-		sql = u'delete from rps_log where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
+		new_list = list()
+		for record in self.rps.data:
+			if record[1] != nick:
+				new_list.append(record)
+		self.rps.replace(new_list)
 
-	def set(self, id, value):
+	def set(self, _id, value):
 		'''Set a configuration value in the database.
 
 		Arguments:
-			id: the config_id to set
+			_id: the config_id to set
 			value: the value to set it to'''
 
-		cur_config_value = self.get(id)
-		if cur_config_value is None:
-			sql = (u'insert into botconfig (config_id, config_value) values '
-				u'(?, ?)')
-			self.ccur.execute(sql, (id, value))
-		else:
-			sql = u'update botconfig set config_value = ? where config_id = ?'
-			self.ccur.execute(sql, (value, id))
+		self.config.set(_id, value)
 
-	def store_nick(self, nick):
-		'''Store this nick in user_keys for later use.'''
-		stored_nick = None
-		sql = u'select distinct user_nick from user_keys where user_nick = ?'
-		self.ccur.execute(sql, (nick,))
-		for r in self.ccur:
-			stored_nick = r[0]
-		if not stored_nick:
-			sql = u'insert into user_keys (user_nick) values (?)'
-			self.ccur.execute(sql, (nick,))
-
-	def unset(self, id):
+	def unset(self, _id):
 		'''Unset (remove) a configuration value from the database.
 
 		Arguments:
-			id: the config_id to unset'''
+			_id: the config_id to unset'''
 
-		sql = u'delete from botconfig where config_id = ?'
-		self.ccur.execute(sql, (id,))
+		self.config.remove(_id)
 
 
 class RainwaveDatabaseUnavailableError(IOError):

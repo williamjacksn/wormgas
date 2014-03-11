@@ -90,10 +90,15 @@ class wormgas(SingleServerIRCBot):
 		u'all': 5
 	}
 
-	def __init__(self, config_db=u'config.sqlite'):
+	def __init__(self):
 		self.path, self.file = os.path.split(_abspath)
 		self.brain = Brain(self.path + u'/brain.sqlite')
-		self.config = dbaccess.Config(u'{}/{}'.format(self.path, config_db))
+
+		config_json = u'{}/config.json'.format(self.path)
+		rps_json = u'{}/rps.json'.format(self.path)
+		keys_json = u'{}/keys.json'.format(self.path)
+		self.config = dbaccess.Config(config_json, rps_json, keys_json)
+
 		self.ph = util.CollectionOfNamedLists(u'{}/ph.json'.format(self.path))
 		self.rq = util.CollectionOfNamedLists(u'{}/rq.json'.format(self.path))
 		self.mb = util.CollectionOfNamedLists(u'{}/mb.json'.format(self.path))
@@ -881,9 +886,6 @@ class wormgas(SingleServerIRCBot):
 
 		self.mb.clear(nick)
 
-		# Make sure this nick is in the user_keys table
-		self.config.store_nick(nick)
-
 		if mode == u'add' and id:
 			self.config.add_id_to_nick(id, nick)
 			r = u'I assigned the user id {} to nick \'{}\'.'.format(id, nick)
@@ -914,9 +916,6 @@ class wormgas(SingleServerIRCBot):
 		log.info(u'{} used !key'.format(nick))
 
 		self.mb.clear(nick)
-
-		# Make sure this nick is in the user_keys table
-		self.config.store_nick(nick)
 
 		if mode == u'add' and key:
 			self.config.add_key_to_nick(key, nick)

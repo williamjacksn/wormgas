@@ -6,6 +6,65 @@ import re
 import requests
 
 
+class PersistentDict(object):
+	"""A dict backed by an on-disk json file"""
+
+	def __init__(self, path):
+		self.data = dict()
+		self.path = path
+		if os.path.exists(path):
+			with open(path, u'r') as f:
+				self.data = json.load(f)
+
+	def __del__(self):
+		self._flush()
+
+	def _flush(self):
+		with open(self.path, u'w') as f:
+			json.dump(self.data, f)
+
+	def get(self, key, default=None):
+		return self.data.get(key, default)
+
+	def keys(self):
+		return self.data.keys()
+
+	def remove(self, key):
+		if key in self.data:
+			del self.data[key]
+			self._flush()
+
+	def set(self, key, value):
+		self.data[key] = value
+		self._flush()
+
+
+class PersistentList(object):
+	"""A list backed by an on-disk json file"""
+
+	def __init__(self, path):
+		self.data = list()
+		self.path = path
+		if os.path.exists(path):
+			with open(path, u'r') as f:
+				self.data = json.load(f)
+
+	def __del__(self):
+		self._flush()
+
+	def _flush(self):
+		with open(self.path, u'w') as f:
+			json.dump(self.data, f)
+
+	def append(self, value):
+		self.data.append(value)
+		self._flush()
+
+	def replace(self, new_list):
+		self.data = new_list
+		self._flush()
+
+
 class CollectionOfNamedLists:
 	"""A collection of lists, each list has a name, optional persistence"""
 
