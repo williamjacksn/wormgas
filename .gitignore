@@ -2,6 +2,6 @@
 *.log
 *.pyc
 *.sqlite*
-*.sublime-workspace
+*.sublime*
 .DS_Store
 .venv
