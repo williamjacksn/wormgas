@@ -2770,7 +2770,7 @@ class wormgas(SingleServerIRCBot):
 		tokens = msg.split()
 		if len(tokens) == 0:
 			return
-		cmd = tokens[0]
+		cmd = tokens[0].lower()
 		if cmd == u'!load':
 			command_handled = True
 			if self._is_admin(nick):
@@ -2861,7 +2861,7 @@ class wormgas(SingleServerIRCBot):
 		tokens = msg.split()
 		if len(tokens) == 0:
 			return
-		cmd = tokens[0]
+		cmd = tokens[0].lower()
 		if cmd == u'!load':
 			command_handled = True
 			if self._is_admin(nick):
