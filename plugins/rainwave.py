@@ -102,7 +102,7 @@ class NowPlayingHandler(object):
         public = list()
         private = list()
 
-        cmd = tokens[0]
+        cmd = tokens[0].lower()
 
         listener_id = get_id_for_nick(sender, config)
         chan_id = None
