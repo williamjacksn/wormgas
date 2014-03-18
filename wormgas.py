@@ -13,6 +13,8 @@ _h.setFormatter(_f)
 log.addHandler(_h)
 log.setLevel(logging.DEBUG)
 
+import importlib
+import inspect
 import json
 import math
 import os
@@ -32,6 +34,8 @@ from cobe.brain import Brain
 
 _abspath = os.path.abspath(__file__)
 _commands = set()
+_plug_commands = dict()
+_plug_commands_admin = dict()
 
 PRIVMSG = u'__privmsg__'
 
@@ -92,12 +96,18 @@ class wormgas(SingleServerIRCBot):
 
 	def __init__(self):
 		self.path, self.file = os.path.split(_abspath)
-		self.brain = Brain(self.path + u'/brain.sqlite')
+		self.brain = Brain(u'{}/brain.sqlite'.format(self.path))
 
 		config_json = u'{}/config.json'.format(self.path)
 		rps_json = u'{}/rps.json'.format(self.path)
 		keys_json = u'{}/keys.json'.format(self.path)
 		self.config = dbaccess.Config(config_json, rps_json, keys_json)
+
+		# Load plugins
+		for plug_name in self.config.get(u'plugins', list())[:]:
+			public, private = self.handle_load([u'!load', plug_name])
+			for m in private:
+				log.info(m)
 
 		self.ph = util.CollectionOfNamedLists(u'{}/ph.json'.format(self.path))
 		self.rq = util.CollectionOfNamedLists(u'{}/rq.json'.format(self.path))
@@ -559,32 +569,6 @@ class wormgas(SingleServerIRCBot):
 			self.mb.add(nick, self._get_song_info_string(song_id))
 			i += 1
 
-	@command_handler(u'!flip')
-	def handle_flip(self, nick, channel):
-		'''Simulate a coin flip'''
-
-		log.info(u'{} used !flip'.format(nick))
-
-		self.mb.clear(nick)
-
-		answers = (u'Heads!', u'Tails!')
-		result = random.choice(answers)
-		if channel == PRIVMSG:
-			self.mb.add(nick, result)
-			return
-
-		ltf = int(self.config.get(u'lasttime:flip', 0))
-		wf = int(self.config.get(u'wait:flip', 0))
-		if ltf < time.time() - wf:
-			self.mb.add(channel, result)
-			self.config.set(u'lasttime:flip', time.time())
-		else:
-			self.mb.add(nick, result)
-			wait = ltf + wf - int(time.time())
-			r = u'I am cooling down. You cannot use !flip in {} '.format(channel)
-			r += u'for another {} seconds.'.format(wait)
-			self.mb.add(nick, r)
-
 	#@command_handler(u'!forum')
 	def handle_forum(self, nick, channel, force=True):
 		'''Check for new forum posts, excluding forums where the anonymous user
@@ -935,6 +919,75 @@ class wormgas(SingleServerIRCBot):
 				self.mb.add(nick, r)
 		else:
 			self._help(nick, topic=u'key')
+
+	def handle_load(self, tokens):
+		public = list()
+		private = list()
+
+		if len(tokens) < 2:
+			private.append(u'Please specify a plugin to load.')
+			return public, private
+
+		plug_name = tokens[1]
+		module_name = u'plugins.{}'.format(plug_name)
+		if module_name in sys.modules:
+			module = reload(sys.modules[module_name])
+		else:
+			try:
+				module = importlib.import_module(module_name)
+			except ImportError:
+				err = u'Error while loading plugin: {}.'.format(plug_name)
+				log.exception(err)
+				private.append(err)
+				return public, private
+
+		plugins = set(self.config.get(u'plugins', list()))
+		plugins.add(plug_name)
+		self.config.set(u'plugins', list(plugins))
+		for plug_handler in inspect.getmembers(module, inspect.isclass):
+			cls = plug_handler[1]
+			cmd_dict = _plug_commands
+			if cls.admin:
+				cmd_dict = _plug_commands_admin
+			for cmd in cls.cmds:
+				cmd_dict[cmd] = cls.handle
+				private.append(u'Loaded a command: {}.'.format(cmd))
+
+		return public, private
+
+	def handle_unload(self, tokens):
+		public = list()
+		private = list()
+
+		if len(tokens) < 2:
+			private.append(u'Please specify a plugin to load.')
+			return public, private
+
+		plug_name = tokens[1]
+		module_name = u'plugins.{}'.format(plug_name)
+
+		plugins = set(self.config.get(u'plugins', list()))
+		if plug_name in plugins:
+			plugins.remove(plug_name)
+			self.config.set(u'plugins', list(plugins))
+
+		if module_name in sys.modules:
+			module = sys.modules.get(module_name)
+			for plug_handler in inspect.getmembers(module, inspect.isclass):
+				cls = plug_handler[1]
+				cmd_dict = _plug_commands
+				if cls.admin:
+					cmd_dict = _plug_commands_admin
+				for cmd in cls.cmds:
+					if cmd in cmd_dict:
+						del cmd_dict[cmd]
+						private.append(u'Unloaded a command: {}'.format(cmd))
+					else:
+						private.append(u'Command not found: {}'.format(cmd))
+		else:
+			private.append(u'Plugin not loaded: {}'.format(plug_name))
+
+		return public, private
 
 	#@command_handler(u'^!lookup(\s(?P<rchan>\w+))?(\s(?P<mode>\w+))?'
 	#	u'(\s(?P<text>.+))?')
@@ -2707,11 +2760,60 @@ class wormgas(SingleServerIRCBot):
 			e: the Event object'''
 
 		nick = e.source.nick
+		me = e.target
 		msg = e.arguments[0].strip()
 		chan = self.config.get(u'irc:channel')
 
-		# Try all the command handlers
 		command_handled = False
+
+		# Core commands
+		tokens = msg.split()
+		if len(tokens) == 0:
+			return
+		cmd = tokens[0]
+		if cmd == u'!load':
+			command_handled = True
+			if self._is_admin(nick):
+				public, private = self.handle_load(tokens)
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+			else:
+				self.mb.add(nick, u'You are not an admin.')
+
+		if cmd == u'!unload':
+			command_handled = True
+			if self._is_admin(nick):
+				public, private = self.handle_unload(tokens)
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+			else:
+				self.mb.add(nick, u'You are not an admin.')
+
+		# Try admin commands from plugins
+		if not command_handled:
+			if self._is_admin(nick) and cmd in _plug_commands_admin:
+				command_handled = True
+				handler = _plug_commands_admin.get(cmd)
+				try:
+					public, private = handler(nick, me, tokens, self.config)
+				except:
+					log.exception(u'Exception in {}'.format(cmd))
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+
+		# Try normal commands from plugins
+		if not command_handled:
+			if cmd in _plug_commands:
+				command_handled = True
+				handler = _plug_commands.get(cmd)
+				try:
+					public, private = handler(nick, me, tokens, self.config)
+					self.mb.set(chan, public)
+					self.mb.set(nick, private)
+				except:
+					log.exception(u'Exception in {}'.format(cmd))
+
+		# Try all the decorated command handlers
 		for command in _commands:
 			if command(self, nick, msg, PRIVMSG):
 				command_handled = True
@@ -2753,12 +2855,61 @@ class wormgas(SingleServerIRCBot):
 		msg = e.arguments[0].strip()
 		chan = e.target
 
-		# Try all the command handlers
 		command_handled = False
-		for command in _commands:
-			if command(self, nick, msg, chan):
+
+		# Core commands
+		tokens = msg.split()
+		if len(tokens) == 0:
+			return
+		cmd = tokens[0]
+		if cmd == u'!load':
+			command_handled = True
+			if self._is_admin(nick):
+				public, private = self.handle_load(tokens)
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+			else:
+				self.mb.add(nick, u'You are not an admin.')
+
+		if cmd == u'!unload':
+			command_handled = True
+			if self._is_admin(nick):
+				public, private = self.handle_unload(tokens)
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+			else:
+				self.mb.add(nick, u'You are not an admin.')
+
+		# Try admin commands from plugins
+		if not command_handled:
+			if self._is_admin(nick) and cmd in _plug_commands_admin:
 				command_handled = True
-				break
+				handler = _plug_commands_admin.get(cmd)
+				try:
+					public, private = handler(nick, chan, tokens, self.config)
+				except:
+					log.exception(u'Exception in {}'.format(cmd))
+				self.mb.set(chan, public)
+				self.mb.set(nick, private)
+
+		# Try normal commands from plugins
+		if not command_handled:
+			if cmd in _plug_commands:
+				command_handled = True
+				handler = _plug_commands.get(cmd)
+				try:
+					public, private = handler(nick, chan, tokens, self.config)
+					self.mb.set(chan, public)
+					self.mb.set(nick, private)
+				except:
+					log.exception(u'Exception in {}'.format(cmd))
+
+		# Try all the decorated command handlers
+		if not command_handled:
+			for command in _commands:
+				if command(self, nick, msg, chan):
+					command_handled = True
+					break
 
 		# If there are no responses from the commands, look for URLs
 		title_found = False
