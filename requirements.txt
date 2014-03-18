@@ -1,0 +1,4 @@
+irc
+requests
+supervisor
+stemming
