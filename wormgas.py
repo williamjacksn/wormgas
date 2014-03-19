@@ -2968,29 +2968,6 @@ class wormgas(SingleServerIRCBot):
 			for r in rs:
 				self._to_irc(c, u'privmsg', nick, r)
 
-	def on_topic(self, c, e):
-		'''This method is called when the topic is set
-
-		Arguments:
-			c: the Connection object associated with this event
-			e: the Event object'''
-
-		nick = e.source.nick
-		new_topic = e.arguments[0]
-		m = u'{} changed the topic to: {}'.format(nick, new_topic)
-
-		nicks_to_match = self.config.get(u'funnytopic:nicks', u'').split()
-		if nick in nicks_to_match:
-			forum_id = self.config.get(u'funnytopic:forum_id')
-			if forum_id is None:
-				log.warning(u'Please !set funnytopic:forum_id')
-				return
-			topic_id = self.config.get(u'funnytopic:topic_id')
-			if topic_id is None:
-				log.warning(u'Please !set funnytopic:topic_id')
-				return
-			self._post_to_forum(forum_id, topic_id, m)
-
 	def on_welcome(self, c, e):
 		'''This method is called when the bot first connects to the server
 
