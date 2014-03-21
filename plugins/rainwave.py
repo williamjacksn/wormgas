@@ -109,7 +109,7 @@ class NowPlayingHandler(object):
 
         if cmd in [u'!nowplaying', u'!np']:
             if len(tokens) > 1:
-                chan_id = chan_code_to_id.get(tokens[1])
+                chan_id = chan_code_to_id.get(tokens[1].lower())
             if chan_id is None:
                 chan_id = get_current_channel_for_id(listener_id, config)
             if chan_id is None:
