@@ -114,7 +114,7 @@ class Config(object):
 		challenge_totals = [0, 0, 0]
 		for record in self.rps.data:
 			if record[1] == nick:
-				challenge_totals[record[2]] += 1
+				challenge_totals[int(record[2])] += 1
 
 		return challenge_totals
 
