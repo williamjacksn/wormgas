@@ -104,19 +104,7 @@ class NowPlayingHandler(object):
 
         cmd = tokens[0].lower()
 
-        listener_id = get_id_for_nick(sender, config)
         chan_id = None
-
-        if cmd in [u'!nowplaying', u'!np']:
-            if len(tokens) > 1:
-                chan_id = chan_code_to_id.get(tokens[1].lower())
-            if chan_id is None:
-                chan_id = get_current_channel_for_id(listener_id, config)
-            if chan_id is None:
-                m = u'You are not tuned in and you did not specify a channel'
-                m = u'{} code.'.format(m)
-                private.append(m)
-                return public, private
 
         if cmd in [u'!npgame', u'!nprw']:
             chan_id = 1
@@ -132,6 +120,18 @@ class NowPlayingHandler(object):
 
         if cmd in [u'!npall', u'!npomni', u'!npow']:
             chan_id = 5
+
+        if cmd in [u'!nowplaying', u'!np']:
+            if len(tokens) > 1:
+                chan_id = chan_code_to_id.get(tokens[1].lower())
+            if chan_id is None:
+                listener_id = get_id_for_nick(sender, config)
+                chan_id = get_current_channel_for_id(listener_id, config)
+            if chan_id is None:
+                m = u'You are not tuned in and you did not specify a valid'
+                m = u'{} channel code.'.format(m)
+                private.append(m)
+                return public, private
 
         m = u'Now playing on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
