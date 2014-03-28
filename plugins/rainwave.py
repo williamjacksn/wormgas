@@ -149,7 +149,6 @@ class NowPlayingHandler(object):
 
 
 class PrevPlayedHandler(object):
-    #TODO: Add the handler to the runtime engine.
     cmds = [u'!prevplayed', u'!pp', u'!ppall', u'!ppbw', u'!ppch', u'!ppchip',
         u'!ppcover', u'!ppcovers', u'!ppgame', u'!ppmw', u'!ppoc', u'!ppocr',
         u'!ppomni', u'!ppow', u'!pprw', u'!ppvw']
@@ -162,19 +161,7 @@ class PrevPlayedHandler(object):
 
         cmd = tokens[0].lower()
 
-        listener_id = get_id_for_nick(sender, config)
         chan_id = None
-
-        if cmd in [u'!prevplayed', u'!pp']:
-            if len(tokens) > 1:
-                chan_id = chan_code_to_id.get(tokens[1].lower())
-            if chan_id is None:
-                chan_id = get_current_channel_for_id(listener_id, config)
-            if chan_id is None:
-                m = u'You are not tuned in and you did not specify a channel'
-                m = u'{} code.'.format(m)
-                private.append(m)
-                return public, private
 
         if cmd in [u'!ppgame', u'!pprw']:
             chan_id = 1
@@ -191,9 +178,21 @@ class PrevPlayedHandler(object):
         if cmd in [u'!ppall', u'!ppomni', u'!ppow']:
             chan_id = 5
 
-        m = u'Previously played on the {}:'.format(chan_id_to_name[int(chan_id)])
+        if cmd in [u'!prevplayed', u'!pp']:
+            if len(tokens) > 1:
+                chan_id = chan_code_to_id.get(tokens[1].lower())
+            if chan_id is None:
+                listener_id = get_id_for_nick(sender, config)
+                chan_id = get_current_channel_for_id(listener_id, config)
+            if chan_id is None:
+                m = u'You are not tuned in and you did not specify a channel'
+                m = u'{} code.'.format(m)
+                private.append(m)
+                return public, private
+
+        m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
-        # This line needs to get the song previously played. song = d.get(u'sched_current').get(u'songs')[0]
+        song = d.get(u'sched_history')[0].get(u'songs')[0]
         m = u'{} {} //'.format(m, song.get(u'albums')[0].get(u'name'))
         m = u'{} {} //'.format(m, song.get(u'title'))
         m = u'{} {}'.format(m, song.get(u'artist_tag'))
