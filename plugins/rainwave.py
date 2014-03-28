@@ -161,6 +161,17 @@ class PrevPlayedHandler(object):
 
         cmd = tokens[0].lower()
 
+		amt = 1
+		if tokens.len > 1
+			amt = int(tokens[1])
+			if amt < 1:
+			#if it doesn't parse, just ignore it
+				amt = 1
+			if amt > 5: 
+				#wormy should say "I can't count that high... yet!"
+				amt = 5
+		
+		amt = amt - 1
         chan_id = None
 
         if cmd in [u'!ppgame', u'!pprw']:
@@ -190,9 +201,9 @@ class PrevPlayedHandler(object):
                 private.append(m)
                 return public, private
 
-        m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
+        m = u'{m}{} song(s) previously on the {}:'.format(string(amt + 1),chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
-        song = d.get(u'sched_history')[0].get(u'songs')[0]
+        song = d.get(u'sched_history')[amt].get(u'songs')[0]
         m = u'{} {} //'.format(m, song.get(u'albums')[0].get(u'name'))
         m = u'{} {} //'.format(m, song.get(u'title'))
         m = u'{} {}'.format(m, song.get(u'artist_tag'))
