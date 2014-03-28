@@ -1,3 +1,4 @@
+httpie
 irc
 requests
 supervisor
