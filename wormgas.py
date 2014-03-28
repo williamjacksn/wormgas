@@ -3029,7 +3029,11 @@ class wormgas(SingleServerIRCBot):
 
 		urls = []
 		for token in text.split():
-			o = urlparse(token)
+			try:
+				o = urlparse(token)
+			except ValueError:
+				log.exception(u'Trouble looking for URLs.')
+				return urls
 			if u'http' in o.scheme and o.netloc:
 				url = o.geturl()
 				log.info(u'Found a URL: {}'.format(url))
