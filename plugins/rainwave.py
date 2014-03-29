@@ -141,6 +141,29 @@ class NowPlayingHandler(object):
         m = u'{} {} //'.format(m, song.get(u'title'))
         m = u'{} {}'.format(m, song.get(u'artist_tag'))
 
+        url = song.get(u'url')
+        if url is not None:
+            m = u'{} [ {} ]'.format(m, url)
+
+        vote_count = song.get(u'vote_count')
+        m = u'{} ({} vote'.format(m, vote_count)
+        if int(vote_count) != 1:
+            m = u'{}s'.format(m)
+
+        rating_count = song.get(u'rating_count')
+        m = u'{}, {} rating'.format(m, rating_count)
+        if int(rating_count) != 1:
+            m = u'{}s'.format(m)
+
+        rating = song.get(u'rating')
+        m = u'{}, rated {}'.format(m, rating)
+
+        elec_request_username = song.get(u'elec_request_username')
+        if elec_request_username is not None:
+            m = u'{}, requested by {}'.format(m, elec_request_username)
+
+        m = u'{})'.format(m)
+
         if is_irc_channel(target):
             if sched_id == config.get(u'np:{}'.format(chan_id), 0):
                 c = u'You can only use {} in {} once per'.format(cmd, target)
