@@ -135,13 +135,21 @@ class NowPlayingHandler(object):
 
         m = u'Now playing on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
+        sched_id = int(d.get(u'sched_current').get(u'id'))
         song = d.get(u'sched_current').get(u'songs')[0]
         m = u'{} {} //'.format(m, song.get(u'albums')[0].get(u'name'))
         m = u'{} {} //'.format(m, song.get(u'title'))
         m = u'{} {}'.format(m, song.get(u'artist_tag'))
 
         if is_irc_channel(target):
-            public.append(m)
+            if sched_id == config.get(u'np:{}'.format(chan_id), 0):
+                c = u'You can only use {} in {} once per'.format(cmd, target)
+                c = u'{} song.'.format(c)
+                private.append(c)
+                private.append(m)
+            else:
+                config.set(u'np:{}'.format(chan_id), sched_id)
+                public.append(m)
         else:
             private.append(m)
 
