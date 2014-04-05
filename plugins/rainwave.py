@@ -90,6 +90,33 @@ def rw_user_search(user_id, key, username):
 def is_irc_channel(s):
     return s and s[0] == u'#'
 
+def build_song_info_string(song):
+    m = u'{} //'.format(song.get(u'albums')[0].get(u'name'))
+    m = u'{} {} // {}'.format(m, song.get(u'title'), song.get(u'artist_tag'))
+
+    url = song.get(u'url')
+    if url is not None:
+        m = u'{} [ {} ]'.format(m, url)
+
+    vote_count = song.get(u'vote_count')
+    m = u'{} ({} vote'.format(m, vote_count)
+    if int(vote_count) != 1:
+        m = u'{}s'.format(m)
+
+    rating_count = song.get(u'rating_count')
+    m = u'{}, {} rating'.format(m, rating_count)
+    if int(rating_count) != 1:
+        m = u'{}s'.format(m)
+
+    m = u'{}, rated {}'.format(m, song.get(u'rating'))
+
+    elec_request_username = song.get(u'elec_request_username')
+    if elec_request_username is not None:
+        m = u'{}, requested by {}'.format(m, elec_request_username)
+
+    m = u'{})'.format(m)
+
+    return m
 
 class NowPlayingHandler(object):
     cmds = [u'!nowplaying', u'!np', u'!npall', u'!npbw', u'!npch', u'!npchip',
@@ -137,32 +164,7 @@ class NowPlayingHandler(object):
         d = rw_info(chan_id)
         sched_id = int(d.get(u'sched_current').get(u'id'))
         song = d.get(u'sched_current').get(u'songs')[0]
-        m = u'{} {} //'.format(m, song.get(u'albums')[0].get(u'name'))
-        m = u'{} {} //'.format(m, song.get(u'title'))
-        m = u'{} {}'.format(m, song.get(u'artist_tag'))
-
-        url = song.get(u'url')
-        if url is not None:
-            m = u'{} [ {} ]'.format(m, url)
-
-        vote_count = song.get(u'vote_count')
-        m = u'{} ({} vote'.format(m, vote_count)
-        if int(vote_count) != 1:
-            m = u'{}s'.format(m)
-
-        rating_count = song.get(u'rating_count')
-        m = u'{}, {} rating'.format(m, rating_count)
-        if int(rating_count) != 1:
-            m = u'{}s'.format(m)
-
-        rating = song.get(u'rating')
-        m = u'{}, rated {}'.format(m, rating)
-
-        elec_request_username = song.get(u'elec_request_username')
-        if elec_request_username is not None:
-            m = u'{}, requested by {}'.format(m, elec_request_username)
-
-        m = u'{})'.format(m)
+        m = u'{} {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
             if sched_id == config.get(u'np:{}'.format(chan_id), 0):
@@ -224,9 +226,7 @@ class PrevPlayedHandler(object):
         m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
         song = d.get(u'sched_history')[0].get(u'songs')[0]
-        m = u'{} {} //'.format(m, song.get(u'albums')[0].get(u'name'))
-        m = u'{} {} //'.format(m, song.get(u'title'))
-        m = u'{} {}'.format(m, song.get(u'artist_tag'))
+        m = u'{} {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
             public.append(m)
