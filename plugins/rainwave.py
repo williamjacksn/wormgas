@@ -195,6 +195,7 @@ class PrevPlayedHandler(object):
         cmd = tokens[0].lower()
 
         chan_id = None
+        index = 0
 
         if cmd in [u'!ppgame', u'!pprw']:
             chan_id = 1
@@ -211,11 +212,27 @@ class PrevPlayedHandler(object):
         if cmd in [u'!ppall', u'!ppomni', u'!ppow']:
             chan_id = 5
 
+        if chan_id in range(1, 6) and len(tokens) > 1 and tokens[1].isdigit():
+            if int(tokens[1]) in range(5):
+                index = int(tokens[1])
+
         if cmd in [u'!prevplayed', u'!pp']:
             if len(tokens) > 1:
-                chan_id = chan_code_to_id.get(tokens[1].lower())
+                if tokens[1].isdigit() and int(tokens[1]) in range(5):
+                    index = int(tokens[1])
+                else:
+                    chan_id = chan_code_to_id.get(tokens[1].lower())
+                    if len(tokens) > 2 and int(tokens[2]) in range(5):
+                        index = int(tokens[2])
             if chan_id is None:
                 listener_id = get_id_for_nick(sender, config)
+                if listener_id is None:
+                    m = u'I do not recognize you. If your nick does not match'
+                    m = u'{} your Rainwave username, use \x02!id\x02'.format(m)
+                    m = u'{} to link your Rainwave account to your'.format(m)
+                    m = u'{} nick.'.format(m)
+                    private.append(m)
+                    return public, private
                 chan_id = get_current_channel_for_id(listener_id, config)
             if chan_id is None:
                 m = u'You are not tuned in and you did not specify a channel'
@@ -225,18 +242,18 @@ class PrevPlayedHandler(object):
 
         m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
-        sched_id = int(d.get(u'sched_history')[0].get(u'id'))
-        song = d.get(u'sched_history')[0].get(u'songs')[0]
+        sched_id = int(d.get(u'sched_history')[index].get(u'id'))
+        song = d.get(u'sched_history')[index].get(u'songs')[0]
         m = u'{} {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
-            if sched_id == config.get(u'pp:{}:0'.format(chan_id), 0):
+            if sched_id == config.get(u'pp:{}:{}'.format(chan_id, index), 0):
                 c = u'You can only use {} in {} once per'.format(cmd, target)
                 c = u'{} song.'.format(c)
                 private.append(c)
                 private.append(m)
             else:
-                config.set(u'pp:{}:0'.format(chan_id), sched_id)
+                config.set(u'pp:{}:{}'.format(chan_id, index), sched_id)
                 public.append(m)
         else:
             private.append(m)
