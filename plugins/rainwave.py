@@ -225,11 +225,19 @@ class PrevPlayedHandler(object):
 
         m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
+        sched_id = int(d.get(u'sched_history')[0].get(u'id'))
         song = d.get(u'sched_history')[0].get(u'songs')[0]
         m = u'{} {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
-            public.append(m)
+            if sched_id == config.get(u'pp:{}:0'.format(chan_id), 0):
+                c = u'You can only use {} in {} once per'.format(cmd, target)
+                c = u'{} song.'.format(c)
+                private.append(c)
+                private.append(m)
+            else:
+                config.set(u'pp:{}:0'.format(chan_id), sched_id)
+                public.append(m)
         else:
             private.append(m)
 
