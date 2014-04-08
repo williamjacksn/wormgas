@@ -26,7 +26,24 @@ chan_id_to_name = [
     u'All channel'
 ]
 
+NICK_NOT_RECOGNIZED = (u'I do not recognize you. If your nick does not match '
+    u'your Rainwave username, use \x02!id\x02 to link your Rainwave account '
+    u'to your nick.')
+
+MISSING_KEY = (u'I do not have a key stored for you. Visit '
+    u'http://rainwave.cc/keys/ to get a key and tell me about it with '
+    u'\x02!key add <key>\x02.')
+
+def get_api_auth_for_nick(nick, config):
+    auth = dict()
+    auth[u'user_id'] = get_id_for_nick(nick, config)
+    auth[u'key'] = config.get_key_for_nick(nick)
+    auth[u'chan_id'] = get_current_channel_for_id(auth.get(u'user_id'), config)
+    return auth
+
 def get_current_channel_for_id(listener_id, config):
+    if listener_id is None:
+        return None
     user_id = config.get(u'rw:user_id')
     key = config.get(u'rw:key')
     for chan_id in range(1, 6):
@@ -78,6 +95,24 @@ def rw_listener(user_id, key, listener_id):
         u'id': listener_id
     }
     return _call(u'listener', params=params)
+
+def rw_request(user_id, key, sid, song_id):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid,
+        u'song_id': song_id
+    }
+    return _call(u'request', params=params)
+
+def rw_song(user_id, key, sid, song_id):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid,
+        u'id': song_id
+    }
+    return _call(u'song', params=params)
 
 def rw_user_search(user_id, key, username):
     params = {
@@ -227,11 +262,7 @@ class PrevPlayedHandler(object):
             if chan_id is None:
                 listener_id = get_id_for_nick(sender, config)
                 if listener_id is None:
-                    m = u'I do not recognize you. If your nick does not match'
-                    m = u'{} your Rainwave username, use \x02!id\x02'.format(m)
-                    m = u'{} to link your Rainwave account to your'.format(m)
-                    m = u'{} nick.'.format(m)
-                    private.append(m)
+                    private.append(NICK_NOT_RECOGNIZED)
                     return public, private
                 chan_id = get_current_channel_for_id(listener_id, config)
             if chan_id is None:
@@ -257,5 +288,45 @@ class PrevPlayedHandler(object):
                 public.append(m)
         else:
             private.append(m)
+
+        return public, private
+
+
+class RequestHandler(object):
+    cmds = [u'!rq']
+    admin = False
+
+    @classmethod
+    def handle(cls, sender, target, tokens, config):
+        public = list()
+        private = list()
+
+        cmd = tokens[0].lower()
+
+        if len(tokens) < 2:
+            private.append(u'You didn\'t specify an argument.')
+            return public, private
+
+        auth = get_api_auth_for_nick(sender, config)
+        if auth.get(u'user_id') is None:
+            private.append(NICK_NOT_RECOGNIZED)
+            return public, private
+        if auth.get(u'key') is None:
+            private.append(MISSING_KEY)
+            return public, private
+        if auth.get(u'chan_id') is None:
+            private.append(u'You must be tuned in to request.')
+            return public, private
+
+        if tokens[1].isdigit():
+            song_id = int(tokens[1])
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            d = rw_song(user_id, key, auth.get(u'chan_id'), song_id)
+            song = d.get(u'song')
+            song_str = build_song_info_string(song)
+            private.append(u'Attempting request: {}'.format(song_str))
+            d = rw_request(user_id, key, auth.get(u'chan_id'), song_id)
+            private.append(d.get(u'request_result').get(u'text'))
 
         return public, private
