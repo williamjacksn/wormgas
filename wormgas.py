@@ -1932,39 +1932,6 @@ class wormgas(SingleServerIRCBot):
 		r = u'RPS players: ' + u', '.join(players)
 		self.mb.add(nick, r)
 
-	#@command_handler(u'^!rq (?P<song_id>\d+)')
-	def handle_rq(self, nick, channel, song_id):
-		'''Add a song to your request queue'''
-
-		log.info(u'{} used !rq'.format(nick))
-
-		self.mb.clear(nick)
-
-		# detect radio channel, return if not tuned in
-		radio_channel_id = self._get_current_channel_for_nick(nick)
-		if radio_channel_id is None:
-			self.mb.add(nick, u'You must be tuned in to request.')
-			return
-		radio_channel_id = int(radio_channel_id)
-
-		api_auth = self._get_api_auth_for_nick(nick)
-		if u'user_id' not in api_auth:
-			self.mb.add(nick, self.missing_user_id)
-			return
-		if u'key' not in api_auth:
-			self.mb.add(nick, self.missing_key)
-			return
-
-		song_id = int(song_id)
-		song_info = self._get_song_info_string(song_id)
-		self.mb.add(nick, u'Attempting request: {}'.format(song_info))
-
-		data = self.rw.request(radio_channel_id, song_id, **api_auth)
-		if u'request_result' in data:
-			self.mb.add(nick, data[u'request_result'][u'text'])
-		else:
-			self.mb.add(nick, data[u'error'][u'text'])
-
 	#@command_handler(u'^!rq clearstash$')
 	def handle_rq_clearstash(self, nick, channel):
 		'''Clear a user's request stash'''
