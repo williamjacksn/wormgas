@@ -66,7 +66,7 @@ class Config(object):
 		self.apikeys.set(nick, record)
 
 	def add_key_to_nick(self, key, nick):
-		record = self.apikeys.get(nick, (None, None))
+		record = self.apikeys.get(nick, [None, None])
 		record[1] = key
 		self.apikeys.set(nick, record)
 
