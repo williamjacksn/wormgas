@@ -133,7 +133,7 @@ def build_song_info_string(song):
     if url is not None:
         m = u'{} [ {} ]'.format(m, url)
 
-    vote_count = song.get(u'vote_count')
+    vote_count = song.get(u'entry_votes')
     m = u'{} ({} vote'.format(m, vote_count)
     if int(vote_count) != 1:
         m = u'{}s'.format(m)
