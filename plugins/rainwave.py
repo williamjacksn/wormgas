@@ -105,6 +105,14 @@ def rw_request(user_id, key, sid, song_id):
     }
     return _call(u'request', params=params)
 
+def rw_request_unrated_songs(user_id, key, sid):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid
+    }
+    return _call(u'request_unrated_songs', params=params)
+
 def rw_song(user_id, key, sid, song_id):
     params = {
         u'user_id': user_id,
@@ -328,5 +336,12 @@ class RequestHandler(object):
             private.append(u'Attempting request: {}'.format(song_str))
             d = rw_request(user_id, key, auth.get(u'chan_id'), song_id)
             private.append(d.get(u'request_result').get(u'text'))
+
+        elif tokens[1] == u'unrated':
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            chan_id = auth.get(u'chan_id')
+            d = rw_request_unrated_songs(user_id, key, chan_id)
+            private.append(d.get(u'request_unrated_songs_result').get(u'text'))
 
         return public, private
