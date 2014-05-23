@@ -178,6 +178,8 @@ class TitleFetcher(object):
 	'''Get the contents of the <title> tag in HTML pages'''
 
 	def get_title(self, url):
+		if url.endswith(u'.ogg'):
+			raise TitleFetcherError(u'OGG? Ain\'t nobody got time for that!')
 		try:
 			data = requests.get(url, stream=True)
 		except:
