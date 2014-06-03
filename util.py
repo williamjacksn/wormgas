@@ -181,7 +181,7 @@ class TitleFetcher(object):
 		if url.endswith(u'.ogg'):
 			raise TitleFetcherError(u'OGG? Ain\'t nobody got time for that!')
 		try:
-			data = requests.get(url, stream=True)
+			data = requests.get(url, timeout=10, headers={'Range': 'bytes=0-1024'})
 		except:
 			m = u'There was a problem fetching data from: {}'
 			raise TitleFetcherError(m.format(url))
