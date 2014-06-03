@@ -181,7 +181,8 @@ class TitleFetcher(object):
 		if url.endswith(u'.ogg'):
 			raise TitleFetcherError(u'OGG? Ain\'t nobody got time for that!')
 		try:
-			data = requests.get(url, stream=True)
+			headers = {u'range': u'bytes=0-1023'}
+			data = requests.get(url, timeout=10, headers=headers)
 		except:
 			m = u'There was a problem fetching data from: {}'
 			raise TitleFetcherError(m.format(url))
@@ -190,10 +191,12 @@ class TitleFetcher(object):
 			if u'audio/' in ct or u'image/' in ct or u'/zip' in ct:
 				raise TitleFetcherError(u'Invalid content-type: {}'.format(ct))
 		if u'<title>' in data.text:
-			title = data.text.partition(u'<title>')[2].partition(u'</title>')[0]
+			tail = data.text.partition(u'<title>')[2]
+			title = tail.partition(u'</title>')[0]
 			return self.unescape(u' '.join(title.split()))
 		else:
-			raise TitleFetcherError(u'There is no <title> tag at: {}'.format(url))
+			err = u'There is no <title> tag at: {}'.format(url)
+			raise TitleFetcherError(err)
 
 	# from Fredrik Lundh, http://effbot.org/zone/re-sub.htm#unescape-html
 	def unescape(self, text):
