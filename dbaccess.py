@@ -61,7 +61,7 @@ class Config(object):
                 self.config.set(key, value)
 
     def add_id_to_nick(self, _id, nick):
-        record = self.apikeys.get(nick, (None, None))
+        record = self.apikeys.get(nick, [None, None])
         record[0] = _id
         self.apikeys.set(nick, record)
 
@@ -71,7 +71,7 @@ class Config(object):
         self.apikeys.set(nick, record)
 
     def drop_id_for_nick(self, nick):
-        record = self.apikeys.get(nick, (None, None))
+        record = self.apikeys.get(nick, [None, None])
         record[0] = None
         if all(x is None for x in record):
             self.apikeys.remove(nick)
@@ -79,7 +79,7 @@ class Config(object):
             self.apikeys.set(nick, record)
 
     def drop_key_for_nick(self, nick):
-        record = self.apikeys.get(nick, (None, None))
+        record = self.apikeys.get(nick, [None, None])
         record[1] = None
         if all(x is None for x in record):
             self.apikeys.remove(nick)
