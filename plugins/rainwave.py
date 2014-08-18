@@ -48,7 +48,7 @@ def get_current_channel_for_id(listener_id, config):
     key = config.get(u'rw:key')
     for chan_id in range(1, 6):
         d = rw_current_listeners(user_id, key, chan_id)
-        for user in d.get(u'current_listeners').get(u'users'):
+        for user in d.get(u'current_listeners'):
             if int(user.get(u'id')) == int(listener_id):
                 return chan_id
     return None
