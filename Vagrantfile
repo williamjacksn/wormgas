@@ -27,7 +27,7 @@ END_OF_LINE
 
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "hashicorp/precise32"
-  config.vm.box_check_update = false
-  config.vm.provision :shell, :inline => provision_script
+  config.vm.box = "ubuntu/trusty64"
+  config.vm.box_check_update = true
+  # config.vm.provision :shell, :inline => provision_script
 end
