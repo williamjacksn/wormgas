@@ -105,6 +105,22 @@ def rw_request(user_id, key, sid, song_id):
     }
     return _call(u'request', params=params)
 
+def rw_clear_requests(user_id, key, sid):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid
+    }
+    return _call(u'clear_requests', params=params)
+
+def rw_request_favorited_songs(user_id, key, sid):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid
+    }
+    return _call(u'request_favorited_songs', params=params)
+
 def rw_request_unrated_songs(user_id, key, sid):
     params = {
         u'user_id': user_id,
@@ -112,6 +128,22 @@ def rw_request_unrated_songs(user_id, key, sid):
         u'sid': sid
     }
     return _call(u'request_unrated_songs', params=params)
+
+def rw_pause_request_queue(user_id, key, sid):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid
+    }
+    return _call(u'pause_request_queue', params=params)
+
+def rw_unpause_request_queue(user_id, key, sid):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid
+    }
+    return _call(u'unpause_request_queue', params=params)
 
 def rw_song(user_id, key, sid, song_id):
     params = {
@@ -343,5 +375,36 @@ class RequestHandler(object):
             chan_id = auth.get(u'chan_id')
             d = rw_request_unrated_songs(user_id, key, chan_id)
             private.append(d.get(u'request_unrated_songs_result').get(u'text'))
+
+        elif tokens[1] == u'fav':
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            chan_id = auth.get(u'chan_id')
+            d = rw_request_favorited_songs(user_id, key, chan_id)
+            m = d.get(u'request_favorited_songs_result').get(u'text')
+            private.append(m)
+
+        elif tokens[1] == u'clear':
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            chan_id = auth.get(u'chan_id')
+            d = rw_clear_requests(user_id, key, chan_id)
+            private.append(u'Request queue cleared.')
+
+        elif tokens[1] == u'pause':
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            chan_id = auth.get(u'chan_id')
+            d = rw_pause_request_queue(user_id, key, chan_id)
+            m = d.get(u'pause_request_queue_result').get(u'text')
+            private.append(m)
+
+        elif tokens[1] == u'resume':
+            user_id = auth.get(u'user_id')
+            key = auth.get(u'key')
+            chan_id = auth.get(u'chan_id')
+            d = rw_unpause_request_queue(user_id, key, chan_id)
+            m = d.get(u'unpause_request_queue_result').get(u'text')
+            private.append(m)
 
         return public, private
