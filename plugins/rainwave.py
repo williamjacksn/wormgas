@@ -160,7 +160,7 @@ def rw_user_search(user_id, key, username):
         u'key': key,
         u'username': username
     }
-    return _call(u'admin/user_search', params=params)
+    return _call(u'user_search', params=params)
 
 def is_irc_channel(s):
     return s and s[0] == u'#'
