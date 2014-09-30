@@ -680,11 +680,6 @@ class wormgas(SingleServerIRCBot):
                 u'\x02!key add <key>\x02 to tell me about it.')
             rs.append(u'Use \x02!key drop\x02 to delete your key and \x02!key '
                 u'show\x02 to see it.')
-        elif topic in [u'lookup', u'lu']:
-            rs.append(u'Use \x02!lookup <channel> song|album <text>\x02 '
-                u'to search for songs or albums with <text> in the title.')
-            rs.append(u'Short version is \x02!lu<channel> song|album <text>\x02.')
-            rs.append(channelcodes)
         elif topic == u'lstats':
             rs.append(u'Use \x02!lstats [<channel>]\x02 to see information about '
                 u'current listeners, all channels are aggregated if you leave off '
@@ -978,61 +973,6 @@ class wormgas(SingleServerIRCBot):
             private.append(u'Plugin not loaded: {}'.format(plug_name))
 
         return public, private
-
-    #@command_handler(u'^!lookup(\s(?P<rchan>\w+))?(\s(?P<mode>\w+))?'
-    #   u'(\s(?P<text>.+))?')
-    #@command_handler(u'^!lu(?P<rchan>\w+)?(\s(?P<mode>\w+))?'
-    #   u'(\s(?P<text>.+))?')
-    def handle_lookup(self, nick, channel, rchan, mode, text):
-        '''Look up (search for) a song or album'''
-
-        log.info(u'{} used !lookup'.format(nick))
-        self.mb.clear(nick)
-
-        if not self.rwdb:
-            self.mb.add(nick, self.rwdberr)
-            return
-
-        if rchan in (u'song', u'album'):
-            text = mode + u' ' + str(text)
-            mode = rchan
-            rchan = None
-
-        if rchan:
-            rchan = rchan.lower()
-        else:
-            cur_cid = self._get_current_channel_for_nick(nick)
-            if cur_cid:
-                rchan = self.channel_codes[cur_cid]
-            else:
-                self.mb.add(nick, u'I cannot determine the channel.')
-                self._help(nick, topic=u'lookup')
-                return
-
-        if rchan in self.channel_ids:
-            cid = self.channel_ids.get(rchan)
-        else:
-            self._help(nick, topic=u'lookup')
-            return
-        rchn = self.rw.channel_id_to_name(cid)
-
-        if mode == u'song':
-            rows = self.rwdb.search_songs(cid, text)
-            out = u'{rchan}: {album_name} / {song_title} [{song_id}]'
-        elif mode == u'album':
-            rows = self.rwdb.search_albums(cid, text)
-            out = u'{rchan}: {album_name} [{album_id}]'
-        else:
-            self._help(nick, topic=u'lookup')
-            return
-
-        # Send results to the message buffer
-        for row in rows:
-            row[u'rchan'] = rchn
-            self.mb.add(nick, out.format(**row))
-
-        if not self.mb.items(nick):
-            self.mb.add(nick, u'No results.')
 
     #@command_handler(u'^!lstats(\s(?P<rchan>\w+))?(\s(?P<days>\d+))?')
     def handle_lstats(self, nick, channel, rchan=None, days=30):
