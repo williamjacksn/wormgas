@@ -252,148 +252,6 @@ class wormgas(SingleServerIRCBot):
         log.info(u'{} used !'.format(nick))
         pass
 
-    #@command_handler(u'^!c(ool)?d(own)? add(\s(?P<unit>\w+))?'
-    #   u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
-    def handle_cooldown_add(self, nick, channel, unit=None,
-        unit_id=None, cdg_name=None):
-        '''Add a song or album to a cooldown group.'''
-
-        log.info(u'{} used !cooldown add'.format(nick))
-        log.info(u'unit: {}, unit_id: {}, cdg_name: {}'.format(unit, unit_id,
-            cdg_name))
-
-        # This command requires administrative privileges
-        if not self._is_admin(nick):
-            m = u'{} does not have privs to use !cooldown add'
-            log.warning(m.format(nick))
-            return
-
-        self.mb.clear(nick)
-
-        # This command requires the Rainwave database
-        if self.rwdb is None:
-            self.mb.add(nick, self.rwdberr)
-            return
-
-        # cdg_name must be specified
-        if cdg_name is None:
-            self._help(nick, topic=u'cooldown')
-            return
-
-        # unit_id should be numeric
-        if unit_id is None:
-            self._help(nick, topic=u'cooldown')
-            return
-
-        if unit_id.isdigit():
-            unit_id = int(unit_id)
-        else:
-            self._help(nick, topic=u'cooldown')
-            return
-
-        # unit should be 'song' or 'album'
-
-        if unit == u'song':
-            rcode, rval = self.rwdb.add_song_to_cdg(unit_id, cdg_name)
-            if rcode == 0:
-                rchan = self.rw.channel_id_to_name(rval[0])
-                rval = (rchan,) + rval[1:]
-                r = u'Added {} / {} / {} to cooldown group {}'.format(*rval)
-                self.mb.add(nick, r)
-            else:
-                self.mb.add(nick, rval)
-        elif unit == u'album':
-            rcode, rval = self.rwdb.add_album_to_cdg(unit_id, cdg_name)
-            if rcode == 0:
-                rchan = self.rw.channel_id_to_name(rval[0])
-                rval = (rchan,) + rval[1:]
-                r = u'Added {} / {} to cooldown group {}'.format(*rval)
-                self.mb.add(nick, r)
-            else:
-                self.mb.add(nick, rval)
-        else:
-            self._help(nick, topic=u'cooldown')
-
-    #@command_handler(u'^!c(ool)?d(own)? drop(\s(?P<unit>\w+))?'
-    #   u'(\s(?P<unit_id>\d+))?(\s(?P<cdg_name>.+))?')
-    def handle_cooldown_drop(self, nick, channel, unit=None,
-        unit_id=None, cdg_name=None):
-        '''Remove a song or album from a cooldown group'''
-
-        log.info(u'{} used !cooldown drop'.format(nick))
-        log.info(u'unit: {}, unit_id: {}, cdg_name: {}'.format(unit, unit_id,
-            cdg_name))
-
-        # This command requires administrative privileges
-
-        if not self._is_admin(nick):
-            m = u'{} does not have privs to use !cooldown add'
-            log.warning(m.format(nick))
-            return
-
-        self.mb.clear(nick)
-
-        # This command requires the Rainwave database
-
-        if self.rwdb is None:
-            self.mb.add(nick, self.rwdberr)
-            return
-
-        # unit_id should be numeric
-
-        if unit_id is None:
-            self._help(nick, topic=u'cooldown')
-            return
-
-        if unit_id.isdigit():
-            unit_id = int(unit_id)
-        else:
-            self._help(nick, topic=u'cooldown')
-            return
-
-        # unit should be 'song' or 'album'
-
-        if unit == u'song':
-            if cdg_name is None:
-                rcode, rval = self.rwcd.drop_song_from_all_cdgs(unit_id)
-                if rcode == 0:
-                    rchan = self.rw.channel_id_to_name(rval[0])
-                    rval = (rchan,) + rval[1:]
-                    r = u'Dropped {} / {} / {} from all cooldown groups'.format(*rval)
-                    self.mb.add(nick, r)
-                else:
-                    self.mb.add(nick, rval)
-            else:
-                rcode, rval = self.rwdb.drop_song_from_cdg_by_name(unit_id, cdg_name)
-                if rcode == 0:
-                    rchan = self.rw.channel_id_to_name(rval[0])
-                    rval = (rchan,) + rval[1:]
-                    r = u'Dropped {} / {} / {} from cooldown group {}'.format(*rval)
-                    self.mb.add(nick, r)
-                else:
-                    self.mb.add(nick, rval)
-        elif unit == u'album':
-            if cdg_name is None:
-                rcode, rval = self.rwdb.drop_album_from_all_cdgs(unit_id)
-                if rcode == 0:
-                    rchan = self.rw.channel_id_to_name(rval[0])
-                    rval = (rchan,) + rval[1:]
-                    r = u'Dropped {} / {} from all cooldown groups'.format(*rval)
-                    self.mb.add(nick, r)
-                else:
-                    self.mb.add(nick, rval)
-            else:
-                rcode, rval = self.rwdb.drop_album_from_cdg_by_name(unit_id, cdg_name)
-                if rcode == 0:
-                    rchan = self.rw.channel_id_to_name(rval[0])
-                    rval = (rchan,) + rval[1:]
-                    r = u'Dropped {} / {} from cooldown group {}'.format(*rval)
-                    self.mb.add(nick, r)
-                else:
-                    self.mb.add(nick, rval)
-        else:
-            self._help(nick, topic=u'cooldown')
-
     #@command_handler(u'!election(\s(?P<rchan>\w+))?(\s(?P<index>\d))?')
     #@command_handler(u'!el(?P<rchan>\w+)?(\s(?P<index>\d))?')
     def handle_election(self, nick, channel, rchan=None, index=None):
@@ -626,24 +484,13 @@ class wormgas(SingleServerIRCBot):
                 u'nowplaying, prevplayed, rate, roll, rps, rq, stats, '
                 u'ustats, vote, wa.')
             if is_admin:
-                rs.append(u'Administration topics: cooldown, forum, newmusic, '
+                rs.append(u'Administration topics: forum, newmusic, '
                     u'restart, set, stop, unset.')
             rs.append(wiki)
         elif topic == u'8ball':
             rs.append(u'Use \x02!8ball\x02 to ask a question of the magic 8ball.')
         elif topic == u'wa':
             rs.append(u'Use \x02!wa <query>\x02 to query Wolfram Alpha.')
-        elif topic in [u'cooldown', u'cd']:
-            if is_admin:
-                rs.append(u'Use \x02!cooldown add song|album <song_id|album_id> '
-                    u'<cdg_name>\x02 to add a song or album to a cooldown group.')
-                rs.append(u'Use \x02!cooldown drop song|album '
-                    u'<song_id|album_id> [<cdg_name>]\x02 to remove a song or '
-                    u'album from a cooldown group, leave off <cdg_name> to '
-                    u'remove a song or album from all cooldown groups.')
-                rs.append(u'Short version is \x02!cd ...\x02')
-            else:
-                rs.append(notpermitted)
         elif topic in [u'election', u'el']:
             rs.append(u'Use \x02!election <channel> [<index>]\x02 to see the '
                 u'candidates in an election.')
