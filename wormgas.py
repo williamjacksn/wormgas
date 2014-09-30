@@ -782,10 +782,6 @@ class wormgas(SingleServerIRCBot):
                 rs.append(u'Use \x02!stop\x02 to shut down the bot.')
             else:
                 rs.append(notpermitted)
-        elif topic == u'unrated':
-            rs.append(u'Use \x02!unrated <channel> [<num>]\x02 to see songs you have '
-                u'not rated, <num> can go up to 12, leave it off to see just one song.')
-            rs.append(channelcodes)
         elif topic == u'unset':
             if is_admin:
                 rs.append(u'Use \x02!unset <id>\x02 to remove a configuration setting.')
@@ -1914,77 +1910,6 @@ class wormgas(SingleServerIRCBot):
         unavailable.sort(key=release_time_key)
 
         return available + unavailable
-
-    #@command_handler(u'!unrated(\s(?P<rchan>\w+))?(\s(?P<num>\d+))?')
-    def handle_unrated(self, nick, channel, rchan=None, num=None):
-        '''Report unrated songs'''
-
-        log.info(u'{} used !unrated'.format(nick))
-
-        self.mb.clear(nick)
-
-        if self.rwdb is None:
-            self.mb.add(nick, self.rwdberr)
-            return
-
-        if rchan is None:
-            self._help(nick, topic=u'unrated')
-            return
-        else:
-            rchan = rchan.lower()
-
-        if rchan not in self.channel_ids:
-            if num is None:
-                num = rchan
-            luid = self.config.get_id_for_nick(nick)
-            if not luid and self.rwdb:
-                luid = self.rwdb.get_id_for_nick(nick)
-            cur_cid = self.rwdb.get_current_channel(luid)
-            if cur_cid:
-                rchan = self.channel_codes[cur_cid]
-            else:
-                self._help(nick, topic=u'unrated')
-                return
-
-        cid = self.channel_ids.get(rchan)
-
-        try:
-            num = int(num)
-        except:
-            num = 1
-
-        api_auth = self._get_api_auth_for_nick(nick)
-        if u'user_id' not in api_auth:
-            self.mb.add(nick, self.missing_user_id)
-            return
-
-        unrated = self.rwdb.get_unrated_songs(api_auth[u'user_id'], cid)
-
-        if len(unrated) == 0:
-            self.mb.add(nick, u'No unrated songs.')
-            return
-
-        unrated = self._sort_unrated(unrated)
-
-        i = 0
-        while i < num and i < int(self.config.get(u'maxlength:unrated', 12)):
-            if len(unrated) > 0:
-                song = unrated.pop(0)
-                unrated[:] = [d for d in unrated if d.get(u'album_id') != song.get(u'album_id')]
-                song_id = song.get(u'id')
-            else:
-                self.mb.add(nick, u'No more albums with unrated songs.')
-                return
-            self.mb.add(nick, self._get_song_info_string(song_id))
-            i += 1
-
-        albums_left = len(set([song.get(u'album_id') for song in unrated]))
-        if albums_left > 0:
-            m = u'{} more album'.format(albums_left)
-            if albums_left > 1:
-                m += u's'
-            m += u' with unrated songs.'
-            self.mb.add(nick, m)
 
     @command_handler(u'^!unset(\s(?P<id>\S+))?')
     def handle_unset(self, nick, channel, id=None):
