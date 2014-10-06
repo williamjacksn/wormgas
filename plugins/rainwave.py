@@ -165,9 +165,13 @@ def rw_user_search(user_id, key, username):
 def is_irc_channel(s):
     return s and s[0] == u'#'
 
+def artist_string(artists):
+    return u', '.join([a.get(u'name') for a in artists])
+
 def build_song_info_string(song):
     m = u'{} //'.format(song.get(u'albums')[0].get(u'name'))
-    m = u'{} {} // {}'.format(m, song.get(u'title'), song.get(u'artist_tag'))
+    artists = artist_string(song.get(u'artists'))
+    m = u'{} {} // {}'.format(m, song.get(u'title'), artists)
 
     url = song.get(u'url')
     if url is not None:
