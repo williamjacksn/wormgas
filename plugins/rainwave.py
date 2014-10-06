@@ -178,11 +178,6 @@ def build_song_info_string(song):
     if int(vote_count) != 1:
         m = u'{}s'.format(m)
 
-    rating_count = song.get(u'rating_count')
-    m = u'{}, {} rating'.format(m, rating_count)
-    if int(rating_count) != 1:
-        m = u'{}s'.format(m)
-
     m = u'{}, rated {}'.format(m, song.get(u'rating'))
 
     elec_request_username = song.get(u'elec_request_username')
