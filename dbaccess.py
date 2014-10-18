@@ -87,7 +87,8 @@ class Config(object):
             _id: the config_id that you want to read
             default: the return value if the config_id does not exist
 
-        Returns: the config_value, or default if the config_id does not exist'''
+        Returns: the config_value, or default if the config_id does not
+            exist'''
 
         return self.config.get(_id, default)
 
@@ -149,8 +150,8 @@ class Config(object):
         Arguments:
             _id: the config_id you want to view or change (leave empty to show
                 all available config_ids)
-            value: the value to change config_id to (leave empty to view current
-                value)
+            value: the value to change config_id to (leave empty to view
+                current value)
 
         Returns: a list of strings'''
 

@@ -15,7 +15,6 @@ log.setLevel(logging.DEBUG)
 
 import importlib
 import inspect
-import json
 import os
 import random
 import re
@@ -39,13 +38,15 @@ PRIVMSG = u'__privmsg__'
 
 
 def command_handler(command):
-    '''Decorate a method to register as a command handler for provided regex.'''
+    '''Decorate a method to register as a command handler for provided
+    regex.'''
     def decorator(func):
         # Compile the command into a regex.
         regex = re.compile(command, re.I)
 
         def wrapped(self, nick, msg, channel):
-            '''Command with stored regex that will execute if it matches msg.'''
+            '''Command with stored regex that will execute if it matches
+            msg.'''
             # If the regex does not match the message, return False.
             result = regex.search(msg)
             if not result:
@@ -244,46 +245,48 @@ class wormgas(SingleServerIRCBot):
         is_admin = self._is_admin(nick)
         rs = list()
 
-        channelcodes = (u'Channel codes are \x02' +
-            u'\x02, \x02'.join(self.channel_ids.keys()) + u'\x02.')
+        chan_code_ls = u'\x02, \x02'.join(self.channel_ids.keys())
+        channelcodes = (u'Channel codes are \x02{}\x02.'.format(chan_code_ls))
         notpermitted = u'You are not permitted to use this command.'
         wiki = (u'More help is available at '
-            u'https://github.com/williamjacksn/wormgas/wiki')
+                u'https://github.com/williamjacksn/wormgas/wiki')
 
         if topic in [u'all', None]:
             rs.append(u'Use \x02!help [<topic>]\x02 with one of these topics: '
-                u'8ball, flip, id, key, nowplaying, prevplayed, roll, rps, rq, '
-                u'wa.')
+                      u'8ball, flip, id, key, nowplaying, prevplayed, roll, '
+                      u'rps, rq, wa.')
             if is_admin:
                 rs.append(u'Administration topics: restart, set, stop, unset.')
             rs.append(wiki)
         elif topic == u'8ball':
-            rs.append(u'Use \x02!8ball\x02 to ask a question of the magic 8ball.')
+            rs.append(u'Use \x02!8ball\x02 to ask a question of the magic '
+                      u'8ball.')
         elif topic == u'wa':
             rs.append(u'Use \x02!wa <query>\x02 to query Wolfram Alpha.')
         elif topic == u'flip':
             rs.append(u'Use \x02!flip\x02 to flip a coin.')
         elif topic == u'id':
-            rs.append(u'Look up your Rainwave user id at http://rainwave.cc/auth/ '
-                u'and use \x02!id add <id>\x02 to tell me about it.')
-            rs.append(u'Use \x02!id drop\x02 to delete your user id and \x02!id '
-                u'show\x02 to see it.')
+            rs.append(u'Look up your Rainwave user id at '
+                      u'http://rainwave.cc/auth/ and use \x02!id add <id>\x02 '
+                      u'to tell me about it.')
+            rs.append(u'Use \x02!id drop\x02 to delete your user id and '
+                      u'\x02!id show\x02 to see it.')
         elif topic == u'key':
             rs.append(u'Get an API key from http://rainwave.cc/auth/ and use '
-                u'\x02!key add <key>\x02 to tell me about it.')
+                      u'\x02!key add <key>\x02 to tell me about it.')
             rs.append(u'Use \x02!key drop\x02 to delete your key and \x02!key '
-                u'show\x02 to see it.')
+                      u'show\x02 to see it.')
         elif topic in [u'nowplaying', u'np']:
             rs.append(u'Use \x02!nowplaying <channel>\x02 to show what is now '
-                u'playing on the radio.')
+                      u'playing on the radio.')
             rs.append(u'Short version is \x02!np<channel>\x02.')
             rs.append(channelcodes)
         elif topic in [u'prevplayed', u'pp']:
-            rs.append(u'Use \x02!prevplayed <channel> [<index>]\x02 to show what was '
-                u'previously playing on the radio.')
+            rs.append(u'Use \x02!prevplayed <channel> [<index>]\x02 to show '
+                      u'what was previously playing on the radio.')
             rs.append(u'Short version is \x02!pp<channel> [<index>]\x02.')
-            rs.append(u'Index should be one of (0, 1, 2), 0 is default, higher '
-                u'numbers are further in the past.')
+            rs.append(u'Index should be one of (0, 1, 2), 0 is default, '
+                      u'higher numbers are further in the past.')
             rs.append(channelcodes)
         elif topic == u'restart':
             if is_admin:
@@ -291,40 +294,44 @@ class wormgas(SingleServerIRCBot):
             else:
                 rs.append(notpermitted)
         elif topic == u'roll':
-            rs.append(u'Use \x02!roll [#d^]\x02 to roll a ^-sided die # times.')
+            rs.append(u'Use \x02!roll [#d^]\x02 to roll a ^-sided die # '
+                      u'times.')
         elif topic == u'rps':
-            rs.append(u'Use \x02!rock\x02, \x02!paper\x02, or \x02!scissors\x02 to '
-                u'play a game.')
-            rs.append(u'Use \x02!rps record [<nick>]\x02 to see the record for '
-                u'<nick>, leave off <nick> to see your own record, use nick '
-                u'\'!global\' to see the global record.')
-            rs.append(u'Use \x02!rps stats [<nick>]\x02 to see some statistics for '
-                '<nick>, leave off <nick> to see your own statistics.')
-            rs.append(u'Use \x02!rps reset\x02 to reset your record and delete your '
-                'game history, there is no confirmation and this cannot be undone.')
+            rs.append(u'Use \x02!rock\x02, \x02!paper\x02, or '
+                      u'\x02!scissors\x02 to play a game.')
+            rs.append(u'Use \x02!rps record [<nick>]\x02 to see the record '
+                      u'for <nick>, leave off <nick> to see your own record, '
+                      u'use nick \'!global\' to see the global record.')
+            rs.append(u'Use \x02!rps stats [<nick>]\x02 to see some '
+                      u'statistics for <nick>, leave off <nick> to see your '
+                      u'own statistics.')
+            rs.append(u'Use \x02!rps reset\x02 to reset your record and '
+                      u'delete your game history, there is no confirmation '
+                      u'and this cannot be undone.')
             rs.append(u'Use \x02!rps who\x02 to see a list of known players')
             if is_admin:
                 rs.append(u'Administrators can use \x02!rps rename <oldnick> '
-                    u'<newnick>\x02 to reassign stats and game history from one nick to '
-                    u'another.')
+                          u'<newnick>\x02 to reassign stats and game history '
+                          u'from one nick to another.')
         elif topic == u'rq':
-            rs.append(u'Use \x02!rq <song_id>\x02 to add a song to your request '
-                'queue, find the <song_id> using \x02!lookup\x02 or \x02!unrated\x02.')
+            rs.append(u'Use \x02!rq <song_id>\x02 to add a song to your '
+                      u'request queue, find the <song_id> using '
+                      u'\x02!lookup\x02 or \x02!unrated\x02.')
             rs.append(u'Use \x02!rq unrated\x02 to fill your request queue '
-                u'with unrated songs.')
+                      u'with unrated songs.')
             rs.append(u'Use \x02!rq fav\x02 to add favourite songs to your '
-                u'request queue.')
+                      u'request queue.')
             rs.append(u'Use \x02!rq pause\x02 to pause your request queue).')
             rs.append(u'Use \x02!rq resume\x02 to resume your request queue).')
             rs.append(u'Use \x02!rq clear\x02 to remove all songs from your '
-                u'request queue.')
+                      u'request queue.')
         elif topic == u'set':
             if is_admin:
-                rs.append(u'Use \x02!set [<id>] [<value>]\x02 to display or change '
-                    u'configuration settings.')
+                rs.append(u'Use \x02!set [<id>] [<value>]\x02 to display or '
+                          u'change configuration settings.')
                 rs.append(u'Leave off <value> to see the current setting.')
-                rs.append(u'Leave off <id> and <value> to see a list of all available '
-                    'config ids.')
+                rs.append(u'Leave off <id> and <value> to see a list of all '
+                          u'available config ids.')
             else:
                 rs.append(notpermitted)
         elif topic == u'stop':
@@ -334,7 +341,8 @@ class wormgas(SingleServerIRCBot):
                 rs.append(notpermitted)
         elif topic == u'unset':
             if is_admin:
-                rs.append(u'Use \x02!unset <id>\x02 to remove a configuration setting.')
+                rs.append(u'Use \x02!unset <id>\x02 to remove a configuration '
+                          u'setting.')
             else:
                 rs.append(notpermitted)
         else:
@@ -345,20 +353,20 @@ class wormgas(SingleServerIRCBot):
             self.mb.add(nick, r)
 
     @command_handler(u'^!id(\s(?P<mode>\w+))?(\s(?P<id>\d+))?')
-    def handle_id(self, nick, channel, mode=None, id=None):
+    def handle_id(self, nick, channel, mode=None, uid=None):
         '''Manage correlation between an IRC nick and Rainwave User ID
 
         Arguments:
             mode: string, one of 'add', 'drop', 'show'
-            id: numeric, the person's Rainwave User ID'''
+            uid: numeric, the person's Rainwave User ID'''
 
         log.info(u'{} used !id'.format(nick))
 
         self.mb.clear(nick)
 
-        if mode == u'add' and id:
-            self.config.add_id_to_nick(id, nick)
-            r = u'I assigned the user id {} to nick \'{}\'.'.format(id, nick)
+        if mode == u'add' and user_id:
+            self.config.add_id_to_nick(uid, nick)
+            r = u'I assigned the user id {} to nick \'{}\'.'.format(uid, nick)
             self.mb.add(nick, r)
         elif mode == u'drop':
             self.config.drop_id_for_nick(nick)
@@ -367,7 +375,7 @@ class wormgas(SingleServerIRCBot):
         elif mode == u'show':
             stored_id = self.config.get_id_for_nick(nick)
             if stored_id:
-                r = u'The user id for nick \'{}\' is {}.'.format(nick, stored_id)
+                r = u'The user id for \'{}\' is {}.'.format(nick, stored_id)
                 self.mb.add(nick, r)
             else:
                 r = u'I do not have a user id for nick \'{}\'.'.format(nick)
@@ -389,16 +397,17 @@ class wormgas(SingleServerIRCBot):
 
         if mode == u'add' and key:
             self.config.add_key_to_nick(key, nick)
-            r = u'I assigned the API key \'{}\' to nick \'{}\'.'.format(key, nick)
+            r = u'I assigned the API key \'{}\' to \'{}\'.'.format(key, nick)
             self.mb.add(nick, r)
         elif mode == u'drop':
             self.config.drop_key_for_nick(nick)
-            r = u'I dropped the API key for nick \'{}\'.'.format(nick)
+            r = u'I dropped the API key for \'{}\'.'.format(nick)
             self.mb.add(nick, r)
         elif mode == u'show':
             stored_id = self.config.get_key_for_nick(nick)
             if stored_id:
-                r = u'The API key for nick \'{}\' is \'{}\'.'.format(nick, stored_id)
+                r = u'The API key for \'{}\' is'.format(nick)
+                r = u'{} \'{}\'.'.format(r, stored_id)
                 self.mb.add(nick, r)
             else:
                 r = u'I do not have an API key for nick \'{}\'.'.format(nick)
@@ -549,7 +558,8 @@ class wormgas(SingleServerIRCBot):
 
         self.config.log_rps(nick, challenge, response)
 
-        r = u'You challenge with {}. I counter with {}. '.format(mode, rps[response])
+        r = u'You challenge with {}. I counter with'.format(mode)
+        r = u'{} {}. '.format(r, rps[response])
 
         if challenge == (response + 1) % 3:
             r += u'You win!'
@@ -577,8 +587,8 @@ class wormgas(SingleServerIRCBot):
         else:
             self.mb.add(nick, r)
             wait = ltr + wr - int(time.time())
-            r = u'I am cooling down. You cannot use !{} in {} '.format(mode, channel)
-            r += u'for another {} seconds.'.format(wait)
+            r = u'I am cooling down. You cannot use !{}'.format(mode)
+            r = u'{} in {} for another {} seconds.'.format(r, channel, wait)
             self.mb.add(nick, r)
 
     @command_handler(u'^!rps record(\s(?P<target>\S+))?')
@@ -624,7 +634,7 @@ class wormgas(SingleServerIRCBot):
         if self._is_admin(nick) and old and new:
             self.mb.clear(nick)
             self.config.rename_rps_player(old, new)
-            r = u'I assigned the RPS game history for {} to {}.'.format(old, new)
+            r = u'I assigned RPS game history for {} to {}.'.format(old, new)
             self.mb.add(nick, r)
 
     @command_handler(u'^!rps reset')
@@ -675,8 +685,8 @@ class wormgas(SingleServerIRCBot):
         else:
             self.mb.add(nick, r)
             wait = ltr + wr - int(time.time())
-            r = u'I am cooling down. You cannot use !rps in {} '.format(channel)
-            r += u'for another {} seconds.'.format(wait)
+            r = u'I am cooling down. You cannot use !rps in {}'.format(channel)
+            r = u'{} for another {} seconds.'.format(r, wait)
             self.mb.add(nick, r)
 
     @command_handler(u'^!rps who')
@@ -720,8 +730,11 @@ class wormgas(SingleServerIRCBot):
         if self._is_admin(nick):
             if self.config.get(u'restart_on_stop'):
                 self.config.unset(u'restart_on_stop')
-                pid = subprocess.Popen([_abspath], stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+                pid = subprocess.Popen(
+                    [_abspath],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.PIPE)
             self.die(u'I was stopped by {}'.format(nick))
         else:
             log.warning(u'{} does not have privs to use !stop'.format(nick))
@@ -933,8 +946,8 @@ class wormgas(SingleServerIRCBot):
                 title = None
                 try:
                     title = self.tf.get_title(url)
-                except util.TitleFetcherError as e:
-                    log.exception(e)
+                except util.TitleFetcherError as err:
+                    log.exception(err)
                 if title:
                     log.info(u'Found a title: {}'.format(title))
                     title_found = True
@@ -975,8 +988,8 @@ class wormgas(SingleServerIRCBot):
                 rs.append(self.mb.pop(nick, 0))
 
             if len(self.mb.items(nick)) > 1:
-                num = len(self.mb.items(nick))
-                r = u'Use \x02!\x02 to see more messages ({} left).'.format(num)
+                n = len(self.mb.items(nick))
+                r = u'Use \x02!\x02 to see more messages ({} left).'.format(n)
                 rs.append(r)
 
             for r in rs:
@@ -991,7 +1004,8 @@ class wormgas(SingleServerIRCBot):
 
         passwd = self.config.get(u'irc:nickservpass')
         if passwd is not None:
-            self._to_irc(c, u'privmsg', u'nickserv', u'identify {}'.format(passwd))
+            m = u'identify {}'.format(passwd)
+            self._to_irc(c, u'privmsg', u'nickserv', m)
         c.join(self.config.get(u'irc:channel'))
 
     def _answers_8ball(self):
@@ -1055,7 +1069,7 @@ class wormgas(SingleServerIRCBot):
         return urls
 
     def _is_admin(self, nick):
-        '''Check whether a nick has privileges to use administrative commands'''
+        '''Check whether a nick has privileges to use admin commands'''
 
         channel = self.config.get(u'irc:channel').encode(u'ascii')
         if channel in self.channels:
@@ -1075,7 +1089,6 @@ class wormgas(SingleServerIRCBot):
 
         log.info(u'Performing periodic tasks')
 
-        nick = self.config.get(u'irc:nick')
         chan = self.config.get(u'irc:channel')
 
         ltm = int(self.config.get(u'lasttime:msg', 0))
@@ -1093,27 +1106,39 @@ class wormgas(SingleServerIRCBot):
             self._to_irc(c, u'privmsg', chan, self.mb.pop(chan, 0))
 
     quotes = [
-        u'Attack the evil that is within yourself, rather than attacking the evil that is in others.',
+        (u'Attack the evil that is within yourself, rather than attacking the '
+         u'evil that is in others.'),
         u'Before you embark on a journey of revenge, dig two graves.',
         u'Better a diamond with a flaw than a pebble without.',
         u'Everything has beauty, but not everyone sees it.',
         u'He who knows all the answers has not been asked all the questions.',
-        u'He who learns but does not think, is lost! He who thinks but does not learn is in great danger.',
+        (u'He who learns but does not think, is lost! He who thinks but does '
+         u'not learn is in great danger.'),
         u'I hear and I forget. I see and I remember. I do and I understand.',
-        u'If what one has to say is not better than silence, then one should keep silent.',
-        u'If you make a mistake and do not correct it, this is called a mistake.',
-        u'Ignorance is the night of the mind but a night without moon and star.',
-        u'Music produces a kind of pleasure which human nature cannot do without.',
+        (u'If what one has to say is not better than silence, then one should '
+         u'keep silent.'),
+        (u'If you make a mistake and do not correct it, this is called a '
+         u'mistake.'),
+        (u'Ignorance is the night of the mind but a night without moon and '
+         u'star.'),
+        (u'Music produces a kind of pleasure which human nature cannot do '
+         u'without.'),
         u'Only the wisest and stupidest of men never change.',
-        u'Our greatest glory is not in never falling, but in rising every time we fall.',
+        (u'Our greatest glory is not in never falling, but in rising every '
+         u'time we fall.'),
         u'Respect yourself and others will respect you.',
         u'Silence is a true friend who never betrays.',
-        u'The hardest thing of all is to find a black cat in a dark room, especially if there is no cat.',
-        u'The man who asks a question is a fool for a minute, the man who does not ask is a fool for life.',
-        u'The superior man is modest in his speech, but exceeds in his actions.',
+        (u'The hardest thing of all is to find a black cat in a dark room, '
+         u'especially if there is no cat.'),
+        (u'The man who asks a question is a fool for a minute, the man who '
+         u'does not ask is a fool for life.'),
+        (u'The superior man is modest in his speech, but exceeds in his '
+         u'actions.'),
         u'To be wronged is nothing, unless you continue to remember it.',
-        u'To see what is right and not to do it, is want of courage or of principle.',
-        u'What you know, you know, what you don\'t know, you don\'t know. This is true wisdom.'
+        (u'To see what is right and not to do it, is want of courage or of '
+         u'principle.'),
+        (u'What you know, you know, what you don\'t know, you don\'t know. '
+         u'This is true wisdom.')
     ]
 
     def _talk(self, msg=None):

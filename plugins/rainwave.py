@@ -27,12 +27,13 @@ chan_id_to_name = [
 ]
 
 NICK_NOT_RECOGNIZED = (u'I do not recognize you. If your nick does not match '
-    u'your Rainwave username, use \x02!id\x02 to link your Rainwave account '
-    u'to your nick.')
+                       u'your Rainwave username, use \x02!id\x02 to link your '
+                       u'Rainwave account to your nick.')
 
 MISSING_KEY = (u'I do not have a key stored for you. Visit '
-    u'http://rainwave.cc/keys/ to get a key and tell me about it with '
-    u'\x02!key add <key>\x02.')
+               u'http://rainwave.cc/keys/ to get a key and tell me about it '
+               u'with \x02!key add <key>\x02.')
+
 
 def get_api_auth_for_nick(nick, config):
     auth = dict()
@@ -40,6 +41,7 @@ def get_api_auth_for_nick(nick, config):
     auth[u'key'] = config.get_key_for_nick(nick)
     auth[u'chan_id'] = get_current_channel_for_id(auth.get(u'user_id'), config)
     return auth
+
 
 def get_current_channel_for_id(listener_id, config):
     if listener_id is None:
@@ -53,11 +55,13 @@ def get_current_channel_for_id(listener_id, config):
                 return chan_id
     return None
 
+
 def get_current_channel_for_nick(nick, config):
     user_id = config.get(u'rw:user_id')
     key = config.get(u'rw:key')
     d = rw_user_search(user_id, key, nick)
     return d.get(u'user').get(u'sid')
+
 
 def get_id_for_nick(nick, config):
     listener_id = config.get_id_for_nick(nick)
@@ -68,13 +72,17 @@ def get_id_for_nick(nick, config):
         listener_id = d.get(u'user').get(u'user_id')
     return listener_id
 
-def _call(path, params=dict()):
+
+def _call(path, params=None):
+    if params is None:
+        params = dict()
     base_url = u'http://rainwave.cc/api4/'
     url = u'{}{}'.format(base_url, path.lstrip(u'/'))
     d = requests.post(url, params=params)
     if d.ok:
         return d.json()
     d.raise_for_status()
+
 
 def rw_current_listeners(user_id, key, sid):
     params = {
@@ -84,9 +92,11 @@ def rw_current_listeners(user_id, key, sid):
     }
     return _call(u'current_listeners', params=params)
 
+
 def rw_info(sid):
     params = {u'sid': sid}
     return _call(u'info', params=params)
+
 
 def rw_listener(user_id, key, listener_id):
     params = {
@@ -95,6 +105,7 @@ def rw_listener(user_id, key, listener_id):
         u'id': listener_id
     }
     return _call(u'listener', params=params)
+
 
 def rw_request(user_id, key, sid, song_id):
     params = {
@@ -105,6 +116,7 @@ def rw_request(user_id, key, sid, song_id):
     }
     return _call(u'request', params=params)
 
+
 def rw_clear_requests(user_id, key, sid):
     params = {
         u'user_id': user_id,
@@ -112,6 +124,7 @@ def rw_clear_requests(user_id, key, sid):
         u'sid': sid
     }
     return _call(u'clear_requests', params=params)
+
 
 def rw_request_favorited_songs(user_id, key, sid):
     params = {
@@ -121,6 +134,7 @@ def rw_request_favorited_songs(user_id, key, sid):
     }
     return _call(u'request_favorited_songs', params=params)
 
+
 def rw_request_unrated_songs(user_id, key, sid):
     params = {
         u'user_id': user_id,
@@ -128,6 +142,7 @@ def rw_request_unrated_songs(user_id, key, sid):
         u'sid': sid
     }
     return _call(u'request_unrated_songs', params=params)
+
 
 def rw_pause_request_queue(user_id, key, sid):
     params = {
@@ -137,6 +152,7 @@ def rw_pause_request_queue(user_id, key, sid):
     }
     return _call(u'pause_request_queue', params=params)
 
+
 def rw_unpause_request_queue(user_id, key, sid):
     params = {
         u'user_id': user_id,
@@ -144,6 +160,7 @@ def rw_unpause_request_queue(user_id, key, sid):
         u'sid': sid
     }
     return _call(u'unpause_request_queue', params=params)
+
 
 def rw_song(user_id, key, sid, song_id):
     params = {
@@ -154,6 +171,7 @@ def rw_song(user_id, key, sid, song_id):
     }
     return _call(u'song', params=params)
 
+
 def rw_user_search(user_id, key, username):
     params = {
         u'user_id': user_id,
@@ -162,11 +180,14 @@ def rw_user_search(user_id, key, username):
     }
     return _call(u'user_search', params=params)
 
+
 def is_irc_channel(s):
     return s and s[0] == u'#'
 
+
 def artist_string(artists):
     return u', '.join([a.get(u'name') for a in artists])
+
 
 def build_song_info_string(song):
     m = u'{} //'.format(song.get(u'albums')[0].get(u'name'))
@@ -192,10 +213,11 @@ def build_song_info_string(song):
 
     return m
 
+
 class NowPlayingHandler(object):
     cmds = [u'!nowplaying', u'!np', u'!npall', u'!npbw', u'!npch', u'!npchip',
-        u'!npcover', u'!npcovers', u'!npgame', u'!npmw', u'!npoc', u'!npocr',
-        u'!npomni', u'!npow', u'!nprw', u'!npvw']
+            u'!npcover', u'!npcovers', u'!npgame', u'!npmw', u'!npoc',
+            u'!npocr', u'!npomni', u'!npow', u'!nprw', u'!npvw']
     admin = False
 
     @classmethod
@@ -257,8 +279,8 @@ class NowPlayingHandler(object):
 
 class PrevPlayedHandler(object):
     cmds = [u'!prevplayed', u'!pp', u'!ppall', u'!ppbw', u'!ppch', u'!ppchip',
-        u'!ppcover', u'!ppcovers', u'!ppgame', u'!ppmw', u'!ppoc', u'!ppocr',
-        u'!ppomni', u'!ppow', u'!pprw', u'!ppvw']
+            u'!ppcover', u'!ppcovers', u'!ppgame', u'!ppmw', u'!ppoc',
+            u'!ppocr', u'!ppomni', u'!ppow', u'!pprw', u'!ppvw']
     admin = False
 
     @classmethod
