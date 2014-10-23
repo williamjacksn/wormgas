@@ -15,19 +15,23 @@ class WikipediaHandler(object):
         public = list()
         private = list()
 
-        title = u' '.join(tokens[1:])
+        search_title = u' '.join(tokens[1:])
         try:
-            summ = wikipedia.summary(title)
-            summ = u' '.join(summ.splitlines())
-        except wikipedia.exceptions.DisambiguationError as e:
-            m = u'Disambiguation: [{}]'.format(u'], ['.join(e.options))
-        except wikipedia.exceptions.PageError as e:
-            m = str(e)
-        else:
-            m = summ
+            page = wikipedia.page(search_title)
+        except wikipedia.exceptions.DisambiguationError as err:
+            private.append(u'Your query returned a disambiguation page.')
+            if len(err.options) < 6:
+                private.append(u'Options: {}'.format(u'; '.join(err.options)))
+            else:
+                opts_list = u'; '.join(err.options[:6])
+                private.append(u'Some options: {} ...'.format(opts_list))
+            return public, private
+        except wikipedia.exceptions.PageError as err:
+            private.append(str(err))
+            return public, private
 
-        if len(m) > 400:
-            m = u'{}...'.format(m[:400])
+        summ = u' '.join(page.summary[:200].splitlines())
+        m = u'{} // {}... [ {} ]'.format(page.title, summ, page.url)
 
         if not is_irc_channel(target):
             private.append(m)
