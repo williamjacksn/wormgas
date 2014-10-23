@@ -823,10 +823,13 @@ class wormgas(SingleServerIRCBot):
                 handler = _plug_commands_admin.get(cmd)
                 try:
                     public, private = handler(nick, me, tokens, self.config)
+                    self.mb.set(chan, public)
+                    self.mb.set(nick, private)
                 except:
                     log.exception(u'Exception in {}'.format(cmd))
-                self.mb.set(chan, public)
-                self.mb.set(nick, private)
+                    m = (u'I experienced a problem and recorded some '
+                         u'exception information in the log.')
+                    self.mb.set(nick, [m])
 
         # Try normal commands from plugins
         if not command_handled:
@@ -839,6 +842,9 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(nick, private)
                 except:
                     log.exception(u'Exception in {}'.format(cmd))
+                    m = (u'I experienced a problem and recorded some '
+                         u'exception information in the log.')
+                    self.mb.set(nick, [m])
 
         # Try all the decorated command handlers
         for command in _commands:
@@ -914,10 +920,13 @@ class wormgas(SingleServerIRCBot):
                 handler = _plug_commands_admin.get(cmd)
                 try:
                     public, private = handler(nick, chan, tokens, self.config)
+                    self.mb.set(chan, public)
+                    self.mb.set(nick, private)
                 except:
                     log.exception(u'Exception in {}'.format(cmd))
-                self.mb.set(chan, public)
-                self.mb.set(nick, private)
+                    m = (u'I experienced a problem and recorded some '
+                         u'exception information in the log.')
+                    self.mb.set(nick, [m])
 
         # Try normal commands from plugins
         if not command_handled:
@@ -930,6 +939,9 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(nick, private)
                 except:
                     log.exception(u'Exception in {}'.format(cmd))
+                    m = (u'I experienced a problem and recorded some '
+                         u'exception information in the log.')
+                    self.mb.set(nick, [m])
 
         # Try all the decorated command handlers
         if not command_handled:
