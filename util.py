@@ -180,6 +180,8 @@ class TitleFetcher(object):
     def get_title(self, url):
         if url.endswith(u'.ogg'):
             raise TitleFetcherError(u'OGG? Ain\'t nobody got time for that!')
+        if url.endswith(u'.mp3'):
+            raise TitleFetcherError(u'MP3? Ain\'t nobody got time for that!')
         try:
             headers = {u'range': u'bytes=0-1023'}
             data = requests.get(url, timeout=10, headers=headers)
