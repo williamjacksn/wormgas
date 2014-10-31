@@ -1,4 +1,5 @@
 import requests
+import time
 
 chan_code_to_id = {
     u'rw': 1,
@@ -212,6 +213,47 @@ def build_song_info_string(song):
     m = u'{})'.format(m)
 
     return m
+
+
+class ListenerStatsHandler(object):
+    cmds = [u'!lstats']
+    admin = False
+
+    @classmethod
+    def handle(cls, sender, target, tokens, config):
+        public = list()
+        private = list()
+
+        m = u'Registered listeners: '
+        total = 0
+        user_id = config.get(u'rw:user_id')
+        key = config.get(u'rw:key')
+        for chan_id in range(1, 6):
+            d = rw_current_listeners(user_id, key, chan_id)
+            count = len(d.get(u'current_listeners'))
+            m = u'{}{} = {}, '.format(m,chan_id_to_name[chan_id], count)
+            total = total + count
+        m = u'{}Total = {}'.format(m, total)
+
+        if not is_irc_channel(target):
+            private.append(m)
+            return public, private
+
+        now = int(time.time())
+        last = int(config.get(u'lstats:last', 0))
+        wait = int(config.get(u'lstats:wait', 0))
+        if last < now - wait:
+            public.append(m)
+            config.set(u'lstats:last', now)
+        else:
+            private.append(m)
+            remaining = last + wait - now
+            m = u'I am cooling down. You cannot use {}'.format(tokens[0])
+            m = u'{} in {} for another'.format(m, target)
+            m = u'{} {} seconds.'.format(m, remaining)
+            private.append(m)
+
+        return public, private
 
 
 class NowPlayingHandler(object):
