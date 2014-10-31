@@ -300,6 +300,10 @@ class NowPlayingHandler(object):
 
         m = u'Now playing on the {}:'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
+        sched_type = d.get(u'sched_current').get(u'type')
+        if sched_type == u'OneUp':
+            sched_name = d.get(u'sched_current').get(u'name')
+            m = u'{} ({} Power Hour)'.format(m, sched_name)
         sched_id = int(d.get(u'sched_current').get(u'id'))
         song = d.get(u'sched_current').get(u'songs')[0]
         m = u'{} {}'.format(m, build_song_info_string(song))
