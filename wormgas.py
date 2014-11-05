@@ -352,7 +352,7 @@ class wormgas(SingleServerIRCBot):
         for r in rs:
             self.mb.add(nick, r)
 
-    @command_handler(u'^!id(\s(?P<mode>\w+))?(\s(?P<id>\d+))?')
+    @command_handler(u'^!id(\s(?P<mode>\w+))?(\s(?P<uid>\d+))?')
     def handle_id(self, nick, channel, mode=None, uid=None):
         '''Manage correlation between an IRC nick and Rainwave User ID
 
