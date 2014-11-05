@@ -1,5 +1,4 @@
 httpie
 irc
 requests
-supervisor
 stemming
