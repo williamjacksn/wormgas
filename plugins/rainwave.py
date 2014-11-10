@@ -256,6 +256,85 @@ class ListenerStatsHandler(object):
         return public, private
 
 
+class NextHandler(object):
+    cmds = [u'!next', u'!nx', u'!nxall', u'!nxbw', u'!nxch', u'!nxchip',
+            u'!nxcover', u'!nxcovers', u'!nxgame', u'!nxmw', u'!nxoc',
+            u'!nxocr', u'!nxomni', u'!nxow', u'!nxrw', u'!nxvw']
+    admin = False
+
+    @classmethod
+    def handle(cls, sender, target, tokens, config):
+        public = list()
+        private = list()
+
+        cmd = tokens[0].lower()
+
+        chan_id = None
+        idx = 0
+
+        if cmd in [u'!nxgame', u'!nxrw']:
+            chan_id = 1
+
+        if cmd in [u'!nxoc', u'!nxocr']:
+            chan_id = 2
+
+        if cmd in [u'!nxcover', u'!nxcovers', u'!nxmw', u'!nxvw']:
+            chan_id = 3
+
+        if cmd in [u'!nxbw', u'!nxch', u'!nxchip']:
+            chan_id = 4
+
+        if cmd in [u'!nxall', u'!nxomni', u'!nxow']:
+            chan_id = 5
+
+        if cmd in [u'!next', u'!nx']:
+            if len(tokens) > 1:
+                chan_id = chan_code_to_id.get(tokens[1].lower())
+            if chan_id is None:
+                listener_id = get_id_for_nick(sender, config)
+                chan_id = get_current_channel_for_id(listener_id, config)
+            if chan_id is None:
+                m = u'You are not tuned in and you did not specify a valid'
+                m = u'{} channel code.'.format(m)
+                private.append(m)
+                return public, private
+
+        m = u'Next up on the {}:'.format(chan_id_to_name[int(chan_id)])
+        d = rw_info(chan_id)
+        event = d.get(u'sched_next')[idx]
+        sched_id = int(event.get(u'id'))
+        sched_type = event.get(u'type')
+        if sched_type == u'OneUp':
+            ph_name = event.get(u'name')
+            m = u'{} ({} Power Hour)'.format(m, ph_name)
+            song = event.get(u'songs')[0]
+            m = u'{} {}'.format(m, build_song_info_string(song))
+        if sched_type == u'Election':
+            for i, s in enumerate(event.get(u'songs'), start=1):
+                album = s.get(u'albums')[0].get(u'name')
+                title = s.get(u'title')
+                artt = u', '.join([a.get(u'name') for a in s.get(u'artists')])
+                m = u'{} \x02[{}]\x02 {} // {} //'.format(m, i, album, title)
+                m = u'{} {}'.format(m, artt)
+                if int(s.get(u'entry_type')) == 4:
+                    req = s.get(u'elec_request_username')
+                    m = u'{} (requested by {})'.format(m, req)
+
+        if is_irc_channel(target):
+            if sched_id == config.get(u'nx:{}:{}'.format(chan_id, idx), 0):
+                c = u'You can only use {} in {} once per'.format(cmd, target)
+                c = u'{} song.'.format(c)
+                private.append(c)
+                private.append(m)
+            else:
+                config.set(u'nx:{}:{}'.format(chan_id, idx), sched_id)
+                public.append(m)
+        else:
+            private.append(m)
+
+        return public, private
+
+
 class NowPlayingHandler(object):
     cmds = [u'!nowplaying', u'!np', u'!npall', u'!npbw', u'!npch', u'!npchip',
             u'!npcover', u'!npcovers', u'!npgame', u'!npmw', u'!npoc',
