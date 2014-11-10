@@ -364,7 +364,7 @@ class wormgas(SingleServerIRCBot):
 
         self.mb.clear(nick)
 
-        if mode == u'add' and user_id:
+        if mode == u'add' and uid:
             self.config.add_id_to_nick(uid, nick)
             r = u'I assigned the user id {} to nick \'{}\'.'.format(uid, nick)
             self.mb.add(nick, r)
