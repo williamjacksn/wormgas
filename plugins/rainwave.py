@@ -49,18 +49,15 @@ def get_current_channel_for_id(listener_id, config):
         return None
     user_id = config.get(u'rw:user_id')
     key = config.get(u'rw:key')
-    for chan_id in range(1, 6):
-        d = rw_current_listeners(user_id, key, chan_id)
-        for user in d.get(u'current_listeners'):
-            if int(user.get(u'id')) == int(listener_id):
-                return chan_id
-    return None
+    d = rw_listener(user_id, key, listener_id)
+    listener_name = d.get(u'listener').get(u'name')
+    return get_current_channel_for_name(listener_name, config)
 
 
-def get_current_channel_for_nick(nick, config):
+def get_current_channel_for_name(name, config):
     user_id = config.get(u'rw:user_id')
     key = config.get(u'rw:key')
-    d = rw_user_search(user_id, key, nick)
+    d = rw_user_search(user_id, key, name)
     return d.get(u'user').get(u'sid')
 
 
@@ -182,6 +179,16 @@ def rw_user_search(user_id, key, username):
     return _call(u'user_search', params=params)
 
 
+def rw_vote(user_id, key, sid, entry_id):
+    params = {
+        u'user_id': user_id,
+        u'key': key,
+        u'sid': sid,
+        u'entry_id': entry_id
+    }
+    return _call(u'vote', params=params)
+
+
 def is_irc_channel(s):
     return s and s[0] == u'#'
 
@@ -190,10 +197,13 @@ def artist_string(artists):
     return u', '.join([a.get(u'name') for a in artists])
 
 
-def build_song_info_string(song):
+def build_song_info_string(song, simple=False):
     m = u'{} //'.format(song.get(u'albums')[0].get(u'name'))
     artists = artist_string(song.get(u'artists'))
     m = u'{} {} // {}'.format(m, song.get(u'title'), artists)
+
+    if simple:
+        return m
 
     url = song.get(u'url')
     if url is not None:
@@ -231,7 +241,7 @@ class ListenerStatsHandler(object):
         for chan_id in range(1, 6):
             d = rw_current_listeners(user_id, key, chan_id)
             count = len(d.get(u'current_listeners'))
-            m = u'{}{} = {}, '.format(m,chan_id_to_name[chan_id], count)
+            m = u'{}{} = {}, '.format(m, chan_id_to_name[chan_id], count)
             total = total + count
         m = u'{}Total = {}'.format(m, total)
 
@@ -514,7 +524,7 @@ class RequestHandler(object):
             key = auth.get(u'key')
             d = rw_song(user_id, key, auth.get(u'chan_id'), song_id)
             song = d.get(u'song')
-            song_str = build_song_info_string(song)
+            song_str = build_song_info_string(song, simple=True)
             private.append(u'Attempting request: {}'.format(song_str))
             d = rw_request(user_id, key, auth.get(u'chan_id'), song_id)
             private.append(d.get(u'request_result').get(u'text'))
@@ -556,5 +566,66 @@ class RequestHandler(object):
             d = rw_unpause_request_queue(user_id, key, chan_id)
             m = d.get(u'unpause_request_queue_result').get(u'text')
             private.append(m)
+
+        return public, private
+
+
+class VoteHandler(object):
+    cmds = [u'!vote', u'!vt']
+    admin = False
+
+    @classmethod
+    def handle(cls, sender, target, tokens, config):
+        public = list()
+        private = list()
+
+        if len(tokens) > 1:
+            idx = tokens[1]
+        else:
+            m = u'You did not tell me which song you wanted to vote for.'
+            private.append(m)
+            return public, private
+
+        if idx.isdigit():
+            idx = int(idx)
+        else:
+            private.append(u'{} is not a valid voting option.'.format(idx))
+            return public, private
+
+        auth = get_api_auth_for_nick(sender, config)
+        if auth.get(u'user_id') is None:
+            private.append(NICK_NOT_RECOGNIZED)
+            return public, private
+        if auth.get(u'key') is None:
+            private.append(MISSING_KEY)
+            return public, private
+        if auth.get(u'chan_id') is None:
+            private.append(u'You must be tuned in to vote.')
+            return public, private
+
+        d = rw_info(auth.get(u'chan_id'))
+        event = d.get(u'sched_next')[0]
+        sched_id = int(event.get(u'id'))
+        sched_type = event.get(u'type')
+
+        if sched_type == u'OneUp':
+            private.append(u'You cannot vote during a Power Hour.')
+            return public, private
+
+        if idx < 1 or idx > len(event.get(u'songs')):
+            private.append(u'{} is not a valid voting option'.format(idx))
+            return public, private
+
+        song = event.get(u'songs')[idx - 1]
+        elec_entry_id = song.get(u'entry_id')
+        user_id = auth.get(u'user_id')
+        key = auth.get(u'key')
+        d = rw_vote(user_id, key, auth.get(u'chan_id'), elec_entry_id)
+        if d.get(u'vote_result').get(u'success'):
+            song_string = build_song_info_string(song, simple=True)
+            m = u'You successfully voted for {}'.format(song_string)
+            private.append(m)
+        else:
+            private.append(u'Your attempt to vote was not successful.')
 
         return public, private
