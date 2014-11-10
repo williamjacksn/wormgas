@@ -198,33 +198,6 @@ class wormgas(SingleServerIRCBot):
             r += u'{} for another {} seconds.'.format(channel, wait)
             self.mb.add(nick, r)
 
-    @command_handler(u'!8ball')
-    def handle_8ball(self, nick, channel):
-        '''Ask a question of the magic 8ball.'''
-
-        log.info(u'{} used !8ball'.format(nick))
-        self.mb.clear(nick)
-
-        result = random.choice(self._answers_8ball())
-        # Private messages always get the result.
-        if channel == PRIVMSG:
-            self.mb.add(nick, result)
-            return
-
-        # Otherwise, check for the cooldown and respond accordingly.
-        ltb = int(self.config.get(u'lasttime:8ball', 0))
-        wb = int(self.config.get(u'wait:8ball', 0))
-        if ltb < time.time() - wb:
-            self.mb.add(channel, result)
-            if u'again' not in result:
-                self.config.set(u'lasttime:8ball', time.time())
-        else:
-            self.mb.add(nick, result)
-            wait = ltb + wb - int(time.time())
-            r = u'I am cooling down. You cannot use !8ball in '
-            r += u'{} for another {} seconds.'.format(channel, wait)
-            self.mb.add(nick, r)
-
     @command_handler(r'^!$')
     def handle_bang(self, nick, channel):
         '''Get messages from the message buffer.'''
@@ -1019,30 +992,6 @@ class wormgas(SingleServerIRCBot):
             m = u'identify {}'.format(passwd)
             self._to_irc(c, u'privmsg', u'nickserv', m)
         c.join(self.config.get(u'irc:channel'))
-
-    def _answers_8ball(self):
-        return [
-            u'As I see it, yes.',
-            u'Ask again later.',
-            u'Better not tell you now.',
-            u'Cannot predict now.',
-            u'Concentrate and ask again.',
-            u'Don\'t count on it.',
-            u'It is certain.',
-            u'It is decidedly so.',
-            u'Most likely.',
-            u'My reply is no.',
-            u'My sources say no.',
-            u'Outlook good.',
-            u'Outlook not so good.',
-            u'Reply hazy, try again.',
-            u'Signs point to yes.',
-            u'Very doubtful.',
-            u'Without a doubt.',
-            u'Yes.',
-            u'Yes - definitely.',
-            u'You may rely on it.'
-        ]
 
     def _events_not_logged(self):
         return [
