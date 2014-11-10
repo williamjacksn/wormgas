@@ -38,17 +38,19 @@ class EightBallHandler(object):
     def handle(cls, sender, target, tokens, config):
         public = list()
         private = list()
+        response = random.choice(RESPONSES)
 
         if not is_irc_channel(target):
-            private.append(random.choice(RESPONSES))
+            private.append(response)
             return public, private
 
         now = int(time.time())
         last = int(config.get(u'8ball:last', 0))
         wait = int(config.get(u'8ball:wait', 0))
         if last < now - wait:
-            public.append(random.choice(RESPONSES))
-            config.set(u'8ball:last', now)
+            public.append(response)
+            if u'again' not in reponse:
+                config.set(u'8ball:last', now)
         else:
             private.append(random.choice(RESPONSES))
             remaining = last + wait - now
