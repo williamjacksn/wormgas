@@ -309,25 +309,25 @@ class NextHandler(object):
                 private.append(m)
                 return public, private
 
-        m = u'Next up on the {}:'.format(chan_id_to_name[int(chan_id)])
+        m = u'Next up on the {}'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
         event = d.get(u'sched_next')[idx]
         sched_id = int(event.get(u'id'))
         sched_type = event.get(u'type')
+        sched_name = event.get(u'name')
         if sched_type == u'OneUp':
-            ph_name = event.get(u'name')
-            m = u'{} ({} Power Hour)'.format(m, ph_name)
+            m = u'{} ({} Power Hour):'.format(m, sched_name)
             song = event.get(u'songs')[0]
             m = u'{} {}'.format(m, build_song_info_string(song))
-        if sched_type == u'Election':
+        elif sched_type == u'Election':
+            if sched_name:
+                m = u'{} ({})'.format(m, sched_name)
+            m = u'{}:'.format(m)
             for i, s in enumerate(event.get(u'songs'), start=1):
-                album = s.get(u'albums')[0].get(u'name')
-                title = s.get(u'title')
-                artt = u', '.join([a.get(u'name') for a in s.get(u'artists')])
-                m = u'{} \x02[{}]\x02 {} // {} //'.format(m, i, album, title)
-                m = u'{} {}'.format(m, artt)
-                if int(s.get(u'entry_type')) == 4:
-                    req = s.get(u'elec_request_username')
+                song_string = build_song_info_string(s, simple=True)
+                m = u'{} \x02[{}]\x02 {}'.format(m, i, song_string)
+                req = s.get(u'elec_request_username')
+                if req:
                     m = u'{} (requested by {})'.format(m, req)
 
         if is_irc_channel(target):
@@ -387,15 +387,18 @@ class NowPlayingHandler(object):
                 private.append(m)
                 return public, private
 
-        m = u'Now playing on the {}:'.format(chan_id_to_name[int(chan_id)])
+        m = u'Now playing on the {}'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
-        sched_type = d.get(u'sched_current').get(u'type')
-        if sched_type == u'OneUp':
-            sched_name = d.get(u'sched_current').get(u'name')
+        event = d.get(u'sched_current')
+        sched_id = int(event.get(u'id'))
+        sched_type = event.get(u'type')
+        sched_name = event.get(u'name')
+        if sched_type == u'Election' and sched_name:
+            m = u'{} ({})'.format(m, sched_name)
+        elif sched_type == u'OneUp':
             m = u'{} ({} Power Hour)'.format(m, sched_name)
-        sched_id = int(d.get(u'sched_current').get(u'id'))
-        song = d.get(u'sched_current').get(u'songs')[0]
-        m = u'{} {}'.format(m, build_song_info_string(song))
+        song = event.get(u'songs')[0]
+        m = u'{}: {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
             if sched_id == config.get(u'np:{}'.format(chan_id), 0):
@@ -426,7 +429,7 @@ class PrevPlayedHandler(object):
         cmd = tokens[0].lower()
 
         chan_id = None
-        index = 0
+        idx = 0
 
         if cmd in [u'!ppgame', u'!pprw']:
             chan_id = 1
@@ -445,16 +448,16 @@ class PrevPlayedHandler(object):
 
         if chan_id in range(1, 6) and len(tokens) > 1 and tokens[1].isdigit():
             if int(tokens[1]) in range(5):
-                index = int(tokens[1])
+                idx = int(tokens[1])
 
         if cmd in [u'!prevplayed', u'!pp']:
             if len(tokens) > 1:
                 if tokens[1].isdigit() and int(tokens[1]) in range(5):
-                    index = int(tokens[1])
+                    idx = int(tokens[1])
                 else:
                     chan_id = chan_code_to_id.get(tokens[1].lower())
                     if len(tokens) > 2 and int(tokens[2]) in range(5):
-                        index = int(tokens[2])
+                        idx = int(tokens[2])
             if chan_id is None:
                 listener_id = get_id_for_nick(sender, config)
                 if listener_id is None:
@@ -467,24 +470,27 @@ class PrevPlayedHandler(object):
                 private.append(m)
                 return public, private
 
-        m = u'Previously on the {}:'.format(chan_id_to_name[int(chan_id)])
+        m = u'Previously on the {}'.format(chan_id_to_name[int(chan_id)])
         d = rw_info(chan_id)
-        sched_type = d.get(u'sched_current').get(u'type')
-        if sched_type == u'OneUp':
-            sched_name = d.get(u'sched_current').get(u'name')
+        event = d.get(u'sched_history')[idx]
+        sched_id = int(event.get(u'id'))
+        sched_type = event.get(u'type')
+        sched_name = event.get(u'name')
+        if sched_type == u'Election' and sched_name:
+            m = u'{} ({})'.format(m, sched_name)
+        elif sched_type == u'OneUp':
             m = u'{} ({} Power Hour)'.format(m, sched_name)
-        sched_id = int(d.get(u'sched_history')[index].get(u'id'))
-        song = d.get(u'sched_history')[index].get(u'songs')[0]
-        m = u'{} {}'.format(m, build_song_info_string(song))
+        song = event.get(u'songs')[0]
+        m = u'{}: {}'.format(m, build_song_info_string(song))
 
         if is_irc_channel(target):
-            if sched_id == config.get(u'pp:{}:{}'.format(chan_id, index), 0):
+            if sched_id == config.get(u'pp:{}:{}'.format(chan_id, idx), 0):
                 c = u'You can only use {} in {} once per'.format(cmd, target)
                 c = u'{} song.'.format(c)
                 private.append(c)
                 private.append(m)
             else:
-                config.set(u'pp:{}:{}'.format(chan_id, index), sched_id)
+                config.set(u'pp:{}:{}'.format(chan_id, idx), sched_id)
                 public.append(m)
         else:
             private.append(m)
@@ -565,6 +571,65 @@ class RequestHandler(object):
             chan_id = auth.get(u'chan_id')
             d = rw_unpause_request_queue(user_id, key, chan_id)
             m = d.get(u'unpause_request_queue_result').get(u'text')
+            private.append(m)
+
+        return public, private
+
+
+class UserStatsHandler(object):
+    cmds = [u'!ustats']
+    admin = False
+
+    @classmethod
+    def handle(cls, sender, target, tokens, config):
+        public = list()
+        private = list()
+        out = list()
+
+        if len(tokens) > 1:
+            uname = tokens[1]
+        else:
+            uname = sender
+
+        auth = get_api_auth_for_nick(uname, config)
+        if auth.get(u'user_id') is None:
+            private.append(u'{} is not a valid Rainwave user.'.format(uname))
+            return public, private
+
+        user_id = config.get(u'rw:user_id')
+        d = rw_listener(user_id, config.get(u'rw:key'), auth.get(u'user_id'))
+        cun = d.get(u'listener').get(u'name')
+        completion = d.get(u'listener').get(u'rating_completion')
+        game = int(completion.get(u'1'))
+        ocr = int(completion.get(u'2'))
+        cover = int(completion.get(u'3'))
+        chip = int(completion.get(u'4'))
+        m = u'{} has rated {}% of Game, {}% of OCR,'.format(cun, game, ocr)
+        m = u'{} {}% of Covers, {}% of Chiptune'.format(m, cover, chip)
+        m = u'{} channel content.'.format(m)
+        out.append(m)
+
+        if auth.get(u'chan_id'):
+            chan_name = chan_id_to_name[auth.get(u'chan_id')]
+            m = u'{} is currently listening to the {}.'.format(cun, chan_name)
+            out.append(m)
+
+        if not is_irc_channel(target):
+            private.extend(out)
+            return public, private
+
+        now = int(time.time())
+        last = int(config.get(u'ustats:last', 0))
+        wait = int(config.get(u'ustats:wait', 0))
+        if last < now - wait:
+            public.extend(out)
+            config.set(u'ustats:last', now)
+        else:
+            private.extend(out)
+            remaining = last + wait - now
+            m = u'I am cooling down. You cannot use {}'.format(tokens[0])
+            m = u'{} in {} for another'.format(m, target)
+            m = u'{} {} seconds.'.format(m, remaining)
             private.append(m)
 
         return public, private
