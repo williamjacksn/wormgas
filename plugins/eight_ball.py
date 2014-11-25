@@ -49,10 +49,10 @@ class EightBallHandler(object):
         wait = int(config.get(u'8ball:wait', 0))
         if last < now - wait:
             public.append(response)
-            if u'again' not in reponse:
+            if u'again' not in response:
                 config.set(u'8ball:last', now)
         else:
-            private.append(random.choice(RESPONSES))
+            private.append(response)
             remaining = last + wait - now
             m = u'I am cooling down. You cannot use {}'.format(tokens[0])
             m = u'{} in {} for another'.format(m, target)
