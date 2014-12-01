@@ -107,7 +107,7 @@ class CollectionOfNamedLists:
         self._flush()
 
     def add(self, name, item):
-        """Add an item to a ist"""
+        """Add an item to a list"""
         if name not in self.data:
             self.data[name] = []
         self.data[name].append(item)
