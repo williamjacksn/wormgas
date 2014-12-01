@@ -469,49 +469,6 @@ class wormgas(SingleServerIRCBot):
         else:
             log.warning(u'{} does not have privs to use !restart'.format(nick))
 
-    @command_handler(u'!roll(\s(?P<dice>\d+)(d(?P<sides>\d+))?)?')
-    def handle_roll(self, nick, channel, dice=None, sides=None):
-        '''Roll some dice'''
-
-        log.info(u'{} used !roll'.format(nick))
-
-        self.mb.clear(nick)
-
-        try:
-            dice = min(int(dice), 100)
-        except TypeError:
-            dice = 1
-
-        try:
-            sides = max(min(int(sides), 100), 1)
-        except TypeError:
-            sides = 20
-
-        rolls = []
-        for i in range(dice):
-            rolls.append(random.randint(1, sides))
-
-        r = u'{}d{}: '.format(dice, sides)
-        if dice > 1 and dice < 11:
-            r += u'[' + u', '.join(map(str, rolls)) + u'] = '
-        r += u'{}'.format(sum(rolls))
-
-        if channel == PRIVMSG:
-            self.mb.add(nick, r)
-            return
-
-        ltr = int(self.config.get(u'lasttime:roll', 0))
-        wr = int(self.config.get(u'wait:roll', 0))
-        if ltr < time.time() - wr:
-            self.mb.add(channel, r)
-            self.config.set(u'lasttime:roll', time.time())
-        else:
-            self.mb.add(nick, r)
-            wait = ltr + wr - int(time.time())
-            r = u'I am cooling down. You cannot use !roll in '
-            r += u'{} for another {} seconds.'.format(channel, wait)
-            self.mb.add(nick, r)
-
     @command_handler(u'!(?P<mode>rock|paper|scissors)')
     def handle_rps(self, nick, channel, mode=None):
         '''Rock, paper, scissors'''
