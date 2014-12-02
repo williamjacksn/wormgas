@@ -3,31 +3,28 @@
 wormgas -- IRC bot for Rainwave (http://rainwave.cc)
 https://github.com/williamjacksn/wormgas
 '''
-import logging
-import sys
 
-log = logging.getLogger(u'wormgas')
-_f = logging.Formatter(u'%(asctime)s - %(levelname)-7s - %(message)s')
-_h = logging.StreamHandler(stream=sys.stdout)
-_h.setFormatter(_f)
-log.addHandler(_h)
-log.setLevel(logging.DEBUG)
-
+import cobe.brain
+import datetime
+import dbaccess
 import importlib
 import inspect
+import irc.bot
 import os
 import random
 import re
 import requests
 import subprocess
+import sys
 import time
-import xml.etree.ElementTree
-from urlparse import urlparse
-
-import dbaccess
+import urlparse
 import util
-from irc.bot import SingleServerIRCBot
-from cobe.brain import Brain
+import xml.etree.ElementTree
+
+
+def log(message):
+    t = datetime.datetime.utcnow()
+    print('{} {}'.format(t, message))
 
 _abspath = os.path.abspath(__file__)
 _commands = set()
@@ -65,7 +62,7 @@ def command_handler(command):
     return decorator
 
 
-class wormgas(SingleServerIRCBot):
+class Wormgas(irc.bot.SingleServerIRCBot):
 
     channel_ids = {
         u'rw': 1,
@@ -86,7 +83,7 @@ class wormgas(SingleServerIRCBot):
 
     def __init__(self):
         self.path, self.file = os.path.split(_abspath)
-        self.brain = Brain(u'{}/brain.sqlite'.format(self.path))
+        self.brain = cobe.brain.Brain(u'{}/brain.sqlite'.format(self.path))
 
         config_json = u'{}/config.json'.format(self.path)
         rps_json = u'{}/rps.json'.format(self.path)
@@ -97,7 +94,7 @@ class wormgas(SingleServerIRCBot):
         for plug_name in self.config.get(u'plugins', list())[:]:
             public, private = self.handle_load([u'!load', plug_name])
             for m in private:
-                log.info(m)
+                log(m)
 
         self.mb = util.CollectionOfNamedLists(u'{}/mb.json'.format(self.path))
         self.tf = util.TitleFetcher()
@@ -118,7 +115,7 @@ class wormgas(SingleServerIRCBot):
         server = self.config.get(u'irc:server')
         nick = self.config.get(u'irc:nick')
         name = self.config.get(u'irc:name')
-        SingleServerIRCBot.__init__(self, [(server, 6667)], nick, name)
+        super(Wormgas, self).__init__([(server, 6667)], nick, name)
         self.connection.buffer_class.errors = u'replace'
 
     def stop(self):
@@ -131,8 +128,8 @@ class wormgas(SingleServerIRCBot):
         if et not in self._events_not_logged():
             s = e.source
             t = e.target
-            log.debug(u'{}, {}, {} -- {}'.format(et, s, t, e.arguments))
-        SingleServerIRCBot._dispatcher(self, c, e)
+            log(u'{}, {}, {} -- {}'.format(et, s, t, e.arguments))
+        irc.bot.SingleServerIRCBot._dispatcher(self, c, e)
 
     def _aux_wa(self, query):
         '''Auxilliary function that does the Wolfram API magic.'''
@@ -168,14 +165,14 @@ class wormgas(SingleServerIRCBot):
         except xml.etree.ElementTree.ParseError:
             return [u'Error: could not parse response.']
         except Exception as e:
-            log.exception(e)
+            log(e)
             return [u'Error: An unknown error occurred.']
 
     @command_handler(u'!wa (?P<query>.+)')
     def handle_wa(self, nick, channel, query=None):
         '''Ask something of the Wolfram Alpha API.'''
 
-        log.info(u'{} used !wa'.format(nick))
+        log(u'{} used !wa'.format(nick))
         self.mb.clear(nick)
         result = self._aux_wa(query)
 
@@ -202,14 +199,14 @@ class wormgas(SingleServerIRCBot):
     def handle_bang(self, nick, channel):
         '''Get messages from the message buffer.'''
 
-        log.info(u'{} used !'.format(nick))
+        log(u'{} used !'.format(nick))
         pass
 
     @command_handler(u'^!help(\s(?P<topic>\w+))?')
     def handle_help(self, nick, channel, topic=None):
         '''Look up help about a topic'''
 
-        log.info(u'{} used !help'.format(nick))
+        log(u'{} used !help'.format(nick))
 
         self.mb.clear(nick)
         self._help(nick, topic)
@@ -333,7 +330,7 @@ class wormgas(SingleServerIRCBot):
             mode: string, one of 'add', 'drop', 'show'
             uid: numeric, the person's Rainwave User ID'''
 
-        log.info(u'{} used !id'.format(nick))
+        log(u'{} used !id'.format(nick))
 
         self.mb.clear(nick)
 
@@ -364,7 +361,7 @@ class wormgas(SingleServerIRCBot):
             mode: string, one of 'add', 'drop', 'show'
             key: string, the API key to add'''
 
-        log.info(u'{} used !key'.format(nick))
+        log(u'{} used !key'.format(nick))
 
         self.mb.clear(nick)
 
@@ -405,7 +402,7 @@ class wormgas(SingleServerIRCBot):
                 module = importlib.import_module(module_name)
             except ImportError:
                 err = u'Error while loading plugin: {}.'.format(plug_name)
-                log.exception(err)
+                log(err)
                 private.append(err)
                 return public, private
 
@@ -461,13 +458,13 @@ class wormgas(SingleServerIRCBot):
     def handle_restart(self, nick, channel):
         '''Restart the bot'''
 
-        log.info(u'{} used !restart'.format(nick))
+        log(u'{} used !restart'.format(nick))
 
         if self._is_admin(nick):
             self.config.set(u'restart_on_stop', 1)
             self.handle_stop(nick, channel)
         else:
-            log.warning(u'{} does not have privs to use !restart'.format(nick))
+            log(u'{} does not have privs to use !restart'.format(nick))
 
     @command_handler(u'!(?P<mode>rock|paper|scissors)')
     def handle_rps(self, nick, channel, mode=None):
@@ -478,7 +475,7 @@ class wormgas(SingleServerIRCBot):
         else:
             mode = mode.lower()
 
-        log.info(u'{} used !{}'.format(nick, mode))
+        log(u'{} used !{}'.format(nick, mode))
 
         self.mb.clear(nick)
 
@@ -525,7 +522,7 @@ class wormgas(SingleServerIRCBot):
     def handle_rps_record(self, nick, channel, target=None):
         '''Report RPS record for a nick'''
 
-        log.info(u'{} used !rps record'.format(nick))
+        log(u'{} used !rps record'.format(nick))
 
         self.mb.clear(nick)
 
@@ -559,7 +556,7 @@ class wormgas(SingleServerIRCBot):
     def handle_rps_rename(self, nick, channel, old=None, new=None):
         '''Rename an RPS nick, useful for merging game histories'''
 
-        log.info(u'{} used !rps rename'.format(nick))
+        log(u'{} used !rps rename'.format(nick))
 
         if self._is_admin(nick) and old and new:
             self.mb.clear(nick)
@@ -571,7 +568,7 @@ class wormgas(SingleServerIRCBot):
     def handle_rps_reset(self, nick, channel):
         '''Reset RPS stats and delete game history for a nick'''
 
-        log.info(u'{} used !rps reset'.format(nick))
+        log(u'{} used !rps reset'.format(nick))
 
         self.mb.clear(nick)
 
@@ -583,7 +580,7 @@ class wormgas(SingleServerIRCBot):
     def handle_rps_stats(self, nick, channel, target=None):
         '''Get some RPS statistics for a player'''
 
-        log.info(u'{} used !rps stats'.format(nick))
+        log(u'{} used !rps stats'.format(nick))
 
         self.mb.clear(nick)
 
@@ -623,7 +620,7 @@ class wormgas(SingleServerIRCBot):
     def handle_rps_who(self, nick, channel):
         '''List all players in the RPS game history'''
 
-        log.info(u'{} used !rps who'.format(nick))
+        log(u'{} used !rps who'.format(nick))
 
         self.mb.clear(nick)
 
@@ -642,20 +639,20 @@ class wormgas(SingleServerIRCBot):
     def handle_set(self, nick, channel, id=None, value=None):
         '''View and set bot configuration'''
 
-        log.info(u'{} used !set'.format(nick))
+        log(u'{} used !set'.format(nick))
 
         self.mb.clear(nick)
 
         if self._is_admin(nick):
             self.mb.set(nick, self.config.handle(id, value))
         else:
-            log.warning(u'{} does not have privs to use !set'.format(nick))
+            log(u'{} does not have privs to use !set'.format(nick))
 
     @command_handler(u'!stop')
     def handle_stop(self, nick, channel):
         '''Shut down the bot'''
 
-        log.info(u'{} used !stop'.format(nick))
+        log(u'{} used !stop'.format(nick))
 
         if self._is_admin(nick):
             if self.config.get(u'restart_on_stop'):
@@ -667,13 +664,13 @@ class wormgas(SingleServerIRCBot):
                     stdin=subprocess.PIPE)
             self.die(u'I was stopped by {}'.format(nick))
         else:
-            log.warning(u'{} does not have privs to use !stop'.format(nick))
+            log(u'{} does not have privs to use !stop'.format(nick))
 
     @command_handler(u'^!unset(\s(?P<id>\S+))?')
     def handle_unset(self, nick, channel, id=None):
         '''Unset a configuration item'''
 
-        log.info(u'{} used !unset'.format(nick))
+        log(u'{} used !unset'.format(nick))
 
         if self._is_admin(nick):
             if id:
@@ -682,7 +679,7 @@ class wormgas(SingleServerIRCBot):
                 self.mb.add(nick, u'{} has been unset.'.format(id))
                 return
         else:
-            log.warning(u'{} does not have privs to use !unset'.format(nick))
+            log(u'{} does not have privs to use !unset'.format(nick))
 
     def on_join(self, c, e):
         '''This method is called when an IRC join event happens
@@ -756,7 +753,7 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(chan, public)
                     self.mb.set(nick, private)
                 except:
-                    log.exception(u'Exception in {}'.format(cmd))
+                    log(u'Exception in {}'.format(cmd))
                     m = (u'I experienced a problem and recorded some '
                          u'exception information in the log.')
                     self.mb.set(nick, [m])
@@ -771,7 +768,7 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(chan, public)
                     self.mb.set(nick, private)
                 except:
-                    log.exception(u'Exception in {}'.format(cmd))
+                    log(u'Exception in {}'.format(cmd))
                     m = (u'I experienced a problem and recorded some '
                          u'exception information in the log.')
                     self.mb.set(nick, [m])
@@ -853,7 +850,7 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(chan, public)
                     self.mb.set(nick, private)
                 except:
-                    log.exception(u'Exception in {}'.format(cmd))
+                    log(u'Exception in {}'.format(cmd))
                     m = (u'I experienced a problem and recorded some '
                          u'exception information in the log.')
                     self.mb.set(nick, [m])
@@ -868,7 +865,7 @@ class wormgas(SingleServerIRCBot):
                     self.mb.set(chan, public)
                     self.mb.set(nick, private)
                 except:
-                    log.exception(u'Exception in {}'.format(cmd))
+                    log(u'Exception in {}'.format(cmd))
                     m = (u'I experienced a problem and recorded some '
                          u'exception information in the log.')
                     self.mb.set(nick, [m])
@@ -889,9 +886,9 @@ class wormgas(SingleServerIRCBot):
                 try:
                     title = self.tf.get_title(url)
                 except util.TitleFetcherError as err:
-                    log.exception(err)
+                    log(err)
                 if title:
-                    log.info(u'Found a title: {}'.format(title))
+                    log(u'Found a title: {}'.format(title))
                     title_found = True
                     self.mb.add(chan, u'[ {} ]'.format(title))
 
@@ -971,18 +968,18 @@ class wormgas(SingleServerIRCBot):
     def _find_urls(self, text):
         '''Look for URLs in arbitrary text. Return a list of the URLs found.'''
 
-        log.info(u'Looking for URLs in: {}'.format(text))
+        log(u'Looking for URLs in: {}'.format(text))
 
         urls = []
         for token in text.split():
             try:
-                o = urlparse(token)
+                o = urlparse.urlparse(token)
             except ValueError:
-                log.exception(u'Trouble looking for URLs.')
+                log(u'Trouble looking for URLs.')
                 return urls
             if u'http' in o.scheme and o.netloc:
                 url = o.geturl()
-                log.info(u'Found a URL: {}'.format(url))
+                log(u'Found a URL: {}'.format(url))
                 urls.append(url)
         return urls
 
@@ -1005,14 +1002,14 @@ class wormgas(SingleServerIRCBot):
         # If I have not checked for forum activity for 'timeout:forumcheck'
         # seconds, check now
 
-        log.info(u'Performing periodic tasks')
+        log(u'Performing periodic tasks')
 
         chan = self.config.get(u'irc:channel')
 
         ltm = int(self.config.get(u'lasttime:msg', 0))
         toc = int(self.config.get(u'timeout:chat', 3600))
         if int(time.time()) > ltm + toc:
-            log.info(u'Chat timeout exceeded, keep the conversation moving')
+            log(u'Chat timeout exceeded, keep the conversation moving')
             talkr = self._talk()
             if talkr:
                 self.config.set(u'msg:last', talkr)
@@ -1091,7 +1088,7 @@ class wormgas(SingleServerIRCBot):
     def _to_irc(self, c, msgtype, target, msg):
         '''Send an IRC message'''
 
-        log.debug(u'Sending {} to {} -- {}'.format(msgtype, target, msg))
+        log(u'Sending {} to {} -- {}'.format(msgtype, target, msg))
 
         if hasattr(c, msgtype):
             f = getattr(c, msgtype)
@@ -1100,13 +1097,13 @@ class wormgas(SingleServerIRCBot):
             try:
                 f(target, msg)
             except:
-                log.exception(u'Problem sending to IRC')
+                log(u'Problem sending to IRC')
         else:
-            log.error(u'Invalid message type \'{}\''.format(msgtype))
+            log(u'Invalid message type \'{}\''.format(msgtype))
 
 
 def main():
-    bot = wormgas()
+    bot = Wormgas()
     bot.start()
 
 if __name__ == u'__main__':
