@@ -24,7 +24,7 @@ import xml.etree.ElementTree
 
 def log(message):
     t = datetime.datetime.utcnow()
-    print('{} {}'.format(t, message))
+    print(u'{} {}'.format(t, message))
 
 _abspath = os.path.abspath(__file__)
 _commands = set()
