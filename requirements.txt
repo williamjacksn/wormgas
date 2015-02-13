@@ -1,4 +1,0 @@
-httpie
-irc
-requests
-stemming

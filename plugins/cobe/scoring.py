@@ -1,18 +1,20 @@
 # Copyright (C) 2011 Peter Teichman
+# Edited 2015-02-11 for simplicity and Python 3 compatibility by William Jackson
 
 import math
 
-from itertools import islice, izip
+from itertools import islice
 
 
 class Scorer:
     def __init__(self):
         self.cache = {}
 
-    def end(self, reply):
+    def end(self):
         self.cache = {}
 
-    def normalize(self, score):
+    @staticmethod
+    def normalize(score):
         # map high-valued scores into 0..1
         if score < 0:
             return score
@@ -26,6 +28,7 @@ class Scorer:
 class ScorerGroup:
     def __init__(self):
         self.scorers = []
+        self.total_weight = 0.
 
     def add_scorer(self, weight, scorer):
         # add a scorer with a negative weight if you want to reverse
@@ -37,9 +40,9 @@ class ScorerGroup:
             total += abs(weight)
         self.total_weight = total
 
-    def end(self, reply):
+    def end(self):
         for scorer in self.scorers:
-            scorer[1].end(reply)
+            scorer[1].end()
 
     def score(self, reply):
         # normalize to 0..1
@@ -131,10 +134,13 @@ class IdentityScorer(Scorer):
                 yield None
 
     def score(self, reply):
-        if len(reply.token_ids) != len(reply.edges) - 1:
+        len_token_ids = 0
+        for _ in reply.token_ids:
+            len_token_ids += 1
+        if len_token_ids != len(reply.edges) - 1:
             return 0.0
 
-        for a, b in izip(reply.token_ids, self.token_iter(reply)):
+        for a, b in zip(reply.token_ids, self.token_iter(reply)):
             if a != b:
                 return 0.0
 

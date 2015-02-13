@@ -1,8 +1,9 @@
 # Copyright (C) 2010 Peter Teichman
+# Edited 2015-02-11 for simplicity and Python 3 compatibility by William Jackson
 
 import re
-import types
-from stemming import porter2
+import stemming.porter2
+
 
 class MegaHALTokenizer:
     """A traditional MegaHAL style tokenizer. This considers any of these
@@ -12,29 +13,31 @@ to be a token:
   * one or more consecutive punctuation/space characters (not apostrophe)
 
 This tokenizer ignores differences in capitalization."""
-    def split(self, phrase):
-        if type(phrase) != types.UnicodeType:
-            raise TypeError("Input must be Unicode")
+    @staticmethod
+    def split(phrase):
+        if not isinstance(phrase, str):
+            raise TypeError('Input must be Unicode')
 
         if len(phrase) == 0:
             return []
 
         # add ending punctuation if it is missing
-        if phrase[-1] not in ".!?":
-            phrase = phrase + "."
+        if phrase[-1] not in '.!?':
+            phrase = '{}.'.format(phrase)
 
-        words = re.findall("([A-Z']+|[0-9]+|[^A-Z'0-9]+)", phrase.upper(),
+        words = re.findall('([A-Z\']+|[0-9]+|[^A-Z\'0-9]+)', phrase.upper(),
                            re.UNICODE)
         return words
 
-    def join(self, words):
+    @staticmethod
+    def join(words):
         """Capitalize the first alpha character in the reply and the
         first alpha character that follows one of [.?!] and a
         space."""
-        chars = list(u"".join(words))
+        chars = list(''.join(words))
         start = True
 
-        for i in xrange(len(chars)):
+        for i in range(len(chars)):
             char = chars[i]
             if char.isalpha():
                 if start:
@@ -44,10 +47,10 @@ This tokenizer ignores differences in capitalization."""
 
                 start = False
             else:
-                if i > 2 and chars[i - 1] in ".?!" and char.isspace():
+                if i > 2 and chars[i - 1] in '.?!' and char.isspace():
                     start = True
 
-        return u"".join(chars)
+        return ''.join(chars)
 
 
 class CobeTokenizer:
@@ -70,16 +73,16 @@ tokens."""
         # the list of non-word characters, so if it's found entirely within
         # punctuation it's a normal non-word (e.g. :-( )
 
-        self.regex = re.compile("(\w+:\S+"  # urls
-                                "|[\w'-]+"  # words
-                                "|[^\w\s][^\w]*[^\w\s]"  # multiple punctuation
-                                "|[^\w\s]"  # a single punctuation character
-                                "|\s+)",    # whitespace
+        self.regex = re.compile('(\w+:\S+'  # urls
+                                '|[\w\'-]+'  # words
+                                '|[^\w\s][^\w]*[^\w\s]'  # multiple punctuation
+                                '|[^\w\s]'  # a single punctuation character
+                                '|\s+)',    # whitespace
                                 re.UNICODE)
 
     def split(self, phrase):
-        if type(phrase) != types.UnicodeType:
-            raise TypeError("Input must be Unicode")
+        if not isinstance(phrase, str):
+            raise TypeError('Input must be Unicode')
 
         # Strip leading and trailing whitespace. This might not be the
         # correct choice long-term, but in the brain it prevents edges
@@ -92,29 +95,33 @@ tokens."""
         tokens = self.regex.findall(phrase)
 
         # collapse runs of whitespace into a single space
-        space = u" "
+        space = ' '
         for i, token in enumerate(tokens):
-            if token[0] == " " and len(token) > 1:
+            if token[0] == ' ' and len(token) > 1:
                 tokens[i] = space
 
         return tokens
 
-    def join(self, words):
-        return u"".join(words)
+    @staticmethod
+    def join(words):
+        return ''.join(words)
 
 # Modified from original source by cpetosky on 3/11:
 #    Replaced Snowball dependency with stemming library.
 #    stemming is pure python and avoids Snowball's binary dependency.
+
+
 class CobeStemmer:
-    def __init__(self, name):
+    def __init__(self):
         pass
 
-    def stem(self, word):
+    @staticmethod
+    def stem(word):
         # Don't preserve case when stemming, i.e. create lowercase stems.
         # This will allow us to create replies that switch the case of
         # input words, but still generate the reply in context with the
         # generated case.
 
-        stem = porter2.stem(word.lower())
+        stem = stemming.porter2.stem(word.lower())
 
         return stem
