@@ -125,10 +125,9 @@ class ChatHandler:
             return random.choice(self.quotes)
         bot.c['chat:last_message'] = text
         to_brain = text
-        if len(bot.members) > 1:
-            pattern = '|'.join(bot.members)
+        for member in bot.members:
             anon_name = random.choice(self.anon_names)
-            to_brain = re.sub(pattern, anon_name, text, flags=re.IGNORECASE)
+            to_brain = to_brain.replace(member, anon_name)
         if learn:
             if bot.debug:
                 bot.log('** Learning {!r}'.format(to_brain))
