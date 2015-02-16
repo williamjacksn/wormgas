@@ -11,6 +11,11 @@ class WikipediaHandler:
 
     @classmethod
     def handle(cls, sender, target, tokens, bot):
+        if len(tokens) < 2:
+            for line in cls.help_text:
+                bot.send_privmsg(sender, line)
+            return
+
         search_title = ' '.join(tokens[1:])
         try:
             page = wikipedia.page(search_title)
