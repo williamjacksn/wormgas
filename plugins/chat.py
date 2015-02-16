@@ -43,9 +43,6 @@ class ChatHandler:
          'is true wisdom.')
     ]
 
-    anon_names = ['someone', 'somebody', 'anyone', 'anybody',
-                  'no one', 'nobody', 'everyone', 'everybody']
-
     def __init__(self, sbot):
         brain_file = sbot.c.path.with_name('_brain.sqlite')
         self.brain = brain.Brain(str(brain_file))
@@ -126,8 +123,7 @@ class ChatHandler:
         bot.c['chat:last_message'] = text
         to_brain = text
         for member in bot.members:
-            anon_name = random.choice(self.anon_names)
-            to_brain = to_brain.replace(member, anon_name)
+            to_brain = to_brain.replace(member, '')
         if learn:
             if bot.debug:
                 bot.log('** Learning {!r}'.format(to_brain))
