@@ -207,7 +207,7 @@ class IRCClient(asyncio.Protocol):
                 self._handle_part(tokens)
             elif tokens[1] == 'QUIT':
                 self._handle_quit(tokens)
-            elif tokens[1] == 'TOPIC':
+            elif tokens[1] == 'TOPIC' or tokens[1] == '332':
                 self._handle_topic(message)
             self.ee.emit(tokens[1], message, self)
         else:
