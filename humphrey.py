@@ -80,6 +80,7 @@ class IRCClient(asyncio.Protocol):
         self.admins = set()
         self.members = set()
         self.in_channel = False
+        self.topic = None
 
     def __call__(self):
         return self
@@ -206,6 +207,8 @@ class IRCClient(asyncio.Protocol):
                 self._handle_part(tokens)
             elif tokens[1] == 'QUIT':
                 self._handle_quit(tokens)
+            elif tokens[1] == 'TOPIC':
+                self._handle_topic(message)
             self.ee.emit(tokens[1], message, self)
         else:
             self.ee.emit('catch_all', message, self)
@@ -273,3 +276,8 @@ class IRCClient(asyncio.Protocol):
         source = tokens[0].lstrip(':')
         nick, _, _ = self.parse_hostmask(source)
         self.remove_member(nick)
+
+    def _handle_topic(self, message):
+        new_topic = message.split(' :', 1)[1]
+        self.topic = new_topic
+        self.log('** Setting new topic {!r}'.format(new_topic))
