@@ -1,6 +1,7 @@
-import requests
 import time
-import xml
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree
 
 
 class WolframAlphaHandler:
@@ -52,8 +53,13 @@ class WolframAlphaHandler:
                 'input': query,
                 'format': 'plaintext'
             }
-            r = requests.get(url, timeout=10, params=params)
-            root = xml.etree.ElementTree.fromstring(r.text)
+            data = urllib.parse.urlencode(params).encode()
+            response = urllib.request.urlopen(url, data=data)
+            if response.status == 200:
+                body = response.read().decode()
+            else:
+                raise RuntimeError
+            root = xml.etree.ElementTree.fromstring(body)
             if root.get('success') != 'true':
                 return ['Wolfram Alpha found no answer.']
             plaintext = root.find('./pod[@primary="true"]/subpod/plaintext')
@@ -68,7 +74,5 @@ class WolframAlphaHandler:
             if plaintext.text is None:
                 return ['Error: empty response.']
             return plaintext.text.splitlines()
-        except requests.exceptions.Timeout:
-            return ['Error: Wolfram Alpha timed out.']
         except xml.etree.ElementTree.ParseError:
             return ['Error: could not parse response.']

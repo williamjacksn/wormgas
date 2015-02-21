@@ -1,5 +1,7 @@
-import requests
+import json
 import time
+import urllib.parse
+import urllib.request
 
 
 class RainwaveHandler:
@@ -50,10 +52,12 @@ class RainwaveHandler:
             params = dict()
         base_url = 'http://rainwave.cc/api4/'
         url = '{}{}'.format(base_url, path.lstrip('/'))
-        d = requests.post(url, params=params)
-        if d.ok:
-            return d.json()
-        d.raise_for_status()
+        data = urllib.parse.urlencode(params).encode()
+        response = urllib.request.urlopen(url, data=data)
+        if response.status == 200:
+            body = response.read().decode()
+            return json.loads(body)
+        raise RuntimeError
 
     @staticmethod
     def artist_string(artists):
