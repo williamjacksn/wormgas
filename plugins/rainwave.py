@@ -534,12 +534,14 @@ class PrevPlayedHandler(RainwaveHandler):
             '!ppocr', '!ppomni', '!ppow', '!pprw', '!ppvw']
     admin = False
     help_topic = 'prevplayed'
-    help_text = [('Use \x02!prevplayed [<channel>]\x02 to show what was '
-                  'previously playing on the radio.'),
+    help_text = [('Use \x02!prevplayed [<channel>] [<index>]\x02 to show what '
+                  'was previously playing on the radio.'),
                  'Short version is \x02!pp[<channel>]\x02.',
                  RainwaveHandler.channel_codes,
                  ('Leave off <channel> to auto-detect the channel you are '
-                  'tuned to.')]
+                  'tuned to.'),
+                 ('<index> should be a number from 0 to 4. The higher the '
+                  'number, the further back in time you go.')]
 
     @classmethod
     def handle(cls, sender, target, tokens, bot):
