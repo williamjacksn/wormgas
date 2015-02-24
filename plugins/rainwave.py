@@ -536,7 +536,7 @@ class PrevPlayedHandler(RainwaveHandler):
     help_topic = 'prevplayed'
     help_text = [('Use \x02!prevplayed [<channel>] [<index>]\x02 to show what '
                   'was previously playing on the radio.'),
-                 'Short version is \x02!pp[<channel>]\x02.',
+                 'Short version is \x02!pp[<channel>] [<index>]\x02.',
                  RainwaveHandler.channel_codes,
                  ('Leave off <channel> to auto-detect the channel you are '
                   'tuned to.'),
