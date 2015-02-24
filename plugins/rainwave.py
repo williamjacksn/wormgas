@@ -569,8 +569,9 @@ class PrevPlayedHandler(RainwaveHandler):
                     idx = int(tokens[1])
                 else:
                     chan_id = cls.chan_code_to_id.get(tokens[1].lower())
-                    if len(tokens) > 2 and int(tokens[2]) in range(5):
-                        idx = int(tokens[2])
+                    if len(tokens) > 2:
+                        if tokens[2].isdigit() and int(tokens[2]) in range(5):
+                            idx = int(tokens[2])
             if chan_id is None:
                 listener_id = cls.get_id_for_nick(sender, bot)
                 if listener_id is None:
