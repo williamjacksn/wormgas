@@ -46,6 +46,15 @@ class RainwaveHandler:
         'All channel'
     ]
 
+    chan_id_to_url = [
+        'http://rainwave.cc/',
+        'http://game.rainwave.cc/',
+        'http://ocr.rainwave.cc/',
+        'http://covers.rainwave.cc/',
+        'http://chiptune.rainwave.cc/',
+        'http://all.rainwave.cc/'
+    ]
+
     @staticmethod
     def _call(path, params=None):
         if params is None:
@@ -161,6 +170,11 @@ class RainwaveHandler:
         return cls._call('info', params=params)
 
     @classmethod
+    def rw_info_all(cls):
+        params = {'sid': 1}
+        return cls._call('info_all', params=params)
+
+    @classmethod
     def rw_listener(cls, user_id, key, listener_id):
         params = {
             'user_id': user_id,
@@ -248,6 +262,47 @@ class RainwaveHandler:
     def send_help(cls, target, bot):
         for line in cls.help_text:
             bot.send_privmsg(target, line)
+
+
+class SpecialEventTopicHandler(RainwaveHandler):
+    cmds = []
+    admin = False
+    help_topic = 'power_hour_topics'
+    help_text = ['']
+
+    def __init__(self, sbot):
+        @sbot.ee.on('PING')
+        def check_special_events(message, bot):
+            if not bot.in_channel:
+                return
+            new_topic_head = 'Welcome to Rainwave!'
+            event_now = False
+            events = list()
+            d = self.rw_info_all()
+            if 'all_stations_info' in d:
+                for sid, info in d['all_stations_info'].items():
+                    if info['event_type'] == 'OneUp':
+                        name = info['event_name']
+                        events.append(dict(sid=int(sid), name=name))
+            if events:
+                event_now = True
+                e_text = list()
+                for e in events:
+                    chan = self.chan_id_to_name[e['sid']].split()[0]
+                    e_text.append('[{}] {} Power Hour'.format(chan, e['name']))
+                new_topic_head = ' '.join(e_text)
+            if bot.topic is None:
+                bot.topic = ''
+            topic_parts = bot.topic.split(' | ')
+            if new_topic_head != topic_parts[0]:
+                topic_parts[0] = new_topic_head
+                bot.send_topic(' | '.join(topic_parts))
+                if event_now:
+                    for e in events:
+                        chan_url = self.chan_id_to_url[e['sid']]
+                        name = '{} Power Hour'.format(e['name'])
+                        m = '{} now on {}'.format(name, chan_url)
+                        bot.send_privmsg(bot.c['irc:channel'], m)
 
 
 class IdHandler(RainwaveHandler):
