@@ -296,7 +296,7 @@ class SpecialEventTopicHandler(RainwaveHandler):
             topic_parts = bot.topic.split(' | ')
             if new_topic_head != topic_parts[0]:
                 topic_parts[0] = new_topic_head
-                bot.send_topic(' | '.join(topic_parts))
+                bot.send_topic(bot.c['irc:channel'], ' | '.join(topic_parts))
                 if event_now:
                     for e in events:
                         chan_url = self.chan_id_to_url[e['sid']]
