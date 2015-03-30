@@ -266,9 +266,10 @@ class RainwaveHandler:
 
 class SpecialEventTopicHandler(RainwaveHandler):
     cmds = []
-    admin = False
+    admin = True
     help_topic = 'power_hour_topics'
-    help_text = ['']
+    help_text = [('I will automatically change the topic when there is a Power '
+                  'Hour currently running.')]
 
     def __init__(self, sbot):
         @sbot.ee.on('PING')
