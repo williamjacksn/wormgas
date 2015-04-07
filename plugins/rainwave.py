@@ -1,3 +1,4 @@
+import datetime
 import json
 import time
 import urllib.parse
@@ -146,6 +147,13 @@ class RainwaveHandler:
         rw_config_path = bot.c.path.with_name('_rainwave.json')
         return bot.c.__class__(rw_config_path)
 
+    def rw_admin_list_producers_all(self, user_id, key):
+        params = {
+            'user_id': user_id,
+            'key': key
+        }
+        return self._call('admin/list_producers_all', params=params)
+
     @classmethod
     def rw_clear_requests(cls, user_id, key, sid):
         params = {
@@ -278,20 +286,13 @@ class SpecialEventTopicHandler(RainwaveHandler):
                 return
             new_topic_head = 'Welcome to Rainwave!'
             event_now = False
-            events = list()
-            d = self.rw_info_all()
-            if 'all_stations_info' in d:
-                for sid, info in d['all_stations_info'].items():
-                    if info['event_type'] == 'OneUp':
-                        name = info['event_name']
-                        events.append(dict(sid=int(sid), name=name))
+            events = self.get_current_events()
+            future_events = self.get_future_events(bot)
             if events:
                 event_now = True
-                e_text = list()
-                for e in events:
-                    chan = self.chan_id_to_name[e['sid']].split()[0]
-                    e_text.append('[{}] {} Power Hour'.format(chan, e['name']))
-                new_topic_head = ' '.join(e_text)
+                new_topic_head = ' '.join(events)
+            elif future_events:
+                new_topic_head = future_events[0]
             if bot.topic is None:
                 bot.topic = ''
             topic_parts = bot.topic.split(' | ')
@@ -304,6 +305,36 @@ class SpecialEventTopicHandler(RainwaveHandler):
                         name = '{} Power Hour'.format(e['name'])
                         m = '{} now on {}'.format(name, chan_url)
                         bot.send_privmsg(bot.c['irc:channel'], m)
+
+    def get_current_events(self):
+        current_events = list()
+        d = self.rw_info_all()
+        if 'all_stations_info' in d:
+            for sid, info in d['all_stations_info'].items():
+                if info['event_type'] == 'OneUp':
+                    chan_name = self.chan_id_to_name[sid].split()[0]
+                    e_name = info['event_name']
+                    event_text = '[{}] {} Power Hour'.format(chan_name, e_name)
+                    current_events.append(event_text)
+        return current_events
+
+    def get_future_events(self, bot):
+        future_events = list()
+        user_id = bot.c.get('rainwave:user_id')
+        key = bot.c.get('rainwave:key')
+        d = self.rw_admin_list_producers_all(user_id=user_id, key=key)
+        if 'producers' in d:
+            for p in d['producers']:
+                if p['type'] == 'OneUpProducer':
+                    chan_name = self.chan_id_to_name[p['sid']].split()[0]
+                    e_name = p['name']
+                    e_text = '[{}] {} Power Hour'.format(chan_name, e_name)
+                    when = datetime.datetime.fromtimestamp(p['start'])
+                    when = when + datetime.timedelta(hours=5)
+                    when = when.strftime('%Y-%m-%d %H:%M')
+                    e_text = '{}: {} UTC'.format(e_text, when)
+                    future_events.append(e_text)
+        return future_events
 
 
 class IdHandler(RainwaveHandler):
