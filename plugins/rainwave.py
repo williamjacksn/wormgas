@@ -330,9 +330,10 @@ class SpecialEventTopicHandler(RainwaveHandler):
                     e_name = p['name']
                     e_text = '[{}] {} Power Hour'.format(chan_name, e_name)
                     when = datetime.datetime.fromtimestamp(p['start'])
-                    when = when + datetime.timedelta(hours=4)
-                    when = when.strftime('%Y-%m-%d %H:%M')
-                    e_text = '{}: {} UTC'.format(e_text, when)
+                    month = when.strftime('%b')
+                    w_time = when.strftime('%H:%M')
+                    e_text = '{}: {} {}'.format(e_text, month, when.day)
+                    e_text = '{} {} Eastern'.format(e_text, w_time)
                     future_events.append(e_text)
         return future_events
 
