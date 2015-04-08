@@ -329,7 +329,8 @@ class SpecialEventTopicHandler(RainwaveHandler):
                     chan_name = self.chan_id_to_name[p['sid']].split()[0]
                     e_name = p['name']
                     e_text = '[{}] {} Power Hour'.format(chan_name, e_name)
-                    when = datetime.datetime.fromtimestamp(p['start'])
+                    edt = datetime.timezone(datetime.timedelta(hours=-4))
+                    when = datetime.datetime.fromtimestamp(p['start'], tz=edt)
                     month = when.strftime('%b')
                     w_time = when.strftime('%H:%M')
                     e_text = '{}: {} {}'.format(e_text, month, when.day)
