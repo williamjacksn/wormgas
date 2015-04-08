@@ -290,7 +290,7 @@ class SpecialEventTopicHandler(RainwaveHandler):
             future_events = self.get_future_events(bot)
             if events:
                 event_now = True
-                new_topic_head = ' '.join(events)
+                new_topic_head = ' '.join([e['text'] for e in events])
             elif future_events:
                 new_topic_head = future_events[0]
             if bot.topic is None:
@@ -301,10 +301,18 @@ class SpecialEventTopicHandler(RainwaveHandler):
                 bot.send_topic(bot.c['irc:channel'], ' | '.join(topic_parts))
                 if event_now:
                     for e in events:
-                        chan_url = self.chan_id_to_url[e['sid']]
-                        name = '{} Power Hour'.format(e['name'])
-                        m = '{} now on {}'.format(name, chan_url)
+                        m = '{text} {chan_url}'.format(**e)
                         bot.send_privmsg(bot.c['irc:channel'], m)
+
+    def build_event_dict(self, chan_id, info):
+        event = dict()
+        chan_id = int(chan_id)
+        event['chan_id'] = chan_id
+        event['chan_url'] = self.chan_id_to_url[chan_id]
+        event['chan_short_name'] = self.chan_id_to_name[chan_id].split()[0]
+        event['name'] = '{} Power Hour'.format(info['event_name'])
+        event['text'] = '[{chan_short_name}] {name} on now!'.format(**event)
+        return event
 
     def get_current_events(self):
         current_events = list()
@@ -312,10 +320,8 @@ class SpecialEventTopicHandler(RainwaveHandler):
         if 'all_stations_info' in d:
             for sid, info in d['all_stations_info'].items():
                 if info['event_type'] == 'OneUp':
-                    chan_name = self.chan_id_to_name[int(sid)].split()[0]
-                    e_name = info['event_name']
-                    event_text = '[{}] {} Power Hour'.format(chan_name, e_name)
-                    current_events.append(event_text)
+                    event = self.build_event_dict(sid, info)
+                    current_events.append(event)
         return current_events
 
     def get_future_events(self, bot):
