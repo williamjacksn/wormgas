@@ -1,3 +1,4 @@
+import textwrap
 import time
 import wikipedia
 
@@ -34,8 +35,8 @@ class WikipediaHandler:
             bot.send_privmsg(sender, str(err))
             return
 
-        summ = ' '.join(page.summary[:200].splitlines())
-        m = '{} // {}... [ {} ]'.format(page.title, summ, page.url)
+        summ = textwrap.shorten(page.summary, width=300, placeholder=' ...')
+        m = '{} // {} [ {} ]'.format(page.title, summ, page.url)
 
         if not bot.is_irc_channel(target):
             bot.send_privmsg(sender, m)
