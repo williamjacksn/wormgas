@@ -312,7 +312,7 @@ class SpecialEventTopicHandler(RainwaveHandler):
         if 'all_stations_info' in d:
             for sid, info in d['all_stations_info'].items():
                 if info['event_type'] == 'OneUp':
-                    chan_name = self.chan_id_to_name[sid].split()[0]
+                    chan_name = self.chan_id_to_name[int(sid)].split()[0]
                     e_name = info['event_name']
                     event_text = '[{}] {} Power Hour'.format(chan_name, e_name)
                     current_events.append(event_text)
