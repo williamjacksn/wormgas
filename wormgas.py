@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import enum
 import humphrey
 import importlib
 import inspect
@@ -34,6 +35,8 @@ def load_plugin(plug_name, bot):
     bot.c['plugins'] = list(plugins)
     for plug_handler in inspect.getmembers(module, inspect.isclass):
         cls = plug_handler[1]
+        if issubclass(cls, enum.Enum):
+            continue
         try:
             handler = cls(bot)
         except TypeError:

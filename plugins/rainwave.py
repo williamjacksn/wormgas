@@ -1,8 +1,43 @@
 import datetime
+import enum
 import json
 import time
 import urllib.parse
 import urllib.request
+
+
+class RainwaveChannel(enum.Enum):
+    game = 1
+    rw = 1
+    oc = 2
+    ocr = 2
+    cover = 3
+    covers = 3
+    mw = 3
+    vw = 3
+    bw = 4
+    ch = 4
+    chip = 4
+    all = 5
+    omni = 5
+    ow = 5
+
+    @property
+    def channel_id(self):
+        return self.value
+
+    @property
+    def long_name(self):
+        return '{} channel'.format(self.short_name)
+
+    @property
+    def short_name(self):
+        return (None, 'Game', 'OCR', 'Covers', 'Chiptune', 'All')[self.value]
+
+    @property
+    def url(self):
+        subdomains = ('', 'game.', 'ocr.', 'covers.', 'chiptune.', 'all.')
+        return 'http://{}rainwave.cc/'.format(subdomains[self.value])
 
 
 class RainwaveHandler:
@@ -18,43 +53,9 @@ class RainwaveHandler:
                    'http://rainwave.cc/keys/ to get a key and tell me about '
                    'it with \x02!key add <key>\x02.')
 
-    chan_code_to_id = {
-        'rw': 1,
-        'game': 1,
-        'oc': 2,
-        'ocr': 2,
-        'vw': 3,
-        'mw': 3,
-        'cover': 3,
-        'covers': 3,
-        'bw': 4,
-        'chip': 4,
-        'ch': 4,
-        'ow': 5,
-        'omni': 5,
-        'all': 5
-    }
-
-    chan_code_ls = '\x02, \x02'.join(chan_code_to_id.keys())
+    codes = [code for code in RainwaveChannel.__members__.keys()]
+    chan_code_ls = '\x02, \x02'.join(codes)
     channel_codes = 'Channel codes are \x02{}\x02.'.format(chan_code_ls)
-
-    chan_id_to_name = [
-        'Rainwave network',
-        'Game channel',
-        'OCR channel',
-        'Covers channel',
-        'Chiptune channel',
-        'All channel'
-    ]
-
-    chan_id_to_url = [
-        'http://rainwave.cc/',
-        'http://game.rainwave.cc/',
-        'http://ocr.rainwave.cc/',
-        'http://covers.rainwave.cc/',
-        'http://chiptune.rainwave.cc/',
-        'http://all.rainwave.cc/'
-    ]
 
     @staticmethod
     def _call(path, params=None):
@@ -106,7 +107,7 @@ class RainwaveHandler:
         auth['user_id'] = cls.get_id_for_nick(nick, bot)
         user_id = auth.get('user_id')
         auth['key'] = cls.get_key_for_nick(nick, bot)
-        auth['chan_id'] = cls.get_current_channel_for_id(user_id, bot)
+        auth['chan'] = cls.get_current_channel_for_id(user_id, bot)
         return auth
 
     @classmethod
@@ -124,7 +125,10 @@ class RainwaveHandler:
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
         d = cls.rw_user_search(user_id, key, name)
-        return d.get('user').get('sid')
+        chan_id = d.get('user').get('sid')
+        if chan_id is None:
+            return None
+        return RainwaveChannel(int(chan_id))
 
     @classmethod
     def get_id_for_nick(cls, nick, bot):
@@ -304,12 +308,12 @@ class SpecialEventTopicHandler(RainwaveHandler):
                         m = '{text} {chan_url}'.format(**e)
                         bot.send_privmsg(bot.c['irc:channel'], m)
 
-    def build_event_dict(self, chan_id, info):
+    @staticmethod
+    def build_event_dict(chan, info):
         event = dict()
-        chan_id = int(chan_id)
-        event['chan_id'] = chan_id
-        event['chan_url'] = self.chan_id_to_url[chan_id]
-        event['chan_short_name'] = self.chan_id_to_name[chan_id].split()[0]
+        event['chan_id'] = chan.channel_id
+        event['chan_url'] = chan.url
+        event['chan_short_name'] = chan.short_name
         event['name'] = '{} Power Hour'.format(info['event_name'])
         event['text'] = '[{chan_short_name}] {name} on now!'.format(**event)
         return event
@@ -317,11 +321,11 @@ class SpecialEventTopicHandler(RainwaveHandler):
     def get_current_events(self):
         current_events = list()
         d = self.rw_info_all()
-        if 'all_stations_info' in d:
-            for sid, info in d['all_stations_info'].items():
-                if info['event_type'] == 'OneUp':
-                    event = self.build_event_dict(sid, info)
-                    current_events.append(event)
+        for sid, info in d.get('all_stations_info', {}).items():
+            if info['event_type'] == 'OneUp':
+                chan = RainwaveChannel(int(sid))
+                event = self.build_event_dict(chan, info)
+                current_events.append(event)
         return current_events
 
     def get_future_events(self, bot):
@@ -329,19 +333,18 @@ class SpecialEventTopicHandler(RainwaveHandler):
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
         d = self.rw_admin_list_producers_all(user_id=user_id, key=key)
-        if 'producers' in d:
-            for p in d['producers']:
-                if p['type'] == 'OneUpProducer':
-                    chan_name = self.chan_id_to_name[p['sid']].split()[0]
-                    e_name = p['name']
-                    e_text = '[{}] {} Power Hour'.format(chan_name, e_name)
-                    edt = datetime.timezone(datetime.timedelta(hours=-4))
-                    when = datetime.datetime.fromtimestamp(p['start'], tz=edt)
-                    month = when.strftime('%b')
-                    w_time = when.strftime('%H:%M')
-                    e_text = '{}: {} {}'.format(e_text, month, when.day)
-                    e_text = '{} {} Eastern'.format(e_text, w_time)
-                    future_events.append(e_text)
+        for p in d.get('producers', []):
+            if p['type'] == 'OneUpProducer':
+                chan = RainwaveChannel(p['sid'])
+                e_name = p['name']
+                e_text = '[{}] {} Power Hour'.format(chan.short_name, e_name)
+                edt = datetime.timezone(datetime.timedelta(hours=-4))
+                when = datetime.datetime.fromtimestamp(p['start'], tz=edt)
+                month = when.strftime('%b')
+                w_time = when.strftime('%H:%M')
+                e_text = '{}: {} {}'.format(e_text, month, when.day)
+                e_text = '{} {} Eastern'.format(e_text, w_time)
+                future_events.append(e_text)
         return future_events
 
 
@@ -453,10 +456,10 @@ class ListenerStatsHandler(RainwaveHandler):
         total = 0
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
-        for chan_id in range(1, 6):
-            d = cls.rw_current_listeners(user_id, key, chan_id)
+        for chan in RainwaveChannel:
+            d = cls.rw_current_listeners(user_id, key, chan.channel_id)
             count = len(d.get('current_listeners'))
-            m = '{}{} = {}, '.format(m, cls.chan_id_to_name[chan_id], count)
+            m = '{}{} = {}, '.format(m, chan.long_name, count)
             total += count
         m = '{}Total = {}'.format(m, total)
 
@@ -487,7 +490,7 @@ class NextHandler(RainwaveHandler):
     help_topic = 'next'
     help_text = [('Use \x02!next [<channel>]\x02 to show what is up next on '
                   'the radio.'),
-                 'Short version is \x02!np[<channel>]\x02.',
+                 'Short version is \x02!nx[<channel>]\x02.',
                  RainwaveHandler.channel_codes,
                  ('Leave off <channel> to auto-detect the channel you are '
                   'tuned to.')]
@@ -496,33 +499,34 @@ class NextHandler(RainwaveHandler):
     def handle(cls, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
-        chan_id = None
+        chan = None
         idx = 0
 
         if cmd in ['!nxgame', '!nxrw']:
-            chan_id = 1
+            chan = RainwaveChannel.game
         elif cmd in ['!nxoc', '!nxocr']:
-            chan_id = 2
+            chan = RainwaveChannel.ocr
         elif cmd in ['!nxcover', '!nxcovers', '!nxmw', '!nxvw']:
-            chan_id = 3
+            chan = RainwaveChannel.covers
         elif cmd in ['!nxbw', '!nxch', '!nxchip']:
-            chan_id = 4
+            chan = RainwaveChannel.chip
         elif cmd in ['!nxall', '!nxomni', '!nxow']:
-            chan_id = 5
+            chan = RainwaveChannel.all
         elif cmd in ['!next', '!nx']:
             if len(tokens) > 1:
-                chan_id = cls.chan_code_to_id.get(tokens[1].lower())
-            if chan_id is None:
+                if tokens[1].lower() in RainwaveChannel.__members__.keys():
+                    chan = RainwaveChannel[tokens[1].lower()]
+            if chan is None:
                 listener_id = cls.get_id_for_nick(sender, bot)
-                chan_id = cls.get_current_channel_for_id(listener_id, bot)
-            if chan_id is None:
+                chan = cls.get_current_channel_for_id(listener_id, bot)
+            if chan is None:
                 m = 'You are not tuned in and you did not specify a valid'
                 m = '{} channel code.'.format(m)
                 bot.send_privmsg(sender, m)
                 return
 
-        m = 'Next up on the {}'.format(cls.chan_id_to_name[int(chan_id)])
-        d = cls.rw_info(chan_id)
+        m = 'Next up on the {}'.format(chan.long_name)
+        d = cls.rw_info(chan.channel_id)
         event = d.get('sched_next')[idx]
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -543,7 +547,7 @@ class NextHandler(RainwaveHandler):
                     m = '{} (requested by {})'.format(m, req)
 
         if bot.is_irc_channel(target):
-            config_id = 'rainwave:nx:{}:{}'.format(chan_id, idx)
+            config_id = 'rainwave:nx:{}:{}'.format(chan.channel_id, idx)
             if sched_id == bot.c.get(config_id, 0):
                 c = 'You can only use {} in {} once per'.format(cmd, target)
                 c = '{} song.'.format(c)
@@ -573,32 +577,33 @@ class NowPlayingHandler(RainwaveHandler):
     def handle(cls, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
-        chan_id = None
+        chan = None
 
         if cmd in ['!npgame', '!nprw']:
-            chan_id = 1
+            chan = RainwaveChannel.game
         elif cmd in ['!npoc', '!npocr']:
-            chan_id = 2
+            chan = RainwaveChannel.ocr
         elif cmd in ['!npcover', '!npcovers', '!npmw', '!npvw']:
-            chan_id = 3
+            chan = RainwaveChannel.cover
         elif cmd in ['!npbw', '!npch', '!npchip']:
-            chan_id = 4
+            chan = RainwaveChannel.chip
         elif cmd in ['!npall', '!npomni', '!npow']:
-            chan_id = 5
+            chan = RainwaveChannel.all
         elif cmd in ['!nowplaying', '!np']:
             if len(tokens) > 1:
-                chan_id = cls.chan_code_to_id.get(tokens[1].lower())
-            if chan_id is None:
+                if tokens[1].lower() in RainwaveChannel.__members__.keys():
+                    chan = RainwaveChannel[tokens[1].lower()]
+            if chan is None:
                 listener_id = cls.get_id_for_nick(sender, bot)
-                chan_id = cls.get_current_channel_for_id(listener_id, bot)
-            if chan_id is None:
+                chan = cls.get_current_channel_for_id(listener_id, bot)
+            if chan is None:
                 m = 'You are not tuned in and you did not specify a valid'
                 m = '{} channel code.'.format(m)
                 bot.send_privmsg(sender, m)
                 return
 
-        m = 'Now playing on the {}'.format(cls.chan_id_to_name[int(chan_id)])
-        d = cls.rw_info(chan_id)
+        m = 'Now playing on the {}'.format(chan.long_name)
+        d = cls.rw_info(chan.channel_id)
         event = d.get('sched_current')
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -611,13 +616,14 @@ class NowPlayingHandler(RainwaveHandler):
         m = '{}: {}'.format(m, cls.song_string(song))
 
         if bot.is_irc_channel(target):
-            if sched_id == bot.c.get('rainwave:np:{}'.format(chan_id), 0):
+            last = bot.c.get('rainwave:np:{}'.format(chan.channel_id), 0)
+            if sched_id == last:
                 c = 'You can only use {} in {} once per'.format(cmd, target)
                 c = '{} song.'.format(c)
                 bot.send_privmsg(sender, c)
                 bot.send_privmsg(sender, m)
             else:
-                bot.c.set('rainwave:np:{}'.format(chan_id), sched_id)
+                bot.c.set('rainwave:np:{}'.format(chan.channel_id), sched_id)
                 bot.send_privmsg(target, m)
         else:
             bot.send_privmsg(sender, m)
@@ -642,21 +648,21 @@ class PrevPlayedHandler(RainwaveHandler):
     def handle(cls, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
-        chan_id = None
+        chan = None
         idx = 0
 
         if cmd in ['!ppgame', '!pprw']:
-            chan_id = 1
+            chan = RainwaveChannel.game
         elif cmd in ['!ppoc', '!ppocr']:
-            chan_id = 2
+            chan = RainwaveChannel.ocr
         elif cmd in ['!ppcover', '!ppcovers', '!ppmw', '!ppvw']:
-            chan_id = 3
+            chan = RainwaveChannel.cover
         elif cmd in ['!ppbw', '!ppch', '!ppchip']:
-            chan_id = 4
+            chan = RainwaveChannel.chip
         elif cmd in ['!ppall', '!ppomni', '!ppow']:
-            chan_id = 5
+            chan = RainwaveChannel.all
 
-        if chan_id in range(1, 6) and len(tokens) > 1 and tokens[1].isdigit():
+        if chan in RainwaveChannel and len(tokens) > 1 and tokens[1].isdigit():
             if int(tokens[1]) in range(5):
                 idx = int(tokens[1])
 
@@ -665,24 +671,25 @@ class PrevPlayedHandler(RainwaveHandler):
                 if tokens[1].isdigit() and int(tokens[1]) in range(5):
                     idx = int(tokens[1])
                 else:
-                    chan_id = cls.chan_code_to_id.get(tokens[1].lower())
+                    if tokens[1].lower() in RainwaveChannel.__members__.keys():
+                        chan = RainwaveChannel[tokens[1].lower()]
                     if len(tokens) > 2:
                         if tokens[2].isdigit() and int(tokens[2]) in range(5):
                             idx = int(tokens[2])
-            if chan_id is None:
+            if chan is None:
                 listener_id = cls.get_id_for_nick(sender, bot)
                 if listener_id is None:
                     bot.send_privmsg(sender, cls.NICK_NOT_RECOGNIZED)
                     return
-                chan_id = cls.get_current_channel_for_id(listener_id, bot)
-            if chan_id is None:
+                chan = cls.get_current_channel_for_id(listener_id, bot)
+            if chan is None:
                 m = 'You are not tuned in and you did not specify a channel'
                 m = '{} code.'.format(m)
                 bot.send_privmsg(sender, m)
                 return
 
-        m = 'Previously on the {}'.format(cls.chan_id_to_name[int(chan_id)])
-        d = cls.rw_info(chan_id)
+        m = 'Previously on the {}'.format(chan.long_name)
+        d = cls.rw_info(chan.channel_id)
         event = d.get('sched_history')[idx]
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -695,14 +702,14 @@ class PrevPlayedHandler(RainwaveHandler):
         m = '{}: {}'.format(m, cls.song_string(song))
 
         if bot.is_irc_channel(target):
-            last_sched_id = 'rainwave:pp:{}:{}'.format(chan_id, idx)
+            last_sched_id = 'rainwave:pp:{}:{}'.format(chan.channel_id, idx)
             if sched_id == bot.c.get(last_sched_id, 0):
                 c = 'You can only use {} in {} once per'.format(cmd, target)
                 c = '{} song.'.format(c)
                 bot.send_privmsg(sender, c)
                 bot.send_privmsg(sender, m)
             else:
-                bot.c.set('rainwave:pp:{}:{}'.format(chan_id, idx), sched_id)
+                bot.c.set(last_sched_id, sched_id)
                 bot.send_privmsg(target, m)
         else:
             bot.send_privmsg(sender, m)
@@ -736,7 +743,7 @@ class RequestHandler(RainwaveHandler):
         if auth.get('key') is None:
             bot.send_privmsg(sender, cls.MISSING_KEY)
             return
-        if auth.get('chan_id') is None:
+        if auth.get('chan') is None:
             bot.send_privmsg(sender, 'You must be tuned in to request.')
             return
 
@@ -744,17 +751,18 @@ class RequestHandler(RainwaveHandler):
             song_id = int(tokens[1])
             user_id = auth.get('user_id')
             key = auth.get('key')
-            d = cls.rw_song(user_id, key, auth.get('chan_id'), song_id)
+            chan_id = auth.get('chan').channel_id
+            d = cls.rw_song(user_id, key, chan_id, song_id)
             song = d.get('song')
             song_str = cls.song_string(song, simple=True)
             bot.send_privmsg(sender, 'Attempting request: {}'.format(song_str))
-            d = cls.rw_request(user_id, key, auth.get('chan_id'), song_id)
+            d = cls.rw_request(user_id, key, chan_id, song_id)
             bot.send_privmsg(sender, d.get('request_result').get('text'))
 
         elif tokens[1] == 'unrated':
             user_id = auth.get('user_id')
             key = auth.get('key')
-            chan_id = auth.get('chan_id')
+            chan_id = auth.get('chan').channel_id
             d = cls.rw_request_unrated_songs(user_id, key, chan_id)
             m = d.get('request_unrated_songs_result').get('text')
             bot.send_privmsg(sender, m)
@@ -762,7 +770,7 @@ class RequestHandler(RainwaveHandler):
         elif tokens[1] == 'fav':
             user_id = auth.get('user_id')
             key = auth.get('key')
-            chan_id = auth.get('chan_id')
+            chan_id = auth.get('chan').channel_id
             d = cls.rw_request_favorited_songs(user_id, key, chan_id)
             m = d.get('request_favorited_songs_result').get('text')
             bot.send_privmsg(sender, m)
@@ -770,14 +778,14 @@ class RequestHandler(RainwaveHandler):
         elif tokens[1] == 'clear':
             user_id = auth.get('user_id')
             key = auth.get('key')
-            chan_id = auth.get('chan_id')
-            d = cls.rw_clear_requests(user_id, key, chan_id)
+            chan_id = auth.get('chan').channel_id
+            _ = cls.rw_clear_requests(user_id, key, chan_id)
             bot.send_privmsg(sender, 'Request queue cleared.')
 
         elif tokens[1] == 'pause':
             user_id = auth.get('user_id')
             key = auth.get('key')
-            chan_id = auth.get('chan_id')
+            chan_id = auth.get('chan').channel_id
             d = cls.rw_pause_request_queue(user_id, key, chan_id)
             m = d.get('pause_request_queue_result').get('text')
             bot.send_privmsg(sender, m)
@@ -785,7 +793,7 @@ class RequestHandler(RainwaveHandler):
         elif tokens[1] == 'resume':
             user_id = auth.get('user_id')
             key = auth.get('key')
-            chan_id = auth.get('chan_id')
+            chan_id = auth.get('chan').channel_id
             d = cls.rw_unpause_request_queue(user_id, key, chan_id)
             m = d.get('unpause_request_queue_result').get('text')
             bot.send_privmsg(sender, m)
@@ -828,8 +836,8 @@ class UserStatsHandler(RainwaveHandler):
         m = '{} channel content.'.format(m)
         out.append(m)
 
-        if auth.get('chan_id'):
-            chan_name = cls.chan_id_to_name[auth.get('chan_id')]
+        if auth.get('chan'):
+            chan_name = auth.get('chan').long_name
             m = '{} is currently listening to the {}.'.format(cun, chan_name)
             out.append(m)
 
@@ -885,11 +893,12 @@ class VoteHandler(RainwaveHandler):
         if auth.get('key') is None:
             bot.send_privmsg(sender, cls.MISSING_KEY)
             return
-        if auth.get('chan_id') is None:
+        if auth.get('chan') is None:
             bot.send_privmsg(sender, 'You must be tuned in to vote.')
             return
 
-        d = cls.rw_info(auth.get('chan_id'))
+        chan = auth.get('chan')
+        d = cls.rw_info(chan.channel_id)
         event = d.get('sched_next')[0]
         sched_type = event.get('type')
 
@@ -906,7 +915,7 @@ class VoteHandler(RainwaveHandler):
         elec_entry_id = song.get('entry_id')
         user_id = auth.get('user_id')
         key = auth.get('key')
-        d = cls.rw_vote(user_id, key, auth.get('chan_id'), elec_entry_id)
+        d = cls.rw_vote(user_id, key, chan.channel_id, elec_entry_id)
         if d.get('vote_result').get('success'):
             song_string = cls.song_string(song, simple=True)
             m = 'You successfully voted for {}'.format(song_string)
