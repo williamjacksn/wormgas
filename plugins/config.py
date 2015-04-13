@@ -8,8 +8,8 @@ class SetHandler:
                  ('Leave off <id> and <value> to see a list of all available '
                   'config ids.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    @staticmethod
+    def handle(sender, target, tokens, bot):
         if len(tokens) > 2:
             value = ' '.join(tokens[2:])
             key = tokens[1]
@@ -38,11 +38,10 @@ class UnsetHandler:
     help_topic = 'unset'
     help_text = ['Use \x02!unset <id>\x02 to remove a configuration setting.']
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) > 1:
             key = tokens[1]
             bot.c.remove(key)
             bot.send_privmsg(sender, '{} has been unset.'.format(key))
         else:
-            bot.send_privmsg(sender, cls.help_text)
+            bot.send_privmsg(sender, self.help_text)

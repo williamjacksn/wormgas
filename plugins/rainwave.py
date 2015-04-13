@@ -74,10 +74,9 @@ class RainwaveHandler:
     def artist_string(artists):
         return ', '.join([a.get('name') for a in artists])
 
-    @classmethod
-    def song_string(cls, song, simple=False):
+    def song_string(self, song, simple=False):
         m = '{} //'.format(song.get('albums')[0].get('name'))
-        artists = cls.artist_string(song.get('artists'))
+        artists = self.artist_string(song.get('artists'))
         m = '{} {} // {}'.format(m, song.get('title'), artists)
 
         if simple:
@@ -101,49 +100,44 @@ class RainwaveHandler:
         m = '{})'.format(m)
         return m
 
-    @classmethod
-    def get_api_auth_for_nick(cls, nick, bot):
+    def get_api_auth_for_nick(self, nick, bot):
         auth = dict()
-        auth['user_id'] = cls.get_id_for_nick(nick, bot)
+        auth['user_id'] = self.get_id_for_nick(nick, bot)
         user_id = auth.get('user_id')
-        auth['key'] = cls.get_key_for_nick(nick, bot)
-        auth['chan'] = cls.get_current_channel_for_id(user_id, bot)
+        auth['key'] = self.get_key_for_nick(nick, bot)
+        auth['chan'] = self.get_current_channel_for_id(user_id, bot)
         return auth
 
-    @classmethod
-    def get_current_channel_for_id(cls, listener_id, bot):
+    def get_current_channel_for_id(self, listener_id, bot):
         if listener_id is None:
             return None
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
-        d = cls.rw_listener(user_id, key, listener_id)
+        d = self.rw_listener(user_id, key, listener_id)
         listener_name = d.get('listener').get('name')
-        return cls.get_current_channel_for_name(listener_name, bot)
+        return self.get_current_channel_for_name(listener_name, bot)
 
-    @classmethod
-    def get_current_channel_for_name(cls, name, bot):
+    def get_current_channel_for_name(self, name, bot):
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
-        d = cls.rw_user_search(user_id, key, name)
+        d = self.rw_user_search(user_id, key, name)
         chan_id = d.get('user').get('sid')
         if chan_id is None:
             return None
         return RainwaveChannel(int(chan_id))
 
-    @classmethod
-    def get_id_for_nick(cls, nick, bot):
-        rw_config = cls.get_rw_config(bot)
+    def get_id_for_nick(self, nick, bot):
+        rw_config = self.get_rw_config(bot)
         listener_id = rw_config.get(nick, dict()).get('id')
         if listener_id is None:
             user_id = bot.c.get('rainwave:user_id')
             key = bot.c.get('rainwave:key')
-            d = cls.rw_user_search(user_id, key, nick)
+            d = self.rw_user_search(user_id, key, nick)
             listener_id = d.get('user').get('user_id')
         return listener_id
 
-    @classmethod
-    def get_key_for_nick(cls, nick, bot):
-        rw_config = cls.get_rw_config(bot)
+    def get_key_for_nick(self, nick, bot):
+        rw_config = self.get_rw_config(bot)
         return rw_config.get(nick, dict()).get('key')
 
     @staticmethod
@@ -158,121 +152,107 @@ class RainwaveHandler:
         }
         return self._call('admin/list_producers_all', params=params)
 
-    @classmethod
-    def rw_clear_requests(cls, user_id, key, sid):
+    def rw_clear_requests(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('clear_requests', params=params)
+        return self._call('clear_requests', params=params)
 
-    @classmethod
-    def rw_current_listeners(cls, user_id, key, sid):
+    def rw_current_listeners(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('current_listeners', params=params)
+        return self._call('current_listeners', params=params)
 
-    @classmethod
-    def rw_info(cls, sid):
+    def rw_info(self, sid):
         params = {'sid': sid}
-        return cls._call('info', params=params)
+        return self._call('info', params=params)
 
-    @classmethod
-    def rw_info_all(cls):
+    def rw_info_all(self):
         params = {'sid': 1}
-        return cls._call('info_all', params=params)
+        return self._call('info_all', params=params)
 
-    @classmethod
-    def rw_listener(cls, user_id, key, listener_id):
+    def rw_listener(self, user_id, key, listener_id):
         params = {
             'user_id': user_id,
             'key': key,
             'id': listener_id
         }
-        return cls._call('listener', params=params)
+        return self._call('listener', params=params)
 
-    @classmethod
-    def rw_pause_request_queue(cls, user_id, key, sid):
+    def rw_pause_request_queue(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('pause_request_queue', params=params)
+        return self._call('pause_request_queue', params=params)
 
-    @classmethod
-    def rw_request(cls, user_id, key, sid, song_id):
+    def rw_request(self, user_id, key, sid, song_id):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid,
             'song_id': song_id
         }
-        return cls._call('request', params=params)
+        return self._call('request', params=params)
 
-    @classmethod
-    def rw_request_favorited_songs(cls, user_id, key, sid):
+    def rw_request_favorited_songs(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('request_favorited_songs', params=params)
+        return self._call('request_favorited_songs', params=params)
 
-    @classmethod
-    def rw_request_unrated_songs(cls, user_id, key, sid):
+    def rw_request_unrated_songs(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('request_unrated_songs', params=params)
+        return self._call('request_unrated_songs', params=params)
 
-    @classmethod
-    def rw_song(cls, user_id, key, sid, song_id):
+    def rw_song(self, user_id, key, sid, song_id):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid,
             'id': song_id
         }
-        return cls._call('song', params=params)
+        return self._call('song', params=params)
 
-    @classmethod
-    def rw_unpause_request_queue(cls, user_id, key, sid):
+    def rw_unpause_request_queue(self, user_id, key, sid):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid
         }
-        return cls._call('unpause_request_queue', params=params)
+        return self._call('unpause_request_queue', params=params)
 
-    @classmethod
-    def rw_user_search(cls, user_id, key, username):
+    def rw_user_search(self, user_id, key, username):
         params = {
             'user_id': user_id,
             'key': key,
             'username': username
         }
-        return cls._call('user_search', params=params)
+        return self._call('user_search', params=params)
 
-    @classmethod
-    def rw_vote(cls, user_id, key, sid, entry_id):
+    def rw_vote(self, user_id, key, sid, entry_id):
         params = {
             'user_id': user_id,
             'key': key,
             'sid': sid,
             'entry_id': entry_id
         }
-        return cls._call('vote', params=params)
+        return self._call('vote', params=params)
 
-    @classmethod
-    def send_help(cls, target, bot):
-        for line in cls.help_text:
+    def send_help(self, target, bot):
+        for line in self.help_text:
             bot.send_privmsg(target, line)
 
 
@@ -357,12 +337,11 @@ class IdHandler(RainwaveHandler):
                  ('Use \x02!id drop\x02 to delete your user id and \x02!id '
                   'show\x02 to see it.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
-        rw_config = cls.get_rw_config(bot)
+    def handle(self, sender, target, tokens, bot):
+        rw_config = self.get_rw_config(bot)
 
         if len(tokens) < 2:
-            cls.send_help(sender, bot)
+            self.send_help(sender, bot)
             return
 
         action = tokens[1]
@@ -375,7 +354,7 @@ class IdHandler(RainwaveHandler):
                 m = 'I assigned the user id {} to {}.'
                 bot.send_privmsg(sender, m.format(uid, sender))
             else:
-                cls.send_help(sender, bot)
+                self.send_help(sender, bot)
         elif action == 'drop':
             user_dict = rw_config.get(sender, dict())
             if 'id' in user_dict:
@@ -392,7 +371,7 @@ class IdHandler(RainwaveHandler):
                 m = 'I do not have a user id for {}.'.format(sender)
                 bot.send_privmsg(sender, m)
         else:
-            cls.send_help(sender, bot)
+            self.send_help(sender, bot)
 
 
 class KeyHandler(RainwaveHandler):
@@ -404,12 +383,11 @@ class KeyHandler(RainwaveHandler):
                  ('Use \x02!key drop\x02 to delete your key and \x02!key '
                   'show\x02 to see it.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
-        rw_config = cls.get_rw_config(bot)
+    def handle(self, sender, target, tokens, bot):
+        rw_config = self.get_rw_config(bot)
 
         if len(tokens) < 2:
-            cls.send_help(sender, bot)
+            self.send_help(sender, bot)
             return
 
         action = tokens[1]
@@ -422,7 +400,7 @@ class KeyHandler(RainwaveHandler):
                 m = 'I assigned the API key {} to {}.'
                 bot.send_privmsg(sender, m.format(key, sender))
             else:
-                cls.send_help(sender, bot)
+                self.send_help(sender, bot)
         elif action == 'drop':
             user_dict = rw_config.get(sender, dict())
             if 'key' in user_dict:
@@ -440,7 +418,7 @@ class KeyHandler(RainwaveHandler):
                 m = 'I do not have an API key for {}.'.format(sender)
                 bot.send_privmsg(sender, m)
         else:
-            cls.send_help(sender, bot)
+            self.send_help(sender, bot)
 
 
 class ListenerStatsHandler(RainwaveHandler):
@@ -450,14 +428,13 @@ class ListenerStatsHandler(RainwaveHandler):
     help_text = [('Use \x02!lstats\x02 to see information about current '
                   'Rainwave radio listeners.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         m = 'Registered listeners: '
         total = 0
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
         for chan in RainwaveChannel:
-            d = cls.rw_current_listeners(user_id, key, chan.channel_id)
+            d = self.rw_current_listeners(user_id, key, chan.channel_id)
             count = len(d.get('current_listeners'))
             m = '{}{} = {}, '.format(m, chan.long_name, count)
             total += count
@@ -495,8 +472,7 @@ class NextHandler(RainwaveHandler):
                  ('Leave off <channel> to auto-detect the channel you are '
                   'tuned to.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
         chan = None
@@ -517,8 +493,8 @@ class NextHandler(RainwaveHandler):
                 if tokens[1].lower() in RainwaveChannel.__members__.keys():
                     chan = RainwaveChannel[tokens[1].lower()]
             if chan is None:
-                listener_id = cls.get_id_for_nick(sender, bot)
-                chan = cls.get_current_channel_for_id(listener_id, bot)
+                listener_id = self.get_id_for_nick(sender, bot)
+                chan = self.get_current_channel_for_id(listener_id, bot)
             if chan is None:
                 m = 'You are not tuned in and you did not specify a valid'
                 m = '{} channel code.'.format(m)
@@ -526,7 +502,7 @@ class NextHandler(RainwaveHandler):
                 return
 
         m = 'Next up on the {}'.format(chan.long_name)
-        d = cls.rw_info(chan.channel_id)
+        d = self.rw_info(chan.channel_id)
         event = d.get('sched_next')[idx]
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -534,13 +510,13 @@ class NextHandler(RainwaveHandler):
         if sched_type == 'OneUp':
             m = '{} ({} Power Hour):'.format(m, sched_name)
             song = event.get('songs')[0]
-            m = '{} {}'.format(m, cls.song_string(song))
+            m = '{} {}'.format(m, self.song_string(song))
         elif sched_type == 'Election':
             if sched_name:
                 m = '{} ({})'.format(m, sched_name)
             m = '{}:'.format(m)
             for i, s in enumerate(event.get('songs'), start=1):
-                song_string = cls.song_string(s, simple=True)
+                song_string = self.song_string(s, simple=True)
                 m = '{} \x02[{}]\x02 {}'.format(m, i, song_string)
                 req = s.get('elec_request_username')
                 if req:
@@ -573,8 +549,7 @@ class NowPlayingHandler(RainwaveHandler):
                  ('Leave off <channel> to auto-detect the channel you are '
                   'tuned to.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
         chan = None
@@ -594,8 +569,8 @@ class NowPlayingHandler(RainwaveHandler):
                 if tokens[1].lower() in RainwaveChannel.__members__.keys():
                     chan = RainwaveChannel[tokens[1].lower()]
             if chan is None:
-                listener_id = cls.get_id_for_nick(sender, bot)
-                chan = cls.get_current_channel_for_id(listener_id, bot)
+                listener_id = self.get_id_for_nick(sender, bot)
+                chan = self.get_current_channel_for_id(listener_id, bot)
             if chan is None:
                 m = 'You are not tuned in and you did not specify a valid'
                 m = '{} channel code.'.format(m)
@@ -603,7 +578,7 @@ class NowPlayingHandler(RainwaveHandler):
                 return
 
         m = 'Now playing on the {}'.format(chan.long_name)
-        d = cls.rw_info(chan.channel_id)
+        d = self.rw_info(chan.channel_id)
         event = d.get('sched_current')
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -613,7 +588,7 @@ class NowPlayingHandler(RainwaveHandler):
         elif sched_type == 'OneUp':
             m = '{} ({} Power Hour)'.format(m, sched_name)
         song = event.get('songs')[0]
-        m = '{}: {}'.format(m, cls.song_string(song))
+        m = '{}: {}'.format(m, self.song_string(song))
 
         if bot.is_irc_channel(target):
             last = bot.c.get('rainwave:np:{}'.format(chan.channel_id), 0)
@@ -644,8 +619,7 @@ class PrevPlayedHandler(RainwaveHandler):
                  ('<index> should be a number from 0 to 4. The higher the '
                   'number, the further back in time you go.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         cmd = tokens[0].lower()
 
         chan = None
@@ -677,11 +651,11 @@ class PrevPlayedHandler(RainwaveHandler):
                         if tokens[2].isdigit() and int(tokens[2]) in range(5):
                             idx = int(tokens[2])
             if chan is None:
-                listener_id = cls.get_id_for_nick(sender, bot)
+                listener_id = self.get_id_for_nick(sender, bot)
                 if listener_id is None:
-                    bot.send_privmsg(sender, cls.NICK_NOT_RECOGNIZED)
+                    bot.send_privmsg(sender, self.NICK_NOT_RECOGNIZED)
                     return
-                chan = cls.get_current_channel_for_id(listener_id, bot)
+                chan = self.get_current_channel_for_id(listener_id, bot)
             if chan is None:
                 m = 'You are not tuned in and you did not specify a channel'
                 m = '{} code.'.format(m)
@@ -689,7 +663,7 @@ class PrevPlayedHandler(RainwaveHandler):
                 return
 
         m = 'Previously on the {}'.format(chan.long_name)
-        d = cls.rw_info(chan.channel_id)
+        d = self.rw_info(chan.channel_id)
         event = d.get('sched_history')[idx]
         sched_id = int(event.get('id'))
         sched_type = event.get('type')
@@ -699,7 +673,7 @@ class PrevPlayedHandler(RainwaveHandler):
         elif sched_type == 'OneUp':
             m = '{} ({} Power Hour)'.format(m, sched_name)
         song = event.get('songs')[0]
-        m = '{}: {}'.format(m, cls.song_string(song))
+        m = '{}: {}'.format(m, self.song_string(song))
 
         if bot.is_irc_channel(target):
             last_sched_id = 'rainwave:pp:{}:{}'.format(chan.channel_id, idx)
@@ -730,18 +704,17 @@ class RequestHandler(RainwaveHandler):
                  ('Use \x02!rq clear\x02 to remove all songs from your '
                   'request queue.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) < 2:
-            cls.send_help(sender, bot)
+            self.send_help(sender, bot)
             return
 
-        auth = cls.get_api_auth_for_nick(sender, bot)
+        auth = self.get_api_auth_for_nick(sender, bot)
         if auth.get('user_id') is None:
-            bot.send_privmsg(sender, cls.NICK_NOT_RECOGNIZED)
+            bot.send_privmsg(sender, self.NICK_NOT_RECOGNIZED)
             return
         if auth.get('key') is None:
-            bot.send_privmsg(sender, cls.MISSING_KEY)
+            bot.send_privmsg(sender, self.MISSING_KEY)
             return
         if auth.get('chan') is None:
             bot.send_privmsg(sender, 'You must be tuned in to request.')
@@ -752,18 +725,18 @@ class RequestHandler(RainwaveHandler):
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            d = cls.rw_song(user_id, key, chan_id, song_id)
+            d = self.rw_song(user_id, key, chan_id, song_id)
             song = d.get('song')
-            song_str = cls.song_string(song, simple=True)
+            song_str = self.song_string(song, simple=True)
             bot.send_privmsg(sender, 'Attempting request: {}'.format(song_str))
-            d = cls.rw_request(user_id, key, chan_id, song_id)
+            d = self.rw_request(user_id, key, chan_id, song_id)
             bot.send_privmsg(sender, d.get('request_result').get('text'))
 
         elif tokens[1] == 'unrated':
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            d = cls.rw_request_unrated_songs(user_id, key, chan_id)
+            d = self.rw_request_unrated_songs(user_id, key, chan_id)
             m = d.get('request_unrated_songs_result').get('text')
             bot.send_privmsg(sender, m)
 
@@ -771,7 +744,7 @@ class RequestHandler(RainwaveHandler):
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            d = cls.rw_request_favorited_songs(user_id, key, chan_id)
+            d = self.rw_request_favorited_songs(user_id, key, chan_id)
             m = d.get('request_favorited_songs_result').get('text')
             bot.send_privmsg(sender, m)
 
@@ -779,14 +752,14 @@ class RequestHandler(RainwaveHandler):
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            _ = cls.rw_clear_requests(user_id, key, chan_id)
+            _ = self.rw_clear_requests(user_id, key, chan_id)
             bot.send_privmsg(sender, 'Request queue cleared.')
 
         elif tokens[1] == 'pause':
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            d = cls.rw_pause_request_queue(user_id, key, chan_id)
+            d = self.rw_pause_request_queue(user_id, key, chan_id)
             m = d.get('pause_request_queue_result').get('text')
             bot.send_privmsg(sender, m)
 
@@ -794,7 +767,7 @@ class RequestHandler(RainwaveHandler):
             user_id = auth.get('user_id')
             key = auth.get('key')
             chan_id = auth.get('chan').channel_id
-            d = cls.rw_unpause_request_queue(user_id, key, chan_id)
+            d = self.rw_unpause_request_queue(user_id, key, chan_id)
             m = d.get('unpause_request_queue_result').get('text')
             bot.send_privmsg(sender, m)
 
@@ -807,8 +780,7 @@ class UserStatsHandler(RainwaveHandler):
                   'about a Rainwave user.'),
                  'Leave off <username> to see your own stats.']
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         out = list()
 
         if len(tokens) > 1:
@@ -816,7 +788,7 @@ class UserStatsHandler(RainwaveHandler):
         else:
             uname = sender
 
-        auth = cls.get_api_auth_for_nick(uname, bot)
+        auth = self.get_api_auth_for_nick(uname, bot)
         if auth.get('user_id') is None:
             m = '{} is not a valid Rainwave user.'.format(uname)
             bot.send_privmsg(sender, m)
@@ -824,7 +796,7 @@ class UserStatsHandler(RainwaveHandler):
 
         user_id = bot.c.get('rainwave:user_id')
         key = bot.c.get('rainwave:key')
-        d = cls.rw_listener(user_id, key, auth.get('user_id'))
+        d = self.rw_listener(user_id, key, auth.get('user_id'))
         cun = d.get('listener').get('name')
         completion = d.get('listener').get('rating_completion')
         game = int(completion.get('1', 0))
@@ -870,8 +842,7 @@ class VoteHandler(RainwaveHandler):
     help_text = [('Use \x02!vote <index>\x02 to vote in the current election, '
                   'find the <index> with \x02!next\x02.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) > 1:
             idx = tokens[1]
         else:
@@ -886,19 +857,19 @@ class VoteHandler(RainwaveHandler):
             bot.send_privmsg(sender, m)
             return
 
-        auth = cls.get_api_auth_for_nick(sender, bot)
+        auth = self.get_api_auth_for_nick(sender, bot)
         if auth.get('user_id') is None:
-            bot.send_privmsg(sender, cls.NICK_NOT_RECOGNIZED)
+            bot.send_privmsg(sender, self.NICK_NOT_RECOGNIZED)
             return
         if auth.get('key') is None:
-            bot.send_privmsg(sender, cls.MISSING_KEY)
+            bot.send_privmsg(sender, self.MISSING_KEY)
             return
         if auth.get('chan') is None:
             bot.send_privmsg(sender, 'You must be tuned in to vote.')
             return
 
         chan = auth.get('chan')
-        d = cls.rw_info(chan.channel_id)
+        d = self.rw_info(chan.channel_id)
         event = d.get('sched_next')[0]
         sched_type = event.get('type')
 
@@ -915,9 +886,9 @@ class VoteHandler(RainwaveHandler):
         elec_entry_id = song.get('entry_id')
         user_id = auth.get('user_id')
         key = auth.get('key')
-        d = cls.rw_vote(user_id, key, chan.channel_id, elec_entry_id)
+        d = self.rw_vote(user_id, key, chan.channel_id, elec_entry_id)
         if d.get('vote_result').get('success'):
-            song_string = cls.song_string(song, simple=True)
+            song_string = self.song_string(song, simple=True)
             m = 'You successfully voted for {}'.format(song_string)
             bot.send_privmsg(sender, m)
         else:

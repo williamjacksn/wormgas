@@ -31,9 +31,8 @@ class EightBallHandler:
         'You may rely on it.'
     ]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
-        response = random.choice(cls.RESPONSES)
+    def handle(self, sender, target, tokens, bot):
+        response = random.choice(self.RESPONSES)
 
         if not bot.is_irc_channel(target):
             bot.send_privmsg(sender, response)

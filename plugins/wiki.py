@@ -10,10 +10,9 @@ class WikipediaHandler:
     help_text = [('Use \x02!wiki <search terms>\x02 to look up information on '
                   'Wikipedia.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) < 2:
-            for line in cls.help_text:
+            for line in self.help_text:
                 bot.send_privmsg(sender, line)
             return
 

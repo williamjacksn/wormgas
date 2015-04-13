@@ -63,14 +63,13 @@ class TitleHandler:
         else:
             return None
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) < 2:
-            for line in cls.help_text:
+            for line in self.help_text:
                 bot.send_privmsg(sender, line)
             return
 
-        title = cls.get_title(tokens[1])
+        title = self.get_title(tokens[1])
         if title is None:
             return
 

@@ -21,12 +21,11 @@ class RollHandler(object):
 
         return dice, sides
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         die_spec = '1d6'
         if len(tokens) > 1:
             die_spec = tokens[1]
-        dice, sides = cls.parse_die_spec(die_spec)
+        dice, sides = self.parse_die_spec(die_spec)
 
         if sides == 0:
             bot.send_privmsg(sender, 'Who ever heard of a 0-sided die?')

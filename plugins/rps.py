@@ -17,15 +17,14 @@ class RpsGameHandler:
                   'cannot be undone.'),
                  'Use \x02!rps who\x02 to see a list of known players']
 
-    @classmethod
-    def get_rps_config(cls, bot):
+    @staticmethod
+    def get_rps_config(bot):
         rps_config_path = bot.c.path.with_name('_rps.json')
         return bot.c.__class__(rps_config_path, pretty=True)
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         action = tokens[0].lstrip('!').lower()
-        rps_config = cls.get_rps_config(bot)
+        rps_config = self.get_rps_config(bot)
         player_dict = rps_config.get(sender, dict())
         global_dict = rps_config.get('!global', dict())
 
@@ -86,8 +85,7 @@ class RpsUtilHandler:
     cmds = ['!rps']
     admin = False
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) > 1:
             action = tokens[1].lower()
         else:
@@ -100,20 +98,20 @@ class RpsUtilHandler:
                 player = tokens[2]
             else:
                 player = sender
-            m = cls.get_rps_record(player, bot)
+            m = self.get_rps_record(player, bot)
         elif action == 'stats':
             if len(tokens) > 2:
                 player = tokens[2]
             else:
                 player = sender
-            m = cls.get_rps_stats(player, bot)
+            m = self.get_rps_stats(player, bot)
         elif action == 'reset':
-            cls.reset_rps_stats(sender, bot)
+            self.reset_rps_stats(sender, bot)
             m = 'I reset your RPS record and deleted your game history.'
             bot.send_privmsg(sender, m)
             return
         elif action == 'who':
-            players = cls.get_player_list(bot)
+            players = self.get_player_list(bot)
             max_length = int(bot.c.get('rps:max_length', 10))
             while len(players) > max_length:
                 plist = players[:max_length]
@@ -145,8 +143,8 @@ class RpsUtilHandler:
             m = '{} in {} for another {} seconds.'.format(m, target, remaining)
             bot.send_privmsg(sender, m)
 
-    @classmethod
-    def get_player_list(cls, bot):
+    @staticmethod
+    def get_player_list(bot):
         rps_config = RpsGameHandler.get_rps_config(bot)
         return sorted(rps_config.keys())
 
@@ -210,10 +208,9 @@ class RpsMvHandler:
     help_text = [('Use \x02!rpsmv <oldnick> <newnick>\x02 to reassign stats '
                   'and game history from one player to another.')]
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    def handle(self, sender, target, tokens, bot):
         if len(tokens) < 3:
-            for line in cls.help_text:
+            for line in self.help_text:
                 bot.send_privmsg(sender, line)
             return
 

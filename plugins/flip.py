@@ -8,8 +8,8 @@ class FlipHandler:
     help_topic = 'flip'
     help_text = ['Use \x02!flip\x02 to flip a coin.']
 
-    @classmethod
-    def handle(cls, sender, target, tokens, bot):
+    @staticmethod
+    def handle(sender, target, tokens, bot):
         flip = random.choice(['Heads!', 'Tails!'])
 
         if not bot.is_irc_channel(target):
