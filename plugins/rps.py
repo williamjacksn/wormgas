@@ -25,8 +25,8 @@ class RpsGameHandler:
     def handle(self, sender, target, tokens, bot):
         action = tokens[0].lstrip('!').lower()
         rps_config = self.get_rps_config(bot)
-        player_dict = rps_config.get(sender, dict())
-        global_dict = rps_config.get('!global', dict())
+        player_dict = rps_config.get(sender, {})
+        global_dict = rps_config.get('!global', {})
 
         rps = ['rock', 'paper', 'scissors']
         challenge = rps.index(action)
@@ -215,8 +215,8 @@ class RpsMvHandler:
             return
 
         rps_config = RpsGameHandler.get_rps_config(bot)
-        old_dict = rps_config.get(tokens[1], dict())
-        new_dict = rps_config.get(tokens[2], dict())
+        old_dict = rps_config.get(tokens[1], {})
+        new_dict = rps_config.get(tokens[2], {})
         for key in old_dict:
             new_dict[key] = new_dict.get(key, 0) + old_dict[key]
         rps_config.remove(tokens[1])

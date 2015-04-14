@@ -60,7 +60,7 @@ class RainwaveHandler:
     @staticmethod
     def _call(path, params=None):
         if params is None:
-            params = dict()
+            params = {}
         base_url = 'http://rainwave.cc/api4/'
         url = '{}{}'.format(base_url, path.lstrip('/'))
         data = urllib.parse.urlencode(params).encode()
@@ -101,7 +101,7 @@ class RainwaveHandler:
         return m
 
     def get_api_auth_for_nick(self, nick, bot):
-        auth = dict()
+        auth = {}
         auth['user_id'] = self.get_id_for_nick(nick, bot)
         user_id = auth.get('user_id')
         auth['key'] = self.get_key_for_nick(nick, bot)
@@ -128,7 +128,7 @@ class RainwaveHandler:
 
     def get_id_for_nick(self, nick, bot):
         rw_config = self.get_rw_config(bot)
-        listener_id = rw_config.get(nick, dict()).get('id')
+        listener_id = rw_config.get(nick, {}).get('id')
         if listener_id is None:
             user_id = bot.c.get('rainwave:user_id')
             key = bot.c.get('rainwave:key')
@@ -138,7 +138,7 @@ class RainwaveHandler:
 
     def get_key_for_nick(self, nick, bot):
         rw_config = self.get_rw_config(bot)
-        return rw_config.get(nick, dict()).get('key')
+        return rw_config.get(nick, {}).get('key')
 
     @staticmethod
     def get_rw_config(bot):
@@ -290,7 +290,7 @@ class SpecialEventTopicHandler(RainwaveHandler):
 
     @staticmethod
     def build_event_dict(chan, info):
-        event = dict()
+        event = {}
         event['chan_id'] = chan.channel_id
         event['chan_url'] = chan.url
         event['chan_short_name'] = chan.short_name
@@ -348,7 +348,7 @@ class IdHandler(RainwaveHandler):
         if action == 'add':
             if len(tokens) > 2:
                 uid = tokens[2]
-                user_dict = rw_config.get(sender, dict())
+                user_dict = rw_config.get(sender, {})
                 user_dict['id'] = uid
                 rw_config[sender] = user_dict
                 m = 'I assigned the user id {} to {}.'
@@ -356,14 +356,14 @@ class IdHandler(RainwaveHandler):
             else:
                 self.send_help(sender, bot)
         elif action == 'drop':
-            user_dict = rw_config.get(sender, dict())
+            user_dict = rw_config.get(sender, {})
             if 'id' in user_dict:
                 del user_dict['id']
             rw_config[sender] = user_dict
             m = 'I dropped the user id for {}.'.format(sender)
             bot.send_privmsg(sender, m)
         elif action == 'show':
-            user_dict = rw_config.get(sender, dict())
+            user_dict = rw_config.get(sender, {})
             if 'id' in user_dict:
                 m = 'The user id for {} is {}.'.format(sender, user_dict['id'])
                 bot.send_privmsg(sender, m)
@@ -394,7 +394,7 @@ class KeyHandler(RainwaveHandler):
         if action == 'add':
             if len(tokens) > 2:
                 key = tokens[2]
-                user_dict = rw_config.get(sender, dict())
+                user_dict = rw_config.get(sender, {})
                 user_dict['key'] = key
                 rw_config[sender] = user_dict
                 m = 'I assigned the API key {} to {}.'
@@ -402,14 +402,14 @@ class KeyHandler(RainwaveHandler):
             else:
                 self.send_help(sender, bot)
         elif action == 'drop':
-            user_dict = rw_config.get(sender, dict())
+            user_dict = rw_config.get(sender, {})
             if 'key' in user_dict:
                 del user_dict['key']
             rw_config[sender] = user_dict
             m = 'I dropped the API key for {}.'.format(sender)
             bot.send_privmsg(sender, m)
         elif action == 'show':
-            user_dict = rw_config.get(sender, dict())
+            user_dict = rw_config.get(sender, {})
             if 'key' in user_dict:
                 key = user_dict['key']
                 m = 'The API key for {} is {}.'.format(sender, key)

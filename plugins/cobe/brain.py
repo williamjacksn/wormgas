@@ -635,7 +635,7 @@ class Graph:
         last_node = node
 
         while last_node != end_id:
-            row = c.execute(q, dict(last=last_node)).fetchone()
+            row = c.execute(q, {'last': last_node}).fetchone()
 
             append(Edge(self, row['id'], row['prev_node'], row['next_node'],
                         row['has_space'], row['count']))

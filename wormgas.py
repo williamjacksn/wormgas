@@ -13,10 +13,10 @@ config_file = pathlib.Path(__file__).resolve().with_name('_config.json')
 gbot = humphrey.IRCClient(config_file)
 gbot.debug = True
 gbot.c.pretty = True
-gbot.plug_commands = dict()
-gbot.plug_commands_admin = dict()
-gbot.help_text = dict()
-gbot.help_text_admin = dict()
+gbot.plug_commands = {}
+gbot.plug_commands_admin = {}
+gbot.help_text = {}
+gbot.help_text_admin = {}
 
 
 def load_plugin(plug_name, bot):
