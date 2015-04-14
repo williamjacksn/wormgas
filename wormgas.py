@@ -143,13 +143,26 @@ def on_rpl_endofmotd(message, bot):
     password = bot.c.get('irc:nickservpass')
     if password is not None:
         bot.send_privmsg('nickserv', 'identify {}'.format(password))
-    bot.out('JOIN {}'.format(bot.c['irc:channel']))
+    channel = bot.c.get('irc:channel')
+    if channel is None:
+        bot.c['irc:channel'] = '#humphrey'
+        bot.log('** Edit {} and set {!r}'.format(bot.c.path, 'irc:channel'))
+        sys.exit(1)
+    bot.out('JOIN {}'.format(channel))
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     host = gbot.c.get('irc:host')
+    if host is None:
+        gbot.c['irc:host'] = 'irc.example.com'
+        gbot.log('** Edit {} and set {!r}'.format(gbot.c.path, 'irc:host'))
+        sys.exit(1)
     port = gbot.c.get('irc:port')
+    if port is None:
+        gbot.c['irc:port'] = '6667'
+        gbot.log('** Edit {} and set {!r}'.format(gbot.c.path, 'irc:port'))
+        sys.exit(1)
     coro = loop.create_connection(gbot, host, port)
     loop.run_until_complete(coro)
     try:
