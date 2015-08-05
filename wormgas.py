@@ -9,15 +9,6 @@ import pathlib
 import sys
 import traceback
 
-config_file = pathlib.Path(__file__).resolve().with_name('_config.json')
-gbot = humphrey.IRCClient(config_file)
-gbot.debug = True
-gbot.c.pretty = True
-gbot.plug_commands = {}
-gbot.plug_commands_admin = {}
-gbot.help_text = {}
-gbot.help_text_admin = {}
-
 
 def load_plugin(plug_name, bot):
     loaded_commands = list()
@@ -61,85 +52,79 @@ def initialize_plugins(bot):
         for command in commands:
             bot.log('** Loaded a command: {}'.format(command))
 
-initialize_plugins(gbot)
 
-
-@gbot.ee.on('PRIVMSG')
 def handle_help(message, bot):
     tokens = message.split()
     source = tokens[0].lstrip(':')
-    source_nick, _, _ = bot.parse_hostmask(source)
+    nick, _, _ = bot.parse_hostmask(source)
     if len(tokens) > 3 and tokens[3].lower() == ':!help':
         bot.log('** Handling !help')
         if len(tokens) < 5:
             m = 'Use \x02!help [<topic>]\x02 with one of these topics:'
             topics = list(bot.help_text.keys())
-            if source_nick in bot.admins:
+            if bot.is_admin(nick):
                 topics += list(bot.help_text_admin.keys())
             m = '{} {}'.format(m, ', '.join(sorted(topics)))
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
             return
         topic = tokens[4]
         lines = bot.help_text.get(topic)
-        if lines is None and source_nick in bot.admins:
+        if lines is None and bot.is_admin(nick):
             lines = bot.help_text_admin.get(topic)
         if lines is not None:
             for line in lines:
-                bot.send_privmsg(source_nick, line)
+                bot.send_privmsg(nick, line)
             return
         m = 'I don\'t know anything about {}.'.format(topic)
-        bot.send_privmsg(source_nick, m)
+        bot.send_privmsg(nick, m)
 
 
-@gbot.ee.on('PRIVMSG')
 def handle_load(message, bot):
     tokens = message.split()
     source = tokens[0].lstrip(':')
-    source_nick, _, _ = bot.parse_hostmask(source)
-    if source_nick not in bot.admins:
+    nick, _, _ = bot.parse_hostmask(source)
+    if not bot.is_admin(nick):
         return
     if len(tokens) > 3 and tokens[3] == ':!load':
         bot.log('** Handling !load')
         if len(tokens) < 5:
             m = 'Please specify a plugin to load.'
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
             return
         plug_name = tokens[4]
         try:
             commands = load_plugin(plug_name, bot)
             m = 'Loaded a plugin: {}'.format(plug_name)
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
         except ImportError:
             m = 'Error loading plugin {}. Check the logs.'.format(plug_name)
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
             return
         for command in commands:
             m = 'Loaded a command: {}'.format(command)
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
 
 
-@gbot.ee.on('PRIVMSG')
 def dispatch_plugin_command(message, bot):
     tokens = message.split()
     source = tokens[0].lstrip(':')
-    source_nick, _, _ = bot.parse_hostmask(source)
+    nick, _, _ = bot.parse_hostmask(source)
     cmd = tokens[3].lstrip(':').lower()
     handler = bot.plug_commands.get(cmd)
-    if handler is None and source_nick in bot.admins:
+    if handler is None and bot.is_admin(nick):
         handler = bot.plug_commands_admin.get(cmd)
     if handler is not None:
         try:
             text = message.split(' :', 1)[1]
-            handler.handle(source_nick, tokens[2], text.split(), bot)
+            handler.handle(nick, tokens[2], text.split(), bot)
         except Exception:
             m = 'Exception in {}. Check the logs.'.format(cmd)
             bot.log('** {}'.format(m))
             bot.log(traceback.format_exc())
-            bot.send_privmsg(source_nick, m)
+            bot.send_privmsg(nick, m)
 
 
-@gbot.ee.on('376')
-def on_rpl_endofmotd(message, bot):
+def on_rpl_endofmotd(_, bot):
     password = bot.c.get('irc:nickservpass')
     if password is not None:
         bot.send_privmsg('nickserv', 'identify {}'.format(password))
@@ -151,22 +136,42 @@ def on_rpl_endofmotd(message, bot):
     bot.out('JOIN {}'.format(channel))
 
 
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    host = gbot.c.get('irc:host')
+def main():
+    config_file = pathlib.Path(__file__).resolve().with_name('_config.json')
+    irc = humphrey.IRCClient(config_file)
+    irc.debug = True
+    irc.c.pretty = True
+    irc.plug_commands = {}
+    irc.plug_commands_admin = {}
+    irc.help_text = {}
+    irc.help_text_admin = {}
+    initialize_plugins(irc)
+
+    irc.ee.on('PRIVMSG', func=handle_help)
+    irc.ee.on('PRIVMSG', func=handle_load)
+    irc.ee.on('PRIVMSG', func=dispatch_plugin_command)
+    irc.ee.on('376', func=on_rpl_endofmotd)
+
+    host = irc.c.get('irc:host')
     if host is None:
-        gbot.c['irc:host'] = 'irc.example.com'
-        gbot.log('** Edit {} and set {!r}'.format(gbot.c.path, 'irc:host'))
+        irc.c['irc:host'] = 'irc.example.com'
+        irc.log('** Edit {} and set {!r}'.format(irc.c.path, 'irc:host'))
         sys.exit(1)
-    port = gbot.c.get('irc:port')
+    port = irc.c.get('irc:port')
     if port is None:
-        gbot.c['irc:port'] = '6667'
-        gbot.log('** Edit {} and set {!r}'.format(gbot.c.path, 'irc:port'))
+        irc.c['irc:port'] = '6667'
+        irc.log('** Edit {} and set {!r}'.format(irc.c.path, 'irc:port'))
         sys.exit(1)
-    coro = loop.create_connection(gbot, host, port)
+
+    loop = asyncio.get_event_loop()
+    coro = loop.create_connection(irc, host, port)
     loop.run_until_complete(coro)
     try:
         loop.run_forever()
     except KeyboardInterrupt:
-        gbot.log('** Caught KeyboardInterrupt')
+        irc.log('** Caught KeyboardInterrupt')
         loop.close()
+
+
+if __name__ == '__main__':
+    main()

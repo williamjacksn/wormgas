@@ -48,7 +48,7 @@ class ChatHandler:
         self.brain = brain.Brain(str(brain_file))
 
         @sbot.ee.on('PING')
-        def handle_ping(message, bot):
+        def handle_ping(_, bot):
             now = int(time.time())
             last = int(bot.c.get('chat:last_time_public_message', 0))
             wait = int(bot.c.get('chat:wait_revive', 3600))

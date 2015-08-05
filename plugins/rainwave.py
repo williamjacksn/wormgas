@@ -101,8 +101,7 @@ class RainwaveHandler:
         return m
 
     def get_api_auth_for_nick(self, nick, bot):
-        auth = {}
-        auth['user_id'] = self.get_id_for_nick(nick, bot)
+        auth = {'user_id': self.get_id_for_nick(nick, bot)}
         user_id = auth.get('user_id')
         auth['key'] = self.get_key_for_nick(nick, bot)
         auth['chan'] = self.get_current_channel_for_id(user_id, bot)
@@ -265,7 +264,8 @@ class SpecialEventTopicHandler(RainwaveHandler):
 
     def __init__(self, sbot):
         @sbot.ee.on('PING')
-        def check_special_events(message, bot):
+        def check_special_events(_, bot):
+            channel = bot.c['irc:channel']
             if not bot.in_channel:
                 return
             new_topic_head = 'Welcome to Rainwave!'
@@ -277,9 +277,9 @@ class SpecialEventTopicHandler(RainwaveHandler):
                 new_topic_head = ' '.join([e['text'] for e in events])
             elif future_events:
                 new_topic_head = future_events[0]
-            if bot.topic is None:
-                bot.topic = ''
-            topic_parts = bot.topic.split(' | ')
+            if bot.topics.get(channel) is None:
+                bot.topics[channel] = ''
+            topic_parts = bot.topics[channel].split(' | ')
             if new_topic_head != topic_parts[0]:
                 topic_parts[0] = new_topic_head
                 bot.send_topic(bot.c['irc:channel'], ' | '.join(topic_parts))
@@ -290,11 +290,9 @@ class SpecialEventTopicHandler(RainwaveHandler):
 
     @staticmethod
     def build_event_dict(chan, info):
-        event = {}
-        event['chan_id'] = chan.channel_id
-        event['chan_url'] = chan.url
-        event['chan_short_name'] = chan.short_name
-        event['name'] = '{} Power Hour'.format(info['event_name'])
+        event = {'chan_id': chan.channel_id, 'chan_url': chan.url,
+                 'chan_short_name': chan.short_name,
+                 'name': '{} Power Hour'.format(info['event_name'])}
         event['text'] = '[{chan_short_name}] {name} on now!'.format(**event)
         return event
 
@@ -337,7 +335,7 @@ class IdHandler(RainwaveHandler):
                  ('Use \x02!id drop\x02 to delete your user id and \x02!id '
                   'show\x02 to see it.')]
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         rw_config = self.get_rw_config(bot)
 
         if len(tokens) < 2:
@@ -383,7 +381,7 @@ class KeyHandler(RainwaveHandler):
                  ('Use \x02!key drop\x02 to delete your key and \x02!key '
                   'show\x02 to see it.')]
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         rw_config = self.get_rw_config(bot)
 
         if len(tokens) < 2:
@@ -704,7 +702,7 @@ class RequestHandler(RainwaveHandler):
                  ('Use \x02!rq clear\x02 to remove all songs from your '
                   'request queue.')]
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         if len(tokens) < 2:
             self.send_help(sender, bot)
             return
@@ -842,7 +840,7 @@ class VoteHandler(RainwaveHandler):
     help_text = [('Use \x02!vote <index>\x02 to vote in the current election, '
                   'find the <index> with \x02!next\x02.')]
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         if len(tokens) > 1:
             idx = tokens[1]
         else:

@@ -40,7 +40,7 @@ class GreetHandler:
             else:
                 bot.send_privmsg(channel, greeting)
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         if len(tokens) > 1:
             action = tokens[1].lower()
         else:

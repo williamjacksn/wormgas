@@ -208,7 +208,7 @@ class RpsMvHandler:
     help_text = [('Use \x02!rpsmv <oldnick> <newnick>\x02 to reassign stats '
                   'and game history from one player to another.')]
 
-    def handle(self, sender, target, tokens, bot):
+    def handle(self, sender, _, tokens, bot):
         if len(tokens) < 3:
             for line in self.help_text:
                 bot.send_privmsg(sender, line)
