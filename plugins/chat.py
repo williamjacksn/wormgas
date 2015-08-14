@@ -122,8 +122,9 @@ class ChatHandler:
             return random.choice(self.quotes)
         bot.c['chat:last_message'] = text
         to_brain = text
-        for member in bot.members:
-            to_brain = to_brain.replace(member, '')
+        for channel, members in bot.members.items():
+            for member in members:
+                to_brain = to_brain.replace(member, '')
         if learn:
             if bot.debug:
                 bot.log('** Learning {!r}'.format(to_brain))
