@@ -35,21 +35,21 @@ class NotifyHandler:
             self.send_help(sender, bot)
             return
         nick = sender.lower()
-        key = tokens[1]
-        if key == 'show':
+        action = tokens[1]
+        if action == 'show':
             saved_key = config.get(nick)
             if saved_key is None:
                 m = 'I do not have a secret key saved for you.'
             else:
                 m = 'Your secret key is ' + saved_key
-        elif key == 'stop':
+        elif action == 'stop':
             config.remove(nick)
             m = ('I will no longer notify you when someone says your nick in '
                  'the channel.')
         else:
-            config[nick] = key
+            config[nick] = action
             m = ('I will use the secret key {} to notify you when someone says '
-                 'your nick in the channel.')
+                 'your nick in the channel.'.format(action))
         bot.send_privmsg(sender, m)
 
     @staticmethod
