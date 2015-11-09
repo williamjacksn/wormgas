@@ -316,8 +316,8 @@ class SpecialEventTopicHandler(RainwaveHandler):
                 chan = RainwaveChannel(p['sid'])
                 e_name = p['name']
                 e_text = '[{}] {} Power Hour'.format(chan.short_name, e_name)
-                edt = datetime.timezone(datetime.timedelta(hours=-4))
-                when = datetime.datetime.fromtimestamp(p['start'], tz=edt)
+                est = datetime.timezone(datetime.timedelta(hours=-5))
+                when = datetime.datetime.fromtimestamp(p['start'], tz=est)
                 month = when.strftime('%b')
                 w_time = when.strftime('%H:%M')
                 e_text = '{}: {} {}'.format(e_text, month, when.day)
