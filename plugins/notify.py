@@ -53,7 +53,7 @@ class NotifyHandler:
         config = self.get_config(bot)
         try:
             rec = config[nick]
-        except IndexError:
+        except KeyError:
             m = 'I do not have a secret key saved for you.'
             return bot.send_privmsg(nick, m)
         try:
