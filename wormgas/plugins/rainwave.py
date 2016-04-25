@@ -1,9 +1,11 @@
 import datetime
 import enum
 import json
+import pytz
 import time
 import urllib.parse
 import urllib.request
+import uuid
 
 
 class RainwaveChannel(enum.Enum):
@@ -64,7 +66,9 @@ class RainwaveHandler:
         base_url = 'http://rainwave.cc/api4/'
         url = '{}{}'.format(base_url, path.lstrip('/'))
         data = urllib.parse.urlencode(params).encode()
-        response = urllib.request.urlopen(url, data=data)
+        headers = {'user-agent': str(uuid.uuid4())}
+        request = urllib.request.Request(url, data, headers)
+        response = urllib.request.urlopen(request)
         if response.status == 200:
             body = response.read().decode()
             return json.loads(body)
@@ -316,8 +320,7 @@ class SpecialEventTopicHandler(RainwaveHandler):
                 chan = RainwaveChannel(p['sid'])
                 e_name = p['name']
                 e_text = '[{}] {} Power Hour'.format(chan.short_name, e_name)
-                est = datetime.timezone(datetime.timedelta(hours=-5))
-                when = datetime.datetime.fromtimestamp(p['start'], tz=est)
+                when = pytz.timezone('US/Eastern').localize(datetime.datetime.fromtimestamp(p['start']))
                 month = when.strftime('%b')
                 w_time = when.strftime('%H:%M')
                 e_text = '{}: {} {}'.format(e_text, month, when.day)

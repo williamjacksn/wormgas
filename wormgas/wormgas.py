@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+import argparse
 import asyncio
 import enum
 import humphrey
@@ -12,7 +11,7 @@ import traceback
 
 def load_plugin(plug_name, bot):
     loaded_commands = list()
-    module_name = 'plugins.{}'.format(plug_name)
+    module_name = 'wormgas.plugins.{}'.format(plug_name)
     if module_name in sys.modules:
         module = importlib.reload(sys.modules[module_name])
     else:
@@ -136,8 +135,15 @@ def on_rpl_endofmotd(_, bot):
     bot.out('JOIN {}'.format(channel))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config')
+    return parser.parse_args()
+
+
 def main():
-    config_file = pathlib.Path(__file__).resolve().with_name('_config.json')
+    args = parse_args()
+    config_file = pathlib.Path(args.config).resolve()
     irc = humphrey.IRCClient(config_file)
     irc.debug = True
     irc.c.pretty = True
