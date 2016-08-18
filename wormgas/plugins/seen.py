@@ -1,9 +1,6 @@
 import humphrey
-import logging
 import pendulum
 import time
-
-log = logging.getLogger(__name__)
 
 
 class SeenHandler:
