@@ -17,6 +17,7 @@ class SeenHandler:
         bot.ee.on('PART', func=SeenHandler.watch_part)
         bot.ee.on('PRIVMSG', func=SeenHandler.watch_privmsg)
         bot.ee.on('QUIT', func=SeenHandler.watch_quit)
+        bot.ee.on('TOPIC', func=SeenHandler.watch_topic)
 
     @staticmethod
     def get_config(bot):
@@ -102,6 +103,18 @@ class SeenHandler:
         source = tokens[0].lstrip(':')
         nick, user, host = bot.parse_hostmask(source)
         SeenHandler.record_sighting(nick, '- {} [{}] has quit [{}]'.format(nick, source, tokens[2].lstrip(':')), bot)
+
+    @staticmethod
+    def watch_topic(message: str, bot: humphrey.IRCClient):
+        tokens = message.split(maxsplit=3)
+        source = tokens[0].lstrip(':')
+        nick, user, host = bot.parse_hostmask(source)
+        topic = tokens[3].lstrip(':')
+        if topic:
+            text = '- {} changed the topic of {} to: {}'.format(nick, tokens[2], topic)
+        else:
+            text = '- Topic unset by {} on {}'.format(nick, tokens[2])
+        SeenHandler.record_sighting(nick, text, bot)
 
     def send_help(self, target, bot):
         for line in self.help_text:
