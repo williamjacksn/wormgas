@@ -157,6 +157,7 @@ def main():
     irc.ee.on('PRIVMSG', func=handle_load)
     irc.ee.on('PRIVMSG', func=dispatch_plugin_command)
     irc.ee.on('376', func=on_rpl_endofmotd)
+    irc.ee.on('422', func=on_rpl_endofmotd)
 
     host = irc.c.get('irc:host')
     if host is None:
