@@ -333,7 +333,7 @@ class IdHandler(RainwaveHandler):
     cmds = ['!id']
     admin = False
     help_topic = 'id'
-    help_text = [('Look up your Rainwave user id at http://rainwave.cc/auth/ '
+    help_text = [('Look up your Rainwave user id at https://rainwave.cc/keys/ '
                   'and use \x02!id add <id>\x02 to tell me about it.'),
                  ('Use \x02!id drop\x02 to delete your user id and \x02!id '
                   'show\x02 to see it.')]
@@ -379,7 +379,7 @@ class KeyHandler(RainwaveHandler):
     cmds = ['!key']
     admin = False
     help_topic = 'key'
-    help_text = [('Get an API key from http://rainwave.cc/auth/ and use '
+    help_text = [('Get an API key from https://rainwave.cc/keys/ and use '
                   '\x02!key add <key>\x02 to tell me about it.'),
                  ('Use \x02!key drop\x02 to delete your key and \x02!key '
                   'show\x02 to see it.')]
