@@ -5,6 +5,7 @@ import humphrey
 import importlib
 import inspect
 import pathlib
+import shlex
 import sys
 import traceback
 
@@ -115,7 +116,7 @@ def dispatch_plugin_command(message, bot):
     if handler is not None:
         try:
             text = message.split(' :', 1)[1]
-            handler.handle(nick, tokens[2], text.split(), bot)
+            handler.handle(nick, tokens[2], shlex.split(text), bot)
         except Exception:
             m = 'Exception in {}. Check the logs.'.format(cmd)
             bot.log('** {}'.format(m))
