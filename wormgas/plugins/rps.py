@@ -35,7 +35,7 @@ class RpsGameHandler:
         player_dict[action] = player_dict.get(action, 0) + 1
         global_dict[action] = global_dict.get(action, 0) + 1
 
-        m = 'You challenge with {}. I counter with'.format(action)
+        m = 'You challenge with {}. I challenge with'.format(action)
         m = '{} {}.'.format(m, rps[response])
 
         if challenge == (response + 1) % 3:
