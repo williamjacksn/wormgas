@@ -34,7 +34,7 @@ class Brain:
         if not os.path.exists(filename):
             Brain.init(filename)
 
-        self.graph = graph = Graph(sqlite3.connect(filename))
+        self.graph = graph = Graph(sqlite3.connect(filename, isolation_level=None))
 
         version = graph.get_info_text('version')
         if version != '2':
