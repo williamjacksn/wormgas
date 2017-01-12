@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='wormgas',
-    version='1.0.0',
+    version='1.0.1',
     author='William Jackson',
     author_email='william@subtlecoolness.com',
     url='https://github.com/williamjacksn/wormgas',
