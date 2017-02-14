@@ -65,9 +65,10 @@ class ChatHandler:
             tokens = message.split()
             source = tokens[0].lstrip(':')
             source_nick, _, _ = bot.parse_hostmask(source)
+            learn = True
             if source_nick.lower() in bot.c.get('chat:ignore_nicks', '').split():
                 bot.log('** {} is in the chat:ignore_nicks list')
-                return
+                learn = False
             target = tokens[2]
             cmd = tokens[3].lstrip(':').lower()
             builtin_commands = {'!load', '!help'}
@@ -79,7 +80,7 @@ class ChatHandler:
             text = message.split(' :', maxsplit=1)[1]
             if bot.debug:
                 bot.log('** Responding to {!r}'.format(text))
-            response = self.reply(text, bot)
+            response = self.reply(text, bot, learn=learn)
 
             now = int(time.time())
 
