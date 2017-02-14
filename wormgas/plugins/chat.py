@@ -67,7 +67,7 @@ class ChatHandler:
             source_nick, _, _ = bot.parse_hostmask(source)
             learn = True
             if source_nick.lower() in bot.c.get('chat:ignore_nicks', '').split():
-                bot.log('** {} is in the chat:ignore_nicks list')
+                bot.log('** {} is in the chat:ignore_nicks list'.format(source_nick))
                 learn = False
             target = tokens[2]
             cmd = tokens[3].lstrip(':').lower()
