@@ -4,10 +4,12 @@ import enum
 import humphrey
 import importlib
 import inspect
+import logging
 import pathlib
 import shlex
 import sys
-import traceback
+
+log = logging.getLogger(__name__)
 
 
 def load_plugin(plug_name, bot):
@@ -19,7 +21,7 @@ def load_plugin(plug_name, bot):
         try:
             module = importlib.import_module(module_name)
         except ImportError as exc:
-            bot.log('** Error loading a plugin: {}, {}'.format(plug_name, exc))
+            log.error('Error loading a plugin: {}, {}'.format(plug_name, exc))
             raise
     plugins = set(bot.c.get('plugins', list()))
     plugins.add(plug_name)
@@ -46,11 +48,11 @@ def initialize_plugins(bot):
     for plug in bot.c.get('plugins', list()):
         try:
             commands = load_plugin(plug, bot)
-            bot.log('** Loaded a plugin: {}'.format(plug))
+            log.info('Loaded a plugin: {}'.format(plug))
         except ImportError:
             continue
         for command in commands:
-            bot.log('** Loaded a command: {}'.format(command))
+            log.info('** Loaded a command: {}'.format(command))
 
 
 def handle_help(message, bot):
@@ -58,7 +60,7 @@ def handle_help(message, bot):
     source = tokens[0].lstrip(':')
     nick, _, _ = bot.parse_hostmask(source)
     if len(tokens) > 3 and tokens[3].lower() == ':!help':
-        bot.log('** Handling !help')
+        log.debug('Handling !help')
         if len(tokens) < 5:
             m = 'Use \x02!help [<topic>]\x02 with one of these topics:'
             topics = list(bot.help_text.keys())
@@ -86,7 +88,7 @@ def handle_load(message, bot):
     if not bot.is_admin(nick):
         return
     if len(tokens) > 3 and tokens[3] == ':!load':
-        bot.log('** Handling !load')
+        log.debug('Handling !load')
         if len(tokens) < 5:
             m = 'Please specify a plugin to load.'
             bot.send_privmsg(nick, m)
@@ -120,12 +122,10 @@ def dispatch_plugin_command(message, bot):
         except ValueError:
             text_tokens = text.split()
         try:
-            text = message.split(' :', 1)[1]
             handler.handle(nick, tokens[2], text_tokens, bot)
         except Exception:
             m = 'Exception in {}. Check the logs.'.format(cmd)
-            bot.log('** {}'.format(m))
-            bot.log(traceback.format_exc())
+            log.exception(m)
             bot.send_privmsg(nick, m)
 
 
@@ -136,7 +136,7 @@ def on_rpl_endofmotd(_, bot):
     channel = bot.c.get('irc:channel')
     if channel is None:
         bot.c['irc:channel'] = '#humphrey'
-        bot.log('** Edit {} and set {!r}'.format(bot.c.path, 'irc:channel'))
+        log.warning('Edit {} and set {!r}'.format(bot.c.path, 'irc:channel'))
         sys.exit(1)
     bot.out('JOIN {}'.format(channel))
 
@@ -148,6 +148,7 @@ def parse_args():
 
 
 def main():
+    logging.basicConfig(level='DEBUG', format='%(asctime)s | %(name)s | %(levelname)s | %(message)s', stream=sys.stdout)
     args = parse_args()
     config_file = pathlib.Path(args.config).resolve()
     irc = humphrey.IRCClient(config_file)
@@ -168,12 +169,12 @@ def main():
     host = irc.c.get('irc:host')
     if host is None:
         irc.c['irc:host'] = 'irc.example.com'
-        irc.log('** Edit {} and set {!r}'.format(irc.c.path, 'irc:host'))
+        log.warning('Edit {} and set {!r}'.format(irc.c.path, 'irc:host'))
         sys.exit(1)
     port = irc.c.get('irc:port')
     if port is None:
         irc.c['irc:port'] = '6667'
-        irc.log('** Edit {} and set {!r}'.format(irc.c.path, 'irc:port'))
+        log.warning('Edit {} and set {!r}'.format(irc.c.path, 'irc:port'))
         sys.exit(1)
 
     loop = asyncio.get_event_loop()
@@ -182,7 +183,7 @@ def main():
     try:
         loop.run_forever()
     except KeyboardInterrupt:
-        irc.log('** Caught KeyboardInterrupt')
+        log.debug('Caught KeyboardInterrupt')
         loop.close()
 
 
