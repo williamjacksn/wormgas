@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import logging
+import requests
 
 log = logging.getLogger(__name__)
 
@@ -28,9 +29,14 @@ class DiscordSyncHandler:
     @staticmethod
     def color(text, color, background=None):
         colors = {
-            'green': '03',
-            'red': '04',
-            'yellow': '08'
+            'white':     '00', 'yellow':      '08',
+            'black':     '01', 'light_green': '09',
+            'blue':      '02', 'cyan':        '10',
+            'green':     '03', 'light_cyan':  '11',
+            'light_red': '04', 'light_blue':  '12',
+            'brown':     '05', 'pink':        '13',
+            'purple':    '06', 'grey':        '14',
+            'orange':    '07', 'light_grey':  '15'
         }
         if background is None:
             code = colors[color]
@@ -43,7 +49,7 @@ class DiscordSyncHandler:
         dots = {
             discord.Status.online: self.color(dot, 'green'),
             discord.Status.idle: self.color(dot, 'yellow'),
-            discord.Status.dnd: self.color(dot, 'red')
+            discord.Status.dnd: self.color(dot, 'light_red')
         }
         return dots[status]
 
@@ -115,6 +121,9 @@ class DiscordSyncHandler:
         if message.author == self.bot.discord.user:
             log.debug('Ignoring a Discord message from myself')
             return
+        if message.author.bot:
+            log.debug('Ignoring a Discord message from a bot')
+            return
         if message.channel == self.bot.discord_channel:
             sender = message.author.nick or message.author.name
             m = '<{}> {}'.format(sender, message.clean_content)
@@ -133,4 +142,9 @@ class DiscordSyncHandler:
         source = tokens[0].lstrip(':')
         nick, user, host = bot.parse_hostmask(source)
         text = tokens[3].lstrip(':')
-        self._to_discord('<{}> {}'.format(nick, text))
+        webhook = bot.c.get('discord:webhook')
+        if webhook is None:
+            self._to_discord('<{}> {}'.format(nick, text))
+        else:
+            log.debug('Sending to webhook')
+            requests.post(webhook, json={'content': text, 'username': '<{}>'.format(nick)})

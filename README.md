@@ -6,7 +6,7 @@ wormgas is a command-processing IRC bot that enables using most Rainwave feature
 The core bot requires the [humphrey][] IRC library. Some plugins do have other dependencies:
 
 *   The `chat` plugin requires [stemming][]
-*   The `discord_sync` plugin requires [discord.py][]
+*   The `discord_sync` plugin requires [discord.py][] and [requests][]
 *   The `rainwave` plugin requires [pytz][]
 *   The `seen` plugin requires [pendulum][]
 *   The `wiki` plugin requires [wikipedia][]
@@ -17,6 +17,7 @@ The `chat` plugin is powered by [cobe][], but this dependency is bundled.
 [humphrey]: https://pypi.python.org/pypi/humphrey
 [stemming]: http://pypi.python.org/pypi/stemming
 [discord.py]: https://pypi.python.org/pypi/discord.py
+[requests]: https://pypi.python.org/pypi/requests
 [pytz]: https://pypi.python.org/pypi/pytz
 [pendulum]: https://pypi.python.org/pypi/pendulum
 [wikipedia]: https://wikipedia.readthedocs.org/en/latest/
