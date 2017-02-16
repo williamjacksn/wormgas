@@ -2,19 +2,15 @@ class GreetHandler:
     cmds = ['!greet']
     admin = True
     help_topic = 'greet'
-    help_text = [('Use \x02!greet add <nick> <message>\x02 to register a '
-                  'greeting.'),
-                 ('Whenever <nick> joins the channel (and auto-greeting is '
-                  'on), I will send <message> to the channel.'),
-                 'If <message> starts with \'/me\' I will perform the action.',
-                 ('Use \x02!greet drop <nick>\x02 to remove the greeting for '
-                  '<nick>'),
-                 ('Use \x02!greet list\x02 to see all the currently registered '
-                  'greetings.'),
-                 ('Use \x02!greet send <nick> to send the greeting for <nick> '
-                  'to the channel.'),
-                 ('Use \x02!greet auto [<on|off>]\x02 to turn on or off '
-                  'automatic greeting.')]
+    help_text = [
+        'Use \x02!greet add <nick> <message>\x02 to register a greeting.',
+        'Whenever <nick> joins the channel (and auto-greeting is on), I will send <message> to the channel.',
+        'If <message> starts with \'/me\' I will perform the action.',
+        'Use \x02!greet drop <nick>\x02 to remove the greeting for <nick>',
+        'Use \x02!greet list\x02 to see all the currently registered greetings.',
+        'Use \x02!greet send <nick> to send the greeting for <nick> to the channel.',
+        'Use \x02!greet auto [<on|off>]\x02 to turn on or off automatic greeting.'
+    ]
 
     def __init__(self, sbot):
         @sbot.ee.on('JOIN')
