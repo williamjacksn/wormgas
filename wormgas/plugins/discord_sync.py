@@ -25,6 +25,28 @@ class DiscordSyncHandler:
 
         bot.ee.on('PRIVMSG', func=self.watch_privmsg)
 
+    @staticmethod
+    def color(text, color, background=None):
+        colors = {
+            'green': '03',
+            'red': '04',
+            'yellow': '08'
+        }
+        if background is None:
+            code = colors[color]
+        else:
+            code = '{},{}'.format(colors[color], colors[background])
+        return '\x03{}{}\x03'.format(code, text)
+
+    def status_dot(self, status):
+        dot = '\u2022'
+        dots = {
+            discord.Status.online: self.color(dot, 'green'),
+            discord.Status.idle: self.color(dot, 'yellow'),
+            discord.Status.dnd: self.color(dot, 'red')
+        }
+        return dots[status]
+
     def handle(self, sender, _, tokens, bot):
         log.debug('Handling !discord')
         if len(tokens) < 2:
@@ -34,12 +56,13 @@ class DiscordSyncHandler:
             users = []
             for user in bot.discord_channel.server.members:
                 if user.status is not discord.Status.offline:
-                    users.append('{} ({})'.format(user.name, user.status))
+                    nick = user.nick or user.name
+                    users.append('{}{}'.format(self.status_dot(user.status), nick))
             while len(users) > 10:
                 user_list = users[:10]
                 users[0:10] = []
-                bot.send_privmsg(sender, ', '.join(user_list))
-            bot.send_privmsg(sender, ', '.join(users))
+                bot.send_privmsg(sender, ' '.join(user_list))
+            bot.send_privmsg(sender, ' '.join(users))
 
     def send_help(self, target, bot):
         for line in self.help_text:
