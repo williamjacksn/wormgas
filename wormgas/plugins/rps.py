@@ -6,16 +6,15 @@ class RpsGameHandler:
     cmds = ['!paper', '!rock', '!scissors']
     admin = False
     help_topic = 'rps'
-    help_text = [('Use \x02!rock\x02, \x02!paper\x02, or \x02!scissors\x02 to '
-                  'play a game.'),
-                 ('Use \x02!rps record [<nick>]\x02 to see the record for '
-                  '<nick>. Leave off <nick> to see your own record.'),
-                 ('Use \x02!rps stats [<nick>]\x02 to see some statistics for '
-                  '<nick>. Leave off <nick> to see your own statistics.'),
-                 ('Use \x02!rps reset\x02 to reset your record and delete '
-                  'your game history. There is no confirmation and this '
-                  'cannot be undone.'),
-                 'Use \x02!rps who\x02 to see a list of known players']
+    help_text = [
+        'Use \x02!rock\x02, \x02!paper\x02, or \x02!scissors\x02 to play a game.',
+        'Use \x02!rps record [<nick>]\x02 to see the record for <nick>. Leave off <nick> to see your own record.',
+        ('Use \x02!rps stats [<nick>]\x02 to see some statistics for <nick>. Leave off <nick> to see your own '
+         'statistics.'),
+        ('Use \x02!rps reset\x02 to reset your record and delete your game history. There is no confirmation and this '
+         'cannot be undone.'),
+        'Use \x02!rps who\x02 to see a list of known players'
+    ]
 
     @staticmethod
     def get_rps_config(bot):
@@ -205,8 +204,9 @@ class RpsMvHandler:
     cmds = ['!rpsmv']
     admin = True
     help_topic = 'rpsmv'
-    help_text = [('Use \x02!rpsmv <oldnick> <newnick>\x02 to reassign stats '
-                  'and game history from one player to another.')]
+    help_text = [
+        'Use \x02!rpsmv <oldnick> <newnick>\x02 to reassign stats and game history from one player to another.'
+    ]
 
     def handle(self, sender, _, tokens, bot):
         if len(tokens) < 3:
@@ -221,5 +221,4 @@ class RpsMvHandler:
             new_dict[key] = new_dict.get(key, 0) + old_dict[key]
         rps_config.remove(tokens[1])
         rps_config[tokens[2]] = new_dict
-        m = 'I assigned RPS game history for {1} to {2}.'.format(*tokens)
-        bot.send_privmsg(sender, m)
+        bot.send_privmsg(sender, 'I assigned RPS game history for {1} to {2}.'.format(*tokens))

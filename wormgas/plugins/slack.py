@@ -1,5 +1,8 @@
 import json
+import logging
 import urllib.request
+
+log = logging.getLogger(__name__)
 
 
 class SlackHandler:
@@ -17,7 +20,7 @@ class SlackHandler:
             if bot.is_irc_channel(target):
                 url = bot.c.get('slack:url')
                 if url is None:
-                    bot.log('** Set slack:url to use the slack plugin')
+                    log.warning('Set slack:url to use the slack plugin')
                     return
                 data_obj = {'text': text, 'username': '<{}>'.format(source_nick)}
                 data = json.dumps(data_obj).encode()

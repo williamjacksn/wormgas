@@ -1,7 +1,10 @@
 import html
+import logging
 import urllib.error
 import urllib.parse
 import urllib.request
+
+log = logging.getLogger(__name__)
 
 
 class TitleHandler:
@@ -30,11 +33,11 @@ class TitleHandler:
                     token = token.lstrip(':')
                     o = urllib.parse.urlparse(token)
                 except ValueError:
-                    bot.log('** Trouble looking for URLs')
+                    log.exception('Trouble looking for URLs')
                     continue
                 if 'http' in o.scheme and o.netloc:
                     url = o.geturl()
-                    bot.log('** Found a URL: {}'.format(url))
+                    log.debug('Found a URL: {}'.format(url))
                     urls.append(url)
 
             for url in urls:

@@ -1,8 +1,11 @@
+import logging
 import re
 import random
 import time
 
 from .cobe import brain
+
+log = logging.getLogger(__name__)
 
 
 class ChatHandler:
@@ -44,11 +47,9 @@ class ChatHandler:
             wait = int(bot.c.get('chat:wait_revive', 3600))
             if last < now - wait:
                 if not bot.in_channel:
-                    if bot.debug:
-                        bot.log('** Would revive chat, but not currently in channel')
+                    log.debug('Would revive chat, but not currently in channel')
                     return
-                if bot.debug:
-                    bot.log('** Reviving chat')
+                log.debug('Reviving chat')
                 last_message = bot.c.get('chat:last_message', '')
                 response = self.reply(last_message, bot, learn=False)
                 target = bot.c.get('irc:channel')
@@ -57,8 +58,7 @@ class ChatHandler:
                 bot.c['chat:last_time_public_message'] = now
             else:
                 remaining = last + wait - now
-                if bot.debug:
-                    bot.log('** Will revive chat in {} seconds'.format(remaining))
+                log.debug('Will revive chat in {} seconds'.format(remaining))
 
         @sbot.ee.on('PRIVMSG')
         def handle_privmsg(message, bot):
@@ -67,7 +67,7 @@ class ChatHandler:
             source_nick, _, _ = bot.parse_hostmask(source)
             learn = True
             if source_nick.lower() in bot.c.get('chat:ignore_nicks', '').split():
-                bot.log('** {} is in the chat:ignore_nicks list'.format(source_nick))
+                log.info('{} is in the chat:ignore_nicks list'.format(source_nick))
                 learn = False
             target = tokens[2]
             cmd = tokens[3].lstrip(':').lower()
@@ -78,8 +78,7 @@ class ChatHandler:
                 return
 
             text = message.split(' :', maxsplit=1)[1]
-            if bot.debug:
-                bot.log('** Responding to {!r}'.format(text))
+            log.debug('Responding to {!r}'.format(text))
             response = self.reply(text, bot, learn=learn)
 
             now = int(time.time())
@@ -107,8 +106,7 @@ class ChatHandler:
     def reply(self, text, bot, learn=True):
         ignore = bot.c.get('chat:ignore')
         if ignore is not None and re.search(ignore, text, re.IGNORECASE):
-            if bot.debug:
-                bot.log('** Ignoring {!r}'.format(text))
+            log.debug('Ignoring {!r}'.format(text))
             return random.choice(self.quotes)
         bot.c['chat:last_message'] = text
         to_brain = text
@@ -116,7 +114,6 @@ class ChatHandler:
             for member in members:
                 to_brain = to_brain.replace(member, '')
         if learn:
-            if bot.debug:
-                bot.log('** Learning {!r}'.format(to_brain))
+            log.debug('Learning {!r}'.format(to_brain))
             self.brain.learn(to_brain)
         return self.brain.reply(to_brain)

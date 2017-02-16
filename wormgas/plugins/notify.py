@@ -1,6 +1,9 @@
+import logging
 import time
 import urllib.parse
 import urllib.request
+
+log = logging.getLogger(__name__)
 
 
 class NotifyHandler:
@@ -78,7 +81,7 @@ class NotifyHandler:
         sender, _, _ = bot.parse_hostmask(source)
         sender_low = sender.lower()
         if sender_low in config:
-            bot.log('** Updating last seen time for ' + sender_low)
+            log.debug('Updating last seen time for ' + sender_low)
             rec = config[sender_low]
             rec['seen'] = int(time.time())
             config[sender_low] = rec
@@ -87,12 +90,12 @@ class NotifyHandler:
             if nick in text.lower():
                 seen = int(config[nick]['seen'])
                 now = int(time.time())
-                m = '** {} last seen at {}, it is currently {}'
-                bot.log(m.format(nick, seen, now))
+                m = '{} last seen at {}, it is currently {}'
+                log.info(m.format(nick, seen, now))
                 if now > seen + 300:
                     target = message.split()[2]
                     if bot.is_irc_channel(target):
-                        bot.log('** Sending notification to ' + nick)
+                        log.info('Sending notification to ' + nick)
                         key = config[nick]['key']
                         NotifyHandler.notify(key, sender, target, text)
 
