@@ -53,6 +53,10 @@ class DiscordSyncHandler:
         }
         return dots[status]
 
+    @staticmethod
+    def _member_sort_key(member):
+        return member.display_name.lower()
+
     def handle(self, sender, _, tokens, bot):
         log.debug('Handling !discord')
         if len(tokens) < 2:
@@ -60,10 +64,9 @@ class DiscordSyncHandler:
             return
         if tokens[1] == 'users':
             users = []
-            for user in bot.discord_channel.server.members:
+            for user in sorted(bot.discord_channel.server.members, key=DiscordSyncHandler._member_sort_key):
                 if user.status is not discord.Status.offline:
-                    nick = user.nick or user.name
-                    users.append('{}{}'.format(self.status_dot(user.status), nick))
+                    users.append('{}{}'.format(self.status_dot(user.status), user.display_name))
             while len(users) > 10:
                 user_list = users[:10]
                 users[0:10] = []
