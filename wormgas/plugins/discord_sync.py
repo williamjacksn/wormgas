@@ -64,9 +64,16 @@ class DiscordSyncHandler:
             return
         if tokens[1] == 'users':
             users = []
+            offline_users = []
             for user in sorted(bot.discord_channel.server.members, key=DiscordSyncHandler._member_sort_key):
-                if user.status is not discord.Status.offline:
+                if user.status is discord.Status.offline:
+                    offline_users.append(user.display_name)
+                else:
                     users.append('{}{}'.format(self.status_dot(user.status), user.display_name))
+            if offline_users:
+                log.debug('Not reporting these offline users: {}'.format(offline_users))
+            if user:
+                log.debug('Sending a list of {} users'.format(len(users)))
             while len(users) > 10:
                 user_list = users[:10]
                 users[0:10] = []
