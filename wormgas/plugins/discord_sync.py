@@ -72,7 +72,7 @@ class DiscordSyncHandler:
                     users.append('{}{}'.format(self.status_dot(user.status), user.display_name))
             if offline_users:
                 log.debug('Not reporting these offline users: {}'.format(offline_users))
-            if user:
+            if users:
                 log.debug('Sending a list of {} users'.format(len(users)))
             while len(users) > 10:
                 user_list = users[:10]
