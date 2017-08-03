@@ -10,19 +10,15 @@ class NotifyHandler:
     cmds = ['!notify']
     admin = False
     help_topic = 'notify'
-    help_text = [('Use \x02!notify <secret_key>\x02 to get notified via IFTTT '
-                  'when someone says your nick in the channel.'),
-                 ('<secret_key> is the secret key from your IFTTT Maker '
-                  'Channel.'),
-                 ('I will send the Maker Channel event \'irc_mention\'. You '
-                  'must set up an IFTTT recipe to act on that event.'),
-                 ('In the Maker Channel event, value1 is the person who '
-                  'mentioned your nick, value2 is the channel name, and value3 '
-                  'is the full text of the message.'),
-                 ('Use \x02!notify show\x02 to see the secret key I currently '
-                  'have saved for you.'),
-                 ('Use \x02!notify stop\x02 to delete your secret key and stop '
-                  'receiving notifications.')]
+    help_text = [
+        'Use \x02!notify <secret_key>\x02 to get notified via IFTTT when someone says your nick in the channel.',
+        '<secret_key> is the secret key from your IFTTT Maker Channel.',
+        "I will send the Maker Channel event 'irc_mention'. You must set up an IFTTT recipe to act on that event.",
+        ('In the Maker Channel event, value1 is the person who mentioned your nick, value2 is the channel name, and '
+         'value3 is the full text of the message.'),
+        'Use \x02!notify show\x02 to see the secret key I currently have saved for you.',
+        'Use \x02!notify stop\x02 to delete your secret key and stop receiving notifications.'
+    ]
 
     def __init__(self, bot):
         bot.ee.on('PRIVMSG', func=NotifyHandler.notify_on_match)
@@ -44,12 +40,10 @@ class NotifyHandler:
             return self.handle_show(nick, bot)
         elif action == 'stop':
             config.remove(nick)
-            m = ('I will no longer notify you when someone says your nick in '
-                 'the channel.')
+            m = 'I will no longer notify you when someone says your nick in the channel.'
         else:
             config[nick] = {'key': action, 'seen': int(time.time())}
-            m = ('I will use the secret key {} to notify you when someone says '
-                 'your nick in the channel.'.format(action))
+            m = f'I will use the secret key {action} to notify you when someone says your nick in the channel.'
         bot.send_privmsg(sender, m)
 
     def handle_show(self, nick, bot):
@@ -57,19 +51,16 @@ class NotifyHandler:
         try:
             rec = config[nick]
         except KeyError:
-            m = 'I do not have a secret key saved for you.'
-            return bot.send_privmsg(nick, m)
+            return bot.send_privmsg(nick, 'I do not have a secret key saved for you.')
         try:
             key = rec['key']
         except IndexError:
-            m = 'I do not have a secret key saved for you.'
-            return bot.send_privmsg(nick, m)
-        m = 'Your secret key is ' + key
-        return bot.send_privmsg(nick, m)
+            return bot.send_privmsg(nick, 'I do not have a secret key saved for you.')
+        return bot.send_privmsg(nick, f'Your secret key is {key}')
 
     @staticmethod
     def notify(key, sender, target, text):
-        url = 'https://maker.ifttt.com/trigger/irc_mention/with/key/' + key
+        url = f'https://maker.ifttt.com/trigger/irc_mention/with/key/{key}'
         params = {'value1': sender, 'value2': target, 'value3': text}
         data = urllib.parse.urlencode(params).encode()
         urllib.request.urlopen(url, data=data)
@@ -81,21 +72,21 @@ class NotifyHandler:
         sender, _, _ = bot.parse_hostmask(source)
         sender_low = sender.lower()
         if sender_low in config:
-            log.debug('Updating last seen time for ' + sender_low)
+            log.debug(f'Updating last seen time for {sender_low}')
             rec = config[sender_low]
             rec['seen'] = int(time.time())
             config[sender_low] = rec
         text = message.split(' :', maxsplit=1)[1]
+        idle_time = int(bot.c.get('notify:idle_time', 0))
         for nick in config.keys():
             if nick in text.lower():
                 seen = int(config[nick]['seen'])
                 now = int(time.time())
-                m = '{} last seen at {}, it is currently {}'
-                log.info(m.format(nick, seen, now))
-                if now > seen + 300:
+                log.info(f'{nick} last seen at {seen}, it is currently {now}')
+                if now > seen + idle_time:
                     target = message.split()[2]
                     if bot.is_irc_channel(target):
-                        log.info('Sending notification to ' + nick)
+                        log.info(f'Sending notification to {nick}')
                         key = config[nick]['key']
                         NotifyHandler.notify(key, sender, target, text)
 
