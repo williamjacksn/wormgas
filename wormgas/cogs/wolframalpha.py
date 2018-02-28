@@ -1,48 +1,29 @@
-import time
+import discord.ext.commands as cmds
+import logging
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree
 
+from wormgas.wormgas import Wormgas
 
-class WolframAlphaHandler:
-    cmds = ['!wa']
-    admin = False
-    help_topic = 'wa'
-    help_text = ['Use \x02!wa <query>\x02 to send a query to Wolfram Alpha.']
+log = logging.getLogger(__name__)
 
-    def handle(self, sender, target, tokens, bot):
-        if len(tokens) > 1:
-            query = ' '.join(tokens[1:])
-        else:
-            for line in self.help_text:
-                bot.send_privmsg(sender, line)
-            return
 
-        result = self._aux_wa(query, bot)
+class WolframAlphaCog:
+    def __init__(self, bot: Wormgas):
+        self.bot = bot
 
-        if not bot.is_irc_channel(target):
-            for line in result:
-                bot.send_privmsg(sender, line)
-            return
+    @cmds.command()
+    async def wa(self, ctx: cmds.Context, *, query: str):
+        """Send a query to Wolfram Alpha."""
 
-        now = int(time.time())
-        last = int(bot.c.get('wolframalpha:last', 0))
-        wait = int(bot.c.get('wolframalpha:wait', 0))
-        if last < now - wait:
-            for line in result[:5]:
-                bot.send_privmsg(target, line)
-            bot.c.set('wolframalpha:last', now)
-        else:
-            for line in result:
-                bot.send_privmsg(sender, line)
-            remaining = last + wait - now
-            m = 'I am cooling down. You cannot use {}'.format(tokens[0])
-            m = '{} in {} for another {} seconds.'.format(m, target, remaining)
-            bot.send_privmsg(sender, m)
+        log.info(f'Looking up {query!r}')
+        result = await self._aux_wa(query)
+        for line in result:
+            await ctx.send(line)
 
-    @staticmethod
-    def _aux_wa(query, bot):
-        api_key = bot.c.get('wolframalpha:key')
+    async def _aux_wa(self, query):
+        api_key = self.bot.config.get('wolframalpha:key')
         if api_key is None:
             return ['Wolfram Alpha API key not configured, cannot use !wa.']
         try:
@@ -75,3 +56,7 @@ class WolframAlphaHandler:
             return plaintext.text.splitlines()
         except xml.etree.ElementTree.ParseError:
             return ['Error: could not parse response.']
+
+
+def setup(bot: Wormgas):
+    bot.add_cog(WolframAlphaCog(bot))
