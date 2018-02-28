@@ -1,24 +1,20 @@
-wormgas -- IRC bot for [Rainwave][]
+wormgas -- Discord bot for [Rainwave][]
 
-wormgas is a command-processing IRC bot that enables using most Rainwave features from within IRC. It requires Python
-3.4.
+wormgas is a command-processing Discord bot that enables using many Rainwave features from Discord. It requires Python
+3.6.
 
-The core bot requires the [humphrey][] IRC library. Some plugins do have other dependencies:
+The core bot requires the [discord.py][] library >= 1.0.0a (commonly known as `rewrite`). Some extensions do have other
+dependencies:
 
-*   The `chat` plugin requires [stemming][]
-*   The `discord_sync` plugin requires [discord.py][] and [requests][]
-*   The `rainwave` plugin requires [pytz][]
-*   The `seen` plugin requires [pendulum][]
+*   The `chat` extension requires [stemming][]
+*   The `rainwave` extension requires [pytz][]
 *   The `wiki` plugin requires [wikipedia][]
 
-The `chat` plugin is powered by [cobe][], but this dependency is bundled.
+The `chat` extension is powered by [cobe][], but this dependency is bundled.
 
 [rainwave]: http://rainwave.cc
-[humphrey]: https://pypi.python.org/pypi/humphrey
 [stemming]: http://pypi.python.org/pypi/stemming
-[discord.py]: https://pypi.python.org/pypi/discord.py
-[requests]: https://pypi.python.org/pypi/requests
+[discord.py]: https://github.com/Rapptz/discord.py/tree/rewrite
 [pytz]: https://pypi.python.org/pypi/pytz
-[pendulum]: https://pypi.python.org/pypi/pendulum
 [wikipedia]: https://wikipedia.readthedocs.org/en/latest/
 [cobe]: https://github.com/pteichman/cobe/
