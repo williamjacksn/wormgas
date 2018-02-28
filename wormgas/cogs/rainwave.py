@@ -49,8 +49,7 @@ class RainwaveChannel(enum.Enum):
 
     @property
     def url(self):
-        subdomains = ('', 'game.', 'ocr.', 'covers.', 'chiptune.', 'all.')
-        return f'https://{subdomains[int(self.value)]}rainwave.cc/'
+        return 'https://rainwave.cc/' + ('', 'game/', 'ocremix/', 'covers/', 'chiptune/', 'all/')[int(self.value)]
 
 
 class RainwaveCog:
@@ -263,7 +262,7 @@ class RainwaveCog:
         return await self._call('vote', params=params)
 
     @staticmethod
-    def build_event_dict(chan, info):
+    def build_event_dict(chan: RainwaveChannel, info):
         event_name = info['event_name']
         event = {'chan_id': chan.channel_id, 'chan_url': chan.url, 'chan_short_name': chan.short_name,
                  'name': f'{event_name} Power Hour'}
@@ -421,6 +420,25 @@ class RainwaveCog:
         m += f'Total = {total}'
         await ctx.send(m)
 
+    @staticmethod
+    def build_embed(song: Dict):
+        channel = RainwaveChannel(song['sid'])
+        album_name = song['albums'][0]['name']
+        album_id = song['albums'][0]['id']
+        album_url = channel.url + f'#!/album/{album_id}'
+        artist_links = []
+        for artist in song['artists']:
+            artist_name = artist['name']
+            artist_id = artist['id']
+            artist_links.append(f'[{artist_name}]({channel.url}#!/artist/{artist_id})')
+        artists = ', '.join(artist_links)
+        description = f'from [{album_name}]({album_url})\nby {artists}'
+        embed = discord.Embed(title=song['title'], colour=discord.Colour(0xf7941e), description=description)
+        album_art = song['albums'][0]['art']
+        embed.set_thumbnail(url=f'https://rainwave.cc{album_art}_320.jpg')
+        embed.set_author(name=channel.long_name, url=channel.url)
+        return embed
+
     @cmds.command(name='next', aliases=['nx', 'nxgame', 'nxrw', 'nxoc', 'nxocr', 'nxcover', 'nxcovers', 'nxmw', 'nxvw',
                                         'nxbw', 'nxch', 'nxchip', 'nxall', 'nxomni', 'nxow'])
     async def next(self, ctx: cmds.Context, chan_abbr: str = None):
@@ -532,6 +550,7 @@ class RainwaveCog:
         elif sched_type == 'OneUp':
             m += f' ({sched_name} Power Hour)'
         song = event.get('songs')[0]
+        embed = self.build_embed(song)
         m += f': {self.song_string(song)}'
 
         if ctx.guild:
@@ -539,12 +558,12 @@ class RainwaveCog:
             if sched_id == last:
                 c = f'You can only use **{cmd}** in {ctx.channel.mention} once per song.'
                 await ctx.author.send(c)
-                await ctx.author.send(m)
+                await ctx.author.send(m, embed=embed)
             else:
                 self.bot.config.set(f'rainwave:np:{chan.channel_id}', sched_id)
-                await ctx.send(m)
+                await ctx.send(m, embed=embed)
         else:
-            await ctx.send(m)
+            await ctx.send(m, embed=embed)
 
     @cmds.command(aliases=['pp', 'ppgame', 'pprw', 'ppoc', 'ppocr', 'ppcover', 'ppcovers', 'ppmw', 'ppvw', 'ppbw',
                            'ppch', 'ppchip', 'ppall', 'ppomni', 'ppow'])
@@ -610,19 +629,19 @@ class RainwaveCog:
         elif sched_type == 'OneUp':
             m += f' ({sched_name} Power Hour)'
         song = event.get('songs')[0]
+        embed = self.build_embed(song)
         m += f': {self.song_string(song)}'
 
         if ctx.guild:
             last_sched_id = f'rainwave:pp:{chan.channel_id}:{idx}'
             if sched_id == self.bot.config.get(last_sched_id, 0):
-                c = f'You can only use {cmd} in {ctx.channel.mention} once per song.'
-                await ctx.author.send(c)
-                await ctx.author.send(m)
+                await ctx.author.send(f'You can only use {cmd} in {ctx.channel.mention} once per song.')
+                await ctx.author.send(m, embed=embed)
             else:
                 self.bot.config.set(last_sched_id, sched_id)
-                await ctx.send(m)
+                await ctx.send(m, embed=embed)
         else:
-            await ctx.send(m)
+            await ctx.send(m, embed=embed)
 
     @cmds.command(aliases=['rq'])
     async def request(self, ctx: cmds.Context, *, args: str = None):
