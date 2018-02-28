@@ -36,7 +36,7 @@ class ScorerGroup:
         self.scorers.append((weight, scorer))
 
         total = 0.
-        for weight, scorers in self.scorers:
+        for weight, _ in self.scorers:
             total += abs(weight)
         self.total_weight = total
 

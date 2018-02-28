@@ -115,11 +115,11 @@ found between the two tokens."""
 
         context = []
 
-        for i in range(len(chain)):
-            context.append(chain[i])
+        for chain_item in chain:
+            context.append(chain_item)
 
             if len(context) == self.order:
-                if chain[i] == self.SPACE_TOKEN_ID:
+                if chain_item == self.SPACE_TOKEN_ID:
                     context.pop()
                     has_space = True
                     continue
@@ -258,7 +258,7 @@ with its two nodes"""
 
     def _babble(self):
         token_ids = []
-        for i in range(5):
+        for _ in range(5):
             # Generate a few random tokens that can be used as pivots
             token_id = self.graph.get_random_token()
 
@@ -501,8 +501,7 @@ class Graph:
 
     def get_word_by_node(self, node_id):
         # return the last word in the node
-        q = 'SELECT tokens.text FROM nodes, tokens WHERE nodes.id = ? ' \
-            'AND %s = tokens.id' % self._last_token
+        q = 'SELECT tokens.text FROM nodes, tokens WHERE nodes.id = ? AND %s = tokens.id' % self._last_token
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row:
@@ -510,16 +509,14 @@ class Graph:
 
     def get_token_by_node(self, node_id):
         # return the last token in the node
-        q = 'SELECT tokens.id FROM nodes, tokens WHERE nodes.id = ? ' \
-            'AND %s = tokens.id' % self._last_token
+        q = 'SELECT tokens.id FROM nodes, tokens WHERE nodes.id = ? AND %s = tokens.id' % self._last_token
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row:
             return row[0]
 
     def get_word_tokens(self, token_ids):
-        q = 'SELECT id FROM tokens WHERE id IN %s AND is_word = 1' % \
-            self.get_seq_expr(token_ids)
+        q = 'SELECT id FROM tokens WHERE id IN %s AND is_word = 1' % self.get_seq_expr(token_ids)
 
         rows = self._conn.execute(q)
         if rows:
@@ -528,8 +525,7 @@ class Graph:
         return []
 
     def get_tokens(self, token_ids):
-        q = 'SELECT id FROM tokens WHERE id IN %s' % \
-            self.get_seq_expr(token_ids)
+        q = 'SELECT id FROM tokens WHERE id IN %s' % self.get_seq_expr(token_ids)
 
         rows = self._conn.execute(q)
         if rows:
@@ -547,8 +543,7 @@ class Graph:
             return int(row[0])
 
         # if not found, create the node
-        q = 'INSERT INTO nodes (count, %s) ' \
-            'VALUES (0, %s)' % (self._all_tokens, self._all_tokens_q)
+        q = 'INSERT INTO nodes (count, %s) VALUES (0, %s)' % (self._all_tokens, self._all_tokens_q)
         c.execute(q, tokens)
         return c.lastrowid
 
@@ -575,9 +570,10 @@ class Graph:
     def get_random_node_with_token(self, token_id):
         c = self.cursor()
 
-        q = 'SELECT id FROM nodes WHERE token0_id = ? ' \
-            'LIMIT 1 OFFSET abs(random())%(SELECT count(*) FROM nodes ' \
-            '                              WHERE token0_id = ?)'
+        q = '''
+            SELECT id FROM nodes WHERE token0_id = ? LIMIT 1
+            OFFSET abs(random())%(SELECT count(*) FROM nodes WHERE token0_id = ?)
+        '''
 
         row = c.execute(q, (token_id, token_id)).fetchone()
         if row:
@@ -588,11 +584,9 @@ class Graph:
 
         assert isinstance(has_space, bool)
 
-        update_q = 'UPDATE edges SET count = count + 1 ' \
-                   'WHERE prev_node = ? AND next_node = ? AND has_space = ?'
+        update_q = 'UPDATE edges SET count = count + 1 WHERE prev_node = ? AND next_node = ? AND has_space = ?'
 
-        q = 'INSERT INTO edges (prev_node, next_node, has_space, count) ' \
-            'VALUES (?, ?, ?, 1)'
+        q = 'INSERT INTO edges (prev_node, next_node, has_space, count) VALUES (?, ?, ?, 1)'
 
         args = (prev_node, next_node, has_space)
 
@@ -613,8 +607,7 @@ class Graph:
         return row[0]
 
     def get_node_counts(self, node_ids):
-        q = 'SELECT id, count FROM nodes WHERE id IN %s' % \
-            self.get_seq_expr(node_ids)
+        q = 'SELECT id, count FROM nodes WHERE id IN %s' % self.get_seq_expr(node_ids)
 
         return self._conn.execute(q)
 

@@ -37,8 +37,7 @@ This tokenizer ignores differences in capitalization."""
         chars = list(''.join(words))
         start = True
 
-        for i in range(len(chars)):
-            char = chars[i]
+        for i, char in enumerate(chars):
             if char.isalpha():
                 if start:
                     chars[i] = char.upper()
