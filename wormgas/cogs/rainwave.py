@@ -45,12 +45,12 @@ class RainwaveChannel(enum.Enum):
 
     @property
     def short_name(self):
-        return (None, 'Game', 'OCR', 'Covers', 'Chiptune', 'All')[self.value]
+        return (None, 'Game', 'OCR', 'Covers', 'Chiptune', 'All')[int(self.value)]
 
     @property
     def url(self):
         subdomains = ('', 'game.', 'ocr.', 'covers.', 'chiptune.', 'all.')
-        return f'https://{subdomains[self.value]}rainwave.cc/'
+        return f'https://{subdomains[int(self.value)]}rainwave.cc/'
 
 
 class RainwaveCog:
