@@ -1,6 +1,9 @@
 import argparse
-import pathlib
 import discord.ext.commands as cmds
+import logging
+import pathlib
+import sys
+
 from wormgas.config import ConfigManager
 
 
@@ -15,6 +18,7 @@ def parse_args():
 
 
 def main():
+    logging.basicConfig(level='INFO', format='%(asctime)s | %(name)s | %(levelname)s | %(message)s', stream=sys.stdout)
     args = parse_args()
     bot = Wormgas(command_prefix='!', pm_help=True)
     bot.config = ConfigManager(pathlib.Path(args.config).resolve())
