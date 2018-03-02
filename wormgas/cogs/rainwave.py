@@ -3,12 +3,9 @@ import datetime
 import discord
 import discord.ext.commands as cmds
 import enum
-import json
 import logging
 import pytz
 import time
-import urllib.parse
-import urllib.request
 import uuid
 
 from typing import Dict
@@ -67,19 +64,15 @@ class RainwaveCog:
         self.channel_codes = f'Channel codes are **{chan_code_ls}**.'
         self.topic_task = self.bot.loop.create_task(self.check_special_events())
 
-    @staticmethod
-    async def _call(path: str, params: Dict = None):
+    async def _call(self, path: str, params: Dict = None):
         if params is None:
             params = {}
         base_url = 'https://rainwave.cc/api4/'
         url = base_url + path.lstrip('/')
-        data = urllib.parse.urlencode(params).encode()
         headers = {'user-agent': str(uuid.uuid4())}
-        request = urllib.request.Request(url, data, headers)
-        response = urllib.request.urlopen(request)
-        if response.status == 200:
-            body = response.read().decode()
-            return json.loads(body)
+        async with self.bot.session.post(url, params=params, headers=headers) as response:
+            if response.status == 200:
+                return await response.json()
         raise RuntimeError
 
     @staticmethod
@@ -515,55 +508,56 @@ class RainwaveCog:
         Short version is "!np[<channel>]".
         Leave off <channel> to auto-detect the channel you are tuned to."""
 
-        cmd = ctx.invoked_with
-        chan = None
+        async with ctx.typing():
+            cmd = ctx.invoked_with
+            chan = None
 
-        if cmd in ['npgame', 'nprw']:
-            chan = RainwaveChannel.game
-        elif cmd in ['npoc', 'npocr']:
-            chan = RainwaveChannel.ocr
-        elif cmd in ['npcover', 'npcovers', 'npmw', 'npvw']:
-            chan = RainwaveChannel.cover
-        elif cmd in ['npbw', 'npch', 'npchip']:
-            chan = RainwaveChannel.chip
-        elif cmd in ['npall', 'npomni', 'npow']:
-            chan = RainwaveChannel.all
-        elif cmd in ['nowplaying', 'np']:
-            if channel:
-                if channel.lower() in RainwaveChannel.__members__.keys():
-                    chan = RainwaveChannel[channel.lower()]
-            if chan is None:
-                listener_id = await self.get_id_for_user(ctx.author)
-                chan = await self.get_current_channel_for_id(listener_id)
-            if chan is None:
-                await ctx.author.send(self.not_tuned_in)
-                return
+            if cmd in ['npgame', 'nprw']:
+                chan = RainwaveChannel.game
+            elif cmd in ['npoc', 'npocr']:
+                chan = RainwaveChannel.ocr
+            elif cmd in ['npcover', 'npcovers', 'npmw', 'npvw']:
+                chan = RainwaveChannel.cover
+            elif cmd in ['npbw', 'npch', 'npchip']:
+                chan = RainwaveChannel.chip
+            elif cmd in ['npall', 'npomni', 'npow']:
+                chan = RainwaveChannel.all
+            elif cmd in ['nowplaying', 'np']:
+                if channel:
+                    if channel.lower() in RainwaveChannel.__members__.keys():
+                        chan = RainwaveChannel[channel.lower()]
+                if chan is None:
+                    listener_id = await self.get_id_for_user(ctx.author)
+                    chan = await self.get_current_channel_for_id(listener_id)
+                if chan is None:
+                    await ctx.author.send(self.not_tuned_in)
+                    return
 
-        m = f'Now playing on the {chan.long_name}'
-        d = await self.rw_info(chan.channel_id)
-        event = d.get('sched_current')
-        sched_id = int(event.get('id'))
-        sched_type = event.get('type')
-        sched_name = event.get('name')
-        if sched_type == 'Election' and sched_name:
-            m += f' ({sched_name})'
-        elif sched_type == 'OneUp':
-            m += f' ({sched_name} Power Hour)'
-        song = event.get('songs')[0]
-        embed = self.build_embed(song)
-        m += f': {self.song_string(song)}'
+            m = f'Now playing on the {chan.long_name}'
+            d = await self.rw_info(chan.channel_id)
+            event = d.get('sched_current')
+            sched_id = int(event.get('id'))
+            sched_type = event.get('type')
+            sched_name = event.get('name')
+            if sched_type == 'Election' and sched_name:
+                m += f' ({sched_name})'
+            elif sched_type == 'OneUp':
+                m += f' ({sched_name} Power Hour)'
+            song = event.get('songs')[0]
+            embed = self.build_embed(song)
+            m += f': {self.song_string(song)}'
 
-        if ctx.guild:
-            last = self.bot.config.get(f'rainwave:np:{chan.channel_id}', 0)
-            if sched_id == last:
-                c = f'You can only use **{cmd}** in {ctx.channel.mention} once per song.'
-                await ctx.author.send(c)
-                await ctx.author.send(m, embed=embed)
+            if ctx.guild:
+                last = self.bot.config.get(f'rainwave:np:{chan.channel_id}', 0)
+                if sched_id == last:
+                    c = f'You can only use **{cmd}** in {ctx.channel.mention} once per song.'
+                    await ctx.author.send(c)
+                    await ctx.author.send(m, embed=embed)
+                else:
+                    self.bot.config.set(f'rainwave:np:{chan.channel_id}', sched_id)
+                    await ctx.send(m, embed=embed)
             else:
-                self.bot.config.set(f'rainwave:np:{chan.channel_id}', sched_id)
                 await ctx.send(m, embed=embed)
-        else:
-            await ctx.send(m, embed=embed)
 
     @cmds.command(aliases=['pp', 'ppgame', 'pprw', 'ppoc', 'ppocr', 'ppcover', 'ppcovers', 'ppmw', 'ppvw', 'ppbw',
                            'ppch', 'ppchip', 'ppall', 'ppomni', 'ppow'])
@@ -575,73 +569,74 @@ class RainwaveCog:
         Leave off <channel> to auto-detect the channel you are tuned to.
         <index> should be a number from 0 to 4 (default 0). The higher the number, the further back in time you go."""
 
-        cmd = ctx.invoked_with
-        if args is None:
-            args = ''
-        tokens = args.split()
+        async with ctx.typing():
+            cmd = ctx.invoked_with
+            if args is None:
+                args = ''
+            tokens = args.split()
 
-        chan = None
-        idx = 0
+            chan = None
+            idx = 0
 
-        if cmd in ['ppgame', 'pprw']:
-            chan = RainwaveChannel.game
-        elif cmd in ['ppoc', 'ppocr']:
-            chan = RainwaveChannel.ocr
-        elif cmd in ['ppcover', 'ppcovers', 'ppmw', 'ppvw']:
-            chan = RainwaveChannel.cover
-        elif cmd in ['ppbw', 'ppch', 'ppchip']:
-            chan = RainwaveChannel.chip
-        elif cmd in ['ppall', 'ppomni', 'ppow']:
-            chan = RainwaveChannel.all
+            if cmd in ['ppgame', 'pprw']:
+                chan = RainwaveChannel.game
+            elif cmd in ['ppoc', 'ppocr']:
+                chan = RainwaveChannel.ocr
+            elif cmd in ['ppcover', 'ppcovers', 'ppmw', 'ppvw']:
+                chan = RainwaveChannel.cover
+            elif cmd in ['ppbw', 'ppch', 'ppchip']:
+                chan = RainwaveChannel.chip
+            elif cmd in ['ppall', 'ppomni', 'ppow']:
+                chan = RainwaveChannel.all
 
-        if chan in RainwaveChannel and len(tokens) > 0 and tokens[0].isdigit():
-            if int(tokens[0]) in range(5):
-                idx = int(tokens[0])
-
-        if cmd in ['prevplayed', 'pp']:
-            if len(tokens) > 0:
-                if tokens[0].isdigit() and int(tokens[0]) in range(5):
+            if chan in RainwaveChannel and len(tokens) > 0 and tokens[0].isdigit():
+                if int(tokens[0]) in range(5):
                     idx = int(tokens[0])
-                else:
-                    if tokens[0].lower() in RainwaveChannel.__members__.keys():
-                        chan = RainwaveChannel[tokens[0].lower()]
-                    if len(tokens) > 1:
-                        if tokens[1].isdigit() and int(tokens[1]) in range(5):
-                            idx = int(tokens[1])
-            if chan is None:
-                listener_id = await self.get_id_for_user(ctx.author)
-                if listener_id is None:
-                    await ctx.author.send(self.nick_not_recognized)
+
+            if cmd in ['prevplayed', 'pp']:
+                if len(tokens) > 0:
+                    if tokens[0].isdigit() and int(tokens[0]) in range(5):
+                        idx = int(tokens[0])
+                    else:
+                        if tokens[0].lower() in RainwaveChannel.__members__.keys():
+                            chan = RainwaveChannel[tokens[0].lower()]
+                        if len(tokens) > 1:
+                            if tokens[1].isdigit() and int(tokens[1]) in range(5):
+                                idx = int(tokens[1])
+                if chan is None:
+                    listener_id = await self.get_id_for_user(ctx.author)
+                    if listener_id is None:
+                        await ctx.author.send(self.nick_not_recognized)
+                        return
+                    chan = await self.get_current_channel_for_id(listener_id)
+                if chan is None:
+                    await ctx.author.send(self.not_tuned_in)
                     return
-                chan = await self.get_current_channel_for_id(listener_id)
-            if chan is None:
-                await ctx.author.send(self.not_tuned_in)
-                return
 
-        m = f'Previously on the {chan.long_name}'
-        d = await self.rw_info(chan.channel_id)
-        event = d.get('sched_history')[idx]
-        sched_id = int(event.get('id'))
-        sched_type = event.get('type')
-        sched_name = event.get('name')
-        if sched_type == 'Election' and sched_name:
-            m += f' ({sched_name})'
-        elif sched_type == 'OneUp':
-            m += f' ({sched_name} Power Hour)'
-        song = event.get('songs')[0]
-        embed = self.build_embed(song)
-        m += f': {self.song_string(song)}'
+            m = f'Previously on the {chan.long_name}'
+            d = await self.rw_info(chan.channel_id)
+            event = d.get('sched_history')[idx]
+            sched_id = int(event.get('id'))
+            sched_type = event.get('type')
+            sched_name = event.get('name')
+            if sched_type == 'Election' and sched_name:
+                m += f' ({sched_name})'
+            elif sched_type == 'OneUp':
+                m += f' ({sched_name} Power Hour)'
+            song = event.get('songs')[0]
+            embed = self.build_embed(song)
+            m += f': {self.song_string(song)}'
 
-        if ctx.guild:
-            last_sched_id = f'rainwave:pp:{chan.channel_id}:{idx}'
-            if sched_id == self.bot.config.get(last_sched_id, 0):
-                await ctx.author.send(f'You can only use {cmd} in {ctx.channel.mention} once per song.')
-                await ctx.author.send(m, embed=embed)
+            if ctx.guild:
+                last_sched_id = f'rainwave:pp:{chan.channel_id}:{idx}'
+                if sched_id == self.bot.config.get(last_sched_id, 0):
+                    await ctx.author.send(f'You can only use {cmd} in {ctx.channel.mention} once per song.')
+                    await ctx.author.send(m, embed=embed)
+                else:
+                    self.bot.config.set(last_sched_id, sched_id)
+                    await ctx.send(m, embed=embed)
             else:
-                self.bot.config.set(last_sched_id, sched_id)
                 await ctx.send(m, embed=embed)
-        else:
-            await ctx.send(m, embed=embed)
 
     @cmds.command(aliases=['rq'])
     async def request(self, ctx: cmds.Context, *, args: str = None):

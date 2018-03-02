@@ -1,3 +1,4 @@
+import aiohttp
 import argparse
 import discord.ext.commands as cmds
 import logging
@@ -8,7 +9,11 @@ from wormgas.config import ConfigManager
 
 
 class Wormgas(cmds.Bot):
-    config: ConfigManager
+
+    def __init__(self, config_path: pathlib.Path, command_prefix, **options):
+        super().__init__(command_prefix, **options)
+        self.config = ConfigManager(config_path)
+        self.session = aiohttp.ClientSession(loop=self.loop)
 
 
 def parse_args():
@@ -20,8 +25,7 @@ def parse_args():
 def main():
     logging.basicConfig(level='INFO', format='%(asctime)s | %(name)s | %(levelname)s | %(message)s', stream=sys.stdout)
     args = parse_args()
-    bot = Wormgas(command_prefix='!', pm_help=True)
-    bot.config = ConfigManager(pathlib.Path(args.config).resolve())
+    bot = Wormgas(config_path=pathlib.Path(args.config).resolve(), command_prefix='!', pm_help=True)
     bot.load_extension('wormgas.cogs.chat')
     bot.load_extension('wormgas.cogs.config')
     bot.load_extension('wormgas.cogs.rainwave')
