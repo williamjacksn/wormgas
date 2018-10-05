@@ -1,5 +1,6 @@
-aiohttp>=2.0.0,<2.3.0
-discord.py
-pytz
-stemming
-wikipedia
+https://github.com/Rapptz/discord.py/archive/rewrite.zip
+
+aiohttp==3.4.4
+pytz==2018.5
+stemming==1.0.1
+wikipedia==1.4.0
