@@ -17,7 +17,7 @@ class Wormgas(cmds.Bot):
 
 
 def main():
-    log_format = os.getenv('LOG_FORMAT', '%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
     log_level = os.getenv('LOG_LEVEL', 'INFO')
     logging.basicConfig(level=log_level, format=log_format, stream=sys.stdout)
     config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
