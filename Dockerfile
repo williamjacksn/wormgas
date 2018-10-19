@@ -1,11 +1,14 @@
 FROM python:3.7.0-alpine3.8
 
-COPY requirements.txt /wormgas/requirements.txt
+COPY requirements-docker.txt /wormgas/requirements-docker.txt
 
-RUN /usr/local/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
- && /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements.txt
+RUN /sbin/apk --no-cache add --virtual .deps git \
+ && /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements-docker.txt \
+ && /sbin/apk del .deps
 
 COPY . /wormgas
+
+ENV PYTHONUNBUFFERED 1
 
 ENTRYPOINT ["/usr/local/bin/python"]
 CMD ["/wormgas/run.py"]
