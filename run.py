@@ -1,6 +1,3 @@
-import logging
-import sys
+import wormgas.wormgas
 
-from wormgas import wormgas
-
-wormgas.main()
+wormgas.wormgas.main()
