@@ -291,28 +291,35 @@ class RainwaveCog:
     async def check_special_events(self):
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
+            log.info('Checking for events ...')
             new_topic_head = 'Welcome to Rainwave!'
             event_now = False
             events = await self.get_current_events()
             future_events = await self.get_future_events()
             if events:
+                log.info('There is an event on now')
                 event_now = True
                 new_topic_head = ' '.join([e['text'] for e in events])
             elif future_events:
+                log.info('There is an upcoming event')
                 new_topic_head = future_events[0]
             for channel_id in self.bot.config.get('rainwave:topic_control', []):
+                log.info(f'Topic control is on for channel {channel_id}')
                 channel = self.bot.get_channel(channel_id)
                 channel_topic = channel.topic
                 if channel_topic is None:
                     channel_topic = ''
                 topic_parts = channel_topic.split(' | ')
                 if new_topic_head != topic_parts[0]:
+                    log.info('I need to update the topic')
                     topic_parts[0] = new_topic_head
                     await channel.edit(topic=' | '.join(topic_parts))
                     if event_now:
+                        log.info('I also need to announce an event')
                         for e in events:
                             m = '{text} {chan_url}'.format(**e)
                             await channel.send(m)
+            log.info('I will check for events again in 60 seconds ...')
             await asyncio.sleep(60)
 
     @cmds.command()
