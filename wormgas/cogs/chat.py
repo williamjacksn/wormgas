@@ -13,7 +13,7 @@ from wormgas.wormgas import Wormgas
 log = logging.getLogger(__name__)
 
 
-class ChatCog:
+class ChatCog(cmds.Cog):
     quotes = [
         'Attack the evil that is within yourself, rather than attacking the evil that is in others.',
         'Before you embark on a journey of revenge, dig two graves.',

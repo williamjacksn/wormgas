@@ -49,7 +49,7 @@ class RainwaveChannel(enum.Enum):
         return 'https://rainwave.cc/' + ('', 'game/', 'ocremix/', 'covers/', 'chiptune/', 'all/')[int(self.value)]
 
 
-class RainwaveCog:
+class RainwaveCog(cmds.Cog):
     def __init__(self, bot: Wormgas):
         self.bot = bot
         self.config_path = bot.config.path.with_name('_rainwave.json')
@@ -65,6 +65,7 @@ class RainwaveCog:
         self.topic_task = self.bot.loop.create_task(self.check_special_events())
 
     async def _call(self, path: str, params: Dict = None):
+        log.debug(f'_call {path} {params}')
         if params is None:
             params = {}
         base_url = 'https://rainwave.cc/api4/'
@@ -273,22 +274,29 @@ class RainwaveCog:
         return current_events
 
     async def get_future_events(self):
+        log.debug('get_future_events')
         future_events = []
         user_id = self.bot.config.get('rainwave:user_id')
         key = self.bot.config.get('rainwave:key')
         d = await self.rw_admin_list_producers_all(user_id=user_id, key=key)
         for p in d.get('producers', []):
-            if p['type'] == 'OneUpProducer':
+            p_type = p['type']
+            log.debug(f'get_future_events: found a producer of type {p_type}')
+            if p_type == 'OneUpProducer':
                 chan = RainwaveChannel(p['sid'])
                 e_name = p['name']
-                when = pytz.timezone('US/Eastern').localize(datetime.datetime.fromtimestamp(p['start']))
+                e_start = p['start']
+                log.info(f'get_future_events: {e_name} will start at {e_start}')
+                eastern = pytz.timezone('US/Eastern')
+                when = pytz.utc.localize(datetime.datetime.fromtimestamp(e_start)).astimezone(eastern)
                 month = when.strftime('%b')
                 w_time = when.strftime('%H:%M')
-                e_text = f'[{chan.short_name}] {e_name} Power Hour: {month} {when.day} {w_time} Eastern'
+                e_text = f'[{chan.short_name}] {e_name} Power Hour: {month} {when.day} {w_time} {when.tzname()}'
                 future_events.append(e_text)
         return future_events
 
     async def check_special_events(self):
+        log.debug('check_special_events')
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             log.info('Checking for events ...')
@@ -303,6 +311,7 @@ class RainwaveCog:
             elif future_events:
                 log.info('There is an upcoming event')
                 new_topic_head = future_events[0]
+                log.info(new_topic_head)
             for channel_id in self.bot.config.get('rainwave:topic_control', []):
                 log.info(f'Topic control is on for channel {channel_id}')
                 channel = self.bot.get_channel(channel_id)
@@ -321,6 +330,7 @@ class RainwaveCog:
                             await channel.send(m)
             log.info('I will check for events again in 60 seconds ...')
             await asyncio.sleep(60)
+        log.info('check_special_events: bot connection is closed')
 
     @cmds.command()
     @cmds.has_permissions(manage_channels=True)

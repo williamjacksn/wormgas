@@ -9,7 +9,7 @@ from wormgas.wormgas import Wormgas
 log = logging.getLogger(__name__)
 
 
-class WolframAlphaCog:
+class WolframAlphaCog(cmds.Cog):
     def __init__(self, bot: Wormgas):
         self.bot = bot
 

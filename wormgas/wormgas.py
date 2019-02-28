@@ -33,6 +33,8 @@ def main():
     logging.debug(f'wormgas {version()}')
     logging.debug(f'Changing log level to {log_level}')
     logging.getLogger().setLevel(log_level)
+    for logger in ('discord.client', 'discord.gateway', 'websockets.protocol'):
+        logging.getLogger(logger).setLevel(logging.INFO)
     config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
     bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True)
     bot.load_extension('wormgas.cogs.chat')
@@ -42,4 +44,9 @@ def main():
     bot.load_extension('wormgas.cogs.rps')
     bot.load_extension('wormgas.cogs.wiki')
     bot.load_extension('wormgas.cogs.wolframalpha')
-    bot.run(bot.config.get('discord:token'))
+    token = bot.config.get('discord:token')
+    if token in (None, 'TOKEN'):
+        bot.config.set('discord:token', 'TOKEN')
+        logging.critical(f'Before you can run for the first time, edit {config_file} and set discord:token')
+    else:
+        bot.run(bot.config.get('discord:token'))

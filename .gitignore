@@ -1,6 +1,2 @@
-*.json
-*.log
-*.pyc
-*.sqlite*
-.vagrant
 .idea
+docker-compose.override.yml

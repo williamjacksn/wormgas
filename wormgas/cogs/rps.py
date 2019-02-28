@@ -8,7 +8,7 @@ from wormgas.wormgas import Wormgas
 log = logging.getLogger(__name__)
 
 
-class RpsCog:
+class RpsCog(cmds.Cog):
     canonical_actions = {
         'rock': 'rock',
         'paper': 'paper',

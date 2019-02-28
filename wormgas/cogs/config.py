@@ -6,7 +6,7 @@ from wormgas.wormgas import Wormgas
 log = logging.getLogger(__name__)
 
 
-class ConfigCog:
+class ConfigCog(cmds.Cog):
     def __init__(self, bot: Wormgas):
         self.bot = bot
 

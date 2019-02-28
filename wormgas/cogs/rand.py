@@ -5,7 +5,7 @@ import random
 log = logging.getLogger(__name__)
 
 
-class RandCog:
+class RandCog(cmds.Cog):
     eight_ball_responses = [
         'As I see it, yes.',
         'Ask again later.',

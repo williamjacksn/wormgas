@@ -6,7 +6,7 @@ import wikipedia
 log = logging.getLogger(__name__)
 
 
-class WikiCog:
+class WikiCog(cmds.Cog):
     def __init__(self, bot: cmds.Bot):
         self.bot = bot
 

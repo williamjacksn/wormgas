@@ -1,11 +1,11 @@
-# discord.py rewrite as of 2018-12-31
-# https://github.com/Rapptz/discord.py/tree/7f4c57dd5ad20b7fa10aea485f674a4bc24b9547
-git+https://github.com/Rapptz/discord.py@7f4c57dd5ad20b7fa10aea485f674a4bc24b9547#egg=discord.py
+# discord.py rewrite as of 2019-02-28
+# https://github.com/Rapptz/discord.py/tree/69f5a70eeb914c934fb82886738d24db8b95a174
+git+https://github.com/Rapptz/discord.py@69f5a70eeb914c934fb82886738d24db8b95a174#egg=discord.py
 
-aiohttp==3.4.4
-pip==18.1
-pytz==2018.7
-setuptools==40.6.3
+aiohttp==3.5.4
+pip==19.0.3
+pytz==2018.9
+setuptools==40.8.0
 stemming==1.0.1
-wheel==0.32.3
+wheel==0.33.1
 wikipedia==1.4.0
