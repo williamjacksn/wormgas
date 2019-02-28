@@ -79,6 +79,7 @@ class ChatCog(cmds.Cog):
                     log.info(f'{channel.id} (#{channel.name}): will revive chat in {remaining} seconds')
             await asyncio.sleep(120)
 
+    @cmds.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Ignore messages from myself.
         if message.author == self.bot.user:
