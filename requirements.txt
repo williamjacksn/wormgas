@@ -1,6 +1,6 @@
-# discord.py rewrite as of 2019-02-28
-# https://github.com/Rapptz/discord.py/tree/69f5a70eeb914c934fb82886738d24db8b95a174
-git+https://github.com/Rapptz/discord.py@69f5a70eeb914c934fb82886738d24db8b95a174#egg=discord.py
+# discord.py rewrite as of 2019-03-06
+# https://github.com/Rapptz/discord.py/tree/aceec2009a7c819d2236884fa9ccc5ce58a92bea
+git+https://github.com/Rapptz/discord.py@aceec2009a7c819d2236884fa9ccc5ce58a92bea#egg=discord.py
 
 aiohttp==3.5.4
 pip==19.0.3
