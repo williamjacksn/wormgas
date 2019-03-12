@@ -13,7 +13,7 @@ class Wormgas(cmds.Bot):
     def __init__(self, config_path: pathlib.Path, command_prefix, **options):
         super().__init__(command_prefix, **options)
         self.config = ConfigManager(config_path)
-        self.session = aiohttp.ClientSession(loop=self.loop)
+        self.session = aiohttp.ClientSession(loop=self.loop, timeout=(aiohttp.ClientTimeout(total=10)))
 
 
 def version():
