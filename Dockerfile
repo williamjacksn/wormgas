@@ -15,4 +15,4 @@ CMD ["/wormgas/run.py"]
 
 LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
       org.opencontainers.image.source="https://github.com/williamjacksn/wormgas" \
-      org.opencontainers.image.version=3.1.3
+      org.opencontainers.image.version=3.1.4
