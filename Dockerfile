@@ -1,4 +1,4 @@
-FROM python:3.7.2-alpine3.9
+FROM python:3.7.3-alpine3.9
 
 COPY requirements.txt /wormgas/requirements.txt
 
@@ -8,12 +8,11 @@ RUN /sbin/apk add --no-cache --virtual .deps git \
 
 COPY . /wormgas
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED="1"
 
 ENTRYPOINT ["/usr/local/bin/python"]
 CMD ["/wormgas/run.py"]
 
-LABEL maintainer=william@subtlecoolness.com \
-      org.label-schema.schema-version=1.0 \
-      org.label-schema.vcs-url=https://github.com/williamjacksn/wormgas \
-      org.label-schema.version=3.1.3
+LABEL org.opencontainers.image.authors="William Jackson <william@subtlecoolness.com>" \
+      org.opencontainers.image.source="https://github.com/williamjacksn/wormgas" \
+      org.opencontainers.image.version=3.1.3
