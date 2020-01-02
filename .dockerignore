@@ -2,6 +2,6 @@
 .github
 .gitignore
 .idea
-docker-compose.override.yml
+docker-compose.override.yaml
 
 **/__pycache__
