@@ -2,5 +2,5 @@ version: '3'
 
 services:
   wormgas:
-    image: williamjackson/wormgas
+    image: docker.pkg.github.com/williamjacksn/wormgas/wormgas
     build: .
