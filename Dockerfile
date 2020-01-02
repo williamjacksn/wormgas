@@ -8,7 +8,7 @@ RUN /sbin/apk add --no-cache --virtual .deps gcc musl-dev \
 
 COPY . /wormgas
 
-ENV APP_VERSION="3.1.5" \
+ENV APP_VERSION="2020.1" \
     PYTHONUNBUFFERED="1"
 
 ENTRYPOINT ["/usr/local/bin/python"]
