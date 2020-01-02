@@ -1,5 +1,5 @@
 aiohttp==3.5.4
-discord.py==1.2.3
-pytz==2019.2
+discord.py==1.2.5
+pytz==2019.3
 stemming==1.0.1
 wikipedia==1.4.0
