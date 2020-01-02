@@ -1,8 +1,10 @@
-FROM python:3.7.4-alpine3.10
+FROM python:3.8.1-alpine3.11
 
 COPY requirements.txt /wormgas/requirements.txt
 
-RUN /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements.txt
+RUN /sbin/apk add --no-cache --virtual .deps gcc musl-dev \
+ && /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements.txt \
+ && /sbin/apk del --no-cache .deps
 
 COPY . /wormgas
 
