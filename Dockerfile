@@ -2,9 +2,7 @@ FROM python:3.8.3-alpine3.12
 
 COPY requirements.txt /wormgas/requirements.txt
 
-RUN /sbin/apk add --no-cache --virtual .deps gcc musl-dev \
- && /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements.txt \
- && /sbin/apk del --no-cache .deps
+RUN /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirements.txt
 
 COPY . /wormgas
 
