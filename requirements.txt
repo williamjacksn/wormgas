@@ -1,6 +1,6 @@
 --extra-index-url https://alpine-wheels.github.io/index
 
-aiohttp==3.6.2
+aiohttp==3.6.3
 discord.py==1.5.0
 pytz==2020.1
 stemming==1.0.1
