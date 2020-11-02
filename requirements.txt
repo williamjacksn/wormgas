@@ -2,6 +2,6 @@
 
 aiohttp==3.6.3
 discord.py==1.5.1
-pytz==2020.1
+pytz==2020.4
 stemming==1.0.1
 wikipedia==1.4.0
