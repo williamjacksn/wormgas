@@ -6,7 +6,7 @@ RUN /usr/local/bin/pip install --no-cache-dir --requirement /wormgas/requirement
 
 COPY . /wormgas
 
-ENV APP_VERSION="2021.1" \
+ENV APP_VERSION="2021.2" \
     PYTHONUNBUFFERED="1"
 
 ENTRYPOINT ["/usr/local/bin/python"]
