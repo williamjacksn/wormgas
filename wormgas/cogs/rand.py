@@ -59,7 +59,7 @@ class RandCog(cmds.Cog):
         if dice_spec.isdigit():
             dice = min(int(dice_spec), 100)
         if sides_spec.isdigit():
-            sides = min(int(sides_spec), 100)
+            sides = min(int(sides_spec), 10000)
         return dice, sides
 
     @staticmethod
