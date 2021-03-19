@@ -449,6 +449,21 @@ class RainwaveCog(cmds.Cog):
         embed.set_author(name=channel.long_name, url=channel.url)
         return embed
 
+    @staticmethod
+    def build_embed_ustats(user: Dict):
+        user_name = user.get('name')
+        user_id = user.get('user_id')
+        user_url = f'https://rainwave.cc/#!/listener/{user_id}'
+        user_colour = int(user.get('colour'), 16)
+        embed = discord.Embed(title=user_name, url=user_url, description='Rainwave user stats', colour=user_colour)
+        user_avatar = user.get('avatar')
+        embed.set_thumbnail(url=f'https://rainwave.cc{user_avatar}')
+        embed.add_field(name='Game', value=f'{user.get("rating_completion").get("1")}% rated', inline=True)
+        embed.add_field(name='Chiptune', value=f'{user.get("rating_completion").get("4")}% rated', inline=True)
+        embed.add_field(name='OC ReMix', value=f'{user.get("rating_completion").get("2")}% rated', inline=True)
+        embed.add_field(name='Covers', value=f'{user.get("rating_completion").get("3")}% rated', inline=True)
+        return embed
+
     @cmds.command(name='next', aliases=['nx', 'nxgame', 'nxrw', 'nxoc', 'nxocr', 'nxcover', 'nxcovers', 'nxmw', 'nxvw',
                                         'nxbw', 'nxch', 'nxchip', 'nxall', 'nxomni', 'nxow'])
     async def next(self, ctx: cmds.Context, chan_abbr: str = None):
@@ -739,61 +754,52 @@ class RainwaveCog(cmds.Cog):
         Use "!ustats [<username>]" to see some statistics about a Rainwave user.
         Leave off <username> to see your own stats."""
 
-        log.info(f'username: {username!r}')
-        out = []
+        async with ctx.typing():
+            log.info(f'username: {username!r}')
 
-        if username is None:
-            listener_id = await self.get_id_for_user(ctx.author)
+            if username is None:
+                listener_id = await self.get_id_for_user(ctx.author)
+                if listener_id is None:
+                    await ctx.author.send(f'Use **!id add <id>** to connect your Rainwave and Discord accounts.')
+                    return
+            elif username.startswith('<@') and username.endswith('>') and username[2:-1].isdigit():
+                member = discord.utils.get(ctx.guild.members, id=int(username[2:-1]))
+                username = member.display_name
+                listener_id = await self.get_id_for_user(member)
+            else:
+                listener_id = await self.get_id_for_name(username)
+
             if listener_id is None:
-                await ctx.author.send(f'Use **!id add <id>** to connect your Rainwave and Discord accounts.')
+                await ctx.author.send(f'{username} is not a valid Rainwave user.')
                 return
-        elif username.startswith('<@') and username.endswith('>') and username[2:-1].isdigit():
-            member = discord.utils.get(ctx.guild.members, id=int(username[2:-1]))
-            username = member.display_name
-            listener_id = await self.get_id_for_user(member)
-        else:
-            listener_id = await self.get_id_for_name(username)
 
-        if listener_id is None:
-            await ctx.author.send(f'{username} is not a valid Rainwave user.')
-            return
+            user_id = self.bot.config.get('rainwave:user_id')
+            key = self.bot.config.get('rainwave:key')
+            d = await self.rw_listener(user_id, key, listener_id)
+            embed = self.build_embed_ustats(d.get('listener'))
 
-        user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
-        d = await self.rw_listener(user_id, key, listener_id)
-        cun = d.get('listener').get('name')
-        completion = d.get('listener').get('rating_completion')
-        game = int(completion.get('1', 0))
-        ocr = int(completion.get('2', 0))
-        cover = int(completion.get('3', 0))
-        chip = int(completion.get('4', 0))
-        m = f'{cun} has rated {game}% of Game, {ocr}% of OCR, {cover}% of Covers, {chip}% of Chiptune channel content.'
-        out.append(m)
+            user_name = d.get('listener').get('name')
+            current_channel = await self.get_current_channel_for_name(user_name)
+            if current_channel:
+                embed.set_footer(text=f'Currently listening to the {current_channel.long_name}')
 
-        current_channel = await self.get_current_channel_for_name(cun)
-        if current_channel:
-            m = f'{cun} is currently listening to the {current_channel.long_name}.'
-            out.append(m)
+            if not ctx.guild:
+                await ctx.send(embed=embed)
+                return
 
-        if not ctx.guild:
-            for line in out:
-                await ctx.send(line)
-            return
-
-        now = int(time.time())
-        last = int(self.bot.config.get('rainwave:ustats:last', 0))
-        wait = int(self.bot.config.get('rainwave:ustats:wait', 0))
-        if last < now - wait:
-            for line in out:
-                await ctx.send(line)
-            self.bot.config.set('rainwave:ustats:last', now)
-        else:
-            for line in out:
-                await ctx.author.send(line)
-            remaining = last + wait - now
-            cmd = ctx.invoked_with
-            m = f'I am cooling down. You cannot use **{cmd}** in {ctx.channel.mention} for another {remaining} seconds.'
-            await ctx.author.send(m)
+            now = int(time.time())
+            last = int(self.bot.config.get('rainwave:ustats:last', 0))
+            wait = int(self.bot.config.get('rainwave:ustats:wait', 0))
+            if last < now - wait:
+                await ctx.send(embed=embed)
+                self.bot.config.set('rainwave:ustats:last', now)
+            else:
+                await ctx.author.send(embed=embed)
+                remaining = last + wait - now
+                cmd = ctx.invoked_with
+                m = (f'I am cooling down. You cannot use **{cmd}** in {ctx.channel.mention} for another {remaining} '
+                     f'seconds.')
+                await ctx.author.send(m)
 
     @cmds.command(aliases=['vt'])
     async def vote(self, ctx: cmds.Context, candidate: int):
