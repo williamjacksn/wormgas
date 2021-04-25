@@ -495,6 +495,20 @@ class RainwaveCog(cmds.Cog):
                 listener_id = await self.get_id_for_user(ctx.author)
                 chan = await self.get_current_channel_for_id(listener_id)
             if chan is None:
+                log.info(f'{ctx.author.name}, checking voice channel')
+                if ctx.author.voice:
+                    vc_name = ctx.author.voice.channel.name
+                    if vc_name == 'all':
+                        chan = RainwaveChannel.all
+                    elif vc_name == 'game':
+                        chan = RainwaveChannel.game
+                    elif vc_name == 'chiptune':
+                        chan = RainwaveChannel.chip
+                    elif vc_name == 'ocremix':
+                        chan = RainwaveChannel.ocr
+                    elif vc_name == 'covers':
+                        chan = RainwaveChannel.covers
+            if chan is None:
                 await ctx.author.send(self.not_tuned_in)
                 return
 
@@ -562,6 +576,20 @@ class RainwaveCog(cmds.Cog):
                     listener_id = await self.get_id_for_user(ctx.author)
                     chan = await self.get_current_channel_for_id(listener_id)
                 if chan is None:
+                    log.info(f'{ctx.author.name}, checking voice channel')
+                    if ctx.author.voice:
+                        vc_name = ctx.author.voice.channel.name
+                        if vc_name == 'all':
+                            chan = RainwaveChannel.all
+                        elif vc_name == 'game':
+                            chan = RainwaveChannel.game
+                        elif vc_name == 'chiptune':
+                            chan = RainwaveChannel.chip
+                        elif vc_name == 'ocremix':
+                            chan = RainwaveChannel.ocr
+                        elif vc_name == 'covers':
+                            chan = RainwaveChannel.covers
+                if chan is None:
                     await ctx.author.send(self.not_tuned_in)
                     return
 
@@ -621,7 +649,7 @@ class RainwaveCog(cmds.Cog):
             elif cmd in ['ppall', 'ppomni', 'ppow']:
                 chan = RainwaveChannel.all
 
-            if chan in RainwaveChannel and len(tokens) > 0 and tokens[0].isdigit():
+            if chan and chan in RainwaveChannel and len(tokens) > 0 and tokens[0].isdigit():
                 if int(tokens[0]) in range(5):
                     idx = int(tokens[0])
 
@@ -641,6 +669,20 @@ class RainwaveCog(cmds.Cog):
                         await ctx.author.send(self.nick_not_recognized)
                         return
                     chan = await self.get_current_channel_for_id(listener_id)
+                if chan is None:
+                    log.info(f'{ctx.author.name}, checking voice channel')
+                    if ctx.author.voice:
+                        vc_name = ctx.author.voice.channel.name
+                        if vc_name == 'all':
+                            chan = RainwaveChannel.all
+                        elif vc_name == 'game':
+                            chan = RainwaveChannel.game
+                        elif vc_name == 'chiptune':
+                            chan = RainwaveChannel.chip
+                        elif vc_name == 'ocremix':
+                            chan = RainwaveChannel.ocr
+                        elif vc_name == 'covers':
+                            chan = RainwaveChannel.covers
                 if chan is None:
                     await ctx.author.send(self.not_tuned_in)
                     return
