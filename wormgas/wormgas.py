@@ -1,4 +1,5 @@
 import aiohttp
+import discord
 import discord.ext.commands as cmds
 import logging
 import os
@@ -30,7 +31,9 @@ def main():
     for logger in ('discord.client', 'discord.gateway', 'websockets.protocol'):
         logging.getLogger(logger).setLevel(logging.INFO)
     config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
-    bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True)
+    intents = discord.Intents.default()
+    intents.members = True
+    bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
     bot.load_extension('wormgas.cogs.chat')
     bot.load_extension('wormgas.cogs.config')
     bot.load_extension('wormgas.cogs.rainwave')
