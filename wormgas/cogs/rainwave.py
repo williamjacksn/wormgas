@@ -8,7 +8,7 @@ import pytz
 import time
 import uuid
 
-from typing import Dict
+from typing import Dict, List
 from wormgas.config import ConfigManager
 from wormgas.util import to_bool
 from wormgas.wormgas import Wormgas
@@ -254,6 +254,26 @@ class RainwaveCog(cmds.Cog):
             'entry_id': entry_id
         }
         return await self._call('vote', params=params)
+
+    async def rw_update_nickname(self, discord_user_id, nickname):
+        params = {
+            'discord_user_id': discord_user_id,
+            'nickname': nickname,
+        }
+        return await self._call('update_user_nickname_by_discord_id', params=params)
+
+    async def rw_update_avatar(self, discord_user_id, avatar):
+        params = {
+            'discord_user_id': discord_user_id,
+            'avatar': avatar,
+        }
+        return await self._call('update_user_avatar_by_discord_id', params=params)
+
+    async def rw_enable_perks(self, discord_user_ids: List[str]):
+        params = {
+            'discord_user_ids': ','.join(map(str, discord_user_ids)),
+        }
+        return await self._call('enable_perks_by_discord_ids', params=params)
 
     @staticmethod
     def build_event_dict(chan: RainwaveChannel, info):
@@ -884,6 +904,47 @@ class RainwaveCog(cmds.Cog):
             await ctx.author.send(f'You successfully voted for {song_string}')
         else:
             await ctx.author.send('Your attempt to vote was not successful.')
+
+    @cmds.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if self.bot.config.get("rainwave:donor_role_id"):
+            for guild in self.bot.guilds:
+                donor_role = self.bot.config.get("rainwave:donor_role_id")
+                role = guild.get_role(donor_role)
+                was_donor = role in before.roles
+                is_donor = role in after.roles
+                if is_donor and not was_donor:
+                    await self.rw_enable_perks([after.id])
+        if before.nick != after.nick:
+            await self.rw_update_nickname(after.id, after.nick)
+
+    @cmds.Cog.listener()
+    async def on_user_update(self, before: discord.User, after: discord.User):
+        if before.avatar != after.avatar:
+            await self.rw_update_avatar(after.id, after.avatar)
+
+    async def _sync_donors(self):
+        if not self.bot.config.get("rainwave:donor_role_id"):
+            return
+
+        donor_role = self.bot.config.get("rainwave:donor_role_id")
+        donors: List[str] = []
+        for guild in self.bot.guilds:
+            role = guild.get_role(donor_role)
+            for member in guild.members:
+                if role in member.roles:
+                    donors.append(member.id)
+        await self.rw_enable_perks(donors)
+
+    @cmds.command()
+    @cmds.is_owner()
+    async def sync_donors(self, ctx: cmds.Context):
+        await self._sync_donors()
+
+    @cmds.Cog.listener()
+    async def on_ready(self):
+        if self.bot.config.get("rainwave:sync_donor_role_on_ready"):
+            await self._sync_donors()
 
 
 def setup(bot: Wormgas):
