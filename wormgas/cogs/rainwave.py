@@ -934,7 +934,8 @@ class RainwaveCog(cmds.Cog):
     @cmds.command()
     @cmds.is_owner()
     async def sync_donors(self, ctx: cmds.Context):
-        await self._sync_donors(ctx.guild)
+        for guild in self.bot.guilds:
+            await self._sync_donors(guild)
 
     @cmds.Cog.listener()
     async def on_ready(self):
