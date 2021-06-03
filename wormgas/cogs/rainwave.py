@@ -72,6 +72,8 @@ class RainwaveCog(cmds.Cog):
         url = base_url + path.lstrip('/')
         headers = {'user-agent': str(uuid.uuid4())}
         async with self.bot.session.post(url, params=params, headers=headers) as response:
+            content = await response.text()
+            log.debug(f'{response.status} {content}')
             if response.status == 200:
                 return await response.json()
         raise RuntimeError
