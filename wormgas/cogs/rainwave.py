@@ -271,9 +271,9 @@ class RainwaveCog(cmds.Cog):
         }
         return await self._call('update_user_avatar_by_discord_id', params=params)
 
-    async def rw_enable_perks(self, discord_user_ids: List[str]):
+    async def rw_enable_perks(self, discord_users: List[discord.Member]):
         params = {
-            'discord_user_ids': ','.join(map(str, discord_user_ids)),
+            'discord_user_ids': ','.join([str(u.id) for u in discord_users]),
         }
         return await self._call('enable_perks_by_discord_ids', params=params)
 
@@ -915,7 +915,7 @@ class RainwaveCog(cmds.Cog):
             was_donor = role in before.roles
             is_donor = role in after.roles
             if is_donor and not was_donor:
-                await self.rw_enable_perks([after.id])
+                await self.rw_enable_perks([after])
         if before.display_name != after.display_name:
             log.info(f'{before.display_name!r} ({before.id}) changed display_name to {after.display_name!r}')
             await self.rw_update_nickname(after.id, after.display_name)
@@ -925,28 +925,22 @@ class RainwaveCog(cmds.Cog):
         if before.avatar != after.avatar:
             await self.rw_update_avatar(after.id, after.avatar)
 
-    async def _sync_donors(self):
-        if not self.bot.config.get("rainwave:donor_role_id"):
-            return
-
-        donor_role = self.bot.config.get("rainwave:donor_role_id")
-        donors: List[str] = []
-        for guild in self.bot.guilds:
-            role = guild.get_role(donor_role)
-            for member in guild.members:
-                if role in member.roles:
-                    donors.append(member.id)
-        await self.rw_enable_perks(donors)
+    async def _sync_donors(self, guild: discord.Guild):
+        donor_role_id = self.bot.config.get('rainwave:donor_role_id')
+        if donor_role_id is not None:
+            role = guild.get_role(int(donor_role_id))
+            await self.rw_enable_perks(role.members)
 
     @cmds.command()
     @cmds.is_owner()
     async def sync_donors(self, ctx: cmds.Context):
-        await self._sync_donors()
+        await self._sync_donors(ctx.guild)
 
     @cmds.Cog.listener()
     async def on_ready(self):
-        if self.bot.config.get("rainwave:sync_donor_role_on_ready"):
-            await self._sync_donors()
+        if self.bot.config.get('rainwave:sync_donor_role_on_ready') == '1':
+            for guild in self.bot.guilds:
+                await self._sync_donors(guild)
 
 
 def setup(bot: Wormgas):
