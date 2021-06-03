@@ -909,16 +909,16 @@ class RainwaveCog(cmds.Cog):
 
     @cmds.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        if self.bot.config.get("rainwave:donor_role_id"):
-            for guild in self.bot.guilds:
-                donor_role = self.bot.config.get("rainwave:donor_role_id")
-                role = guild.get_role(donor_role)
-                was_donor = role in before.roles
-                is_donor = role in after.roles
-                if is_donor and not was_donor:
-                    await self.rw_enable_perks([after.id])
-        if before.nick != after.nick:
-            await self.rw_update_nickname(after.id, after.nick)
+        donor_role_id = self.bot.config.get('rainwave:donor_role_id')
+        if donor_role_id is not None:
+            role = before.guild.get_role(int(donor_role_id))
+            was_donor = role in before.roles
+            is_donor = role in after.roles
+            if is_donor and not was_donor:
+                await self.rw_enable_perks([after.id])
+        if before.display_name != after.display_name:
+            log.info(f'{before.display_name!r} ({before.id}) changed display_name to {after.display_name!r}')
+            await self.rw_update_nickname(after.id, after.display_name)
 
     @cmds.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
