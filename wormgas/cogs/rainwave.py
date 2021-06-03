@@ -940,6 +940,7 @@ class RainwaveCog(cmds.Cog):
     async def on_ready(self):
         if self.bot.config.get('rainwave:sync_donor_role_on_ready') == '1':
             for guild in self.bot.guilds:
+                log.info(f'Syncing donors for guild {guild.id}')
                 await self._sync_donors(guild)
 
 
