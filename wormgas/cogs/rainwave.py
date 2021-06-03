@@ -271,7 +271,7 @@ class RainwaveCog(cmds.Cog):
 
     async def rw_enable_perks(self, discord_user_ids: List[str]):
         params = {
-            'discord_user_ids': discord_user_ids,
+            'discord_user_ids': ','.join(discord_user_ids),
         }
         return await self._call('enable_perks_by_discord_ids', params=params)
 
