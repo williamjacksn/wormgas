@@ -928,8 +928,9 @@ class RainwaveCog(cmds.Cog):
         donor_role = self.config.get("rainwave:donor_role_id")
         donors: List[str] = []
         for guild in self.bot.guilds:
+            role = guild.get_role(donor_role)
             for member in guild.members:
-                if donor_role in member.roles:
+                if role in member.roles:
                     donors.append(member.id)
         await self.rw_enable_perks(donors)
 
