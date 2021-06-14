@@ -22,7 +22,7 @@ chardet==4.0.0
     # via
     #   aiohttp
     #   requests
-discord.py==1.7.2
+discord.py==1.7.3
     # via -r requirements.in
 idna==2.10
     # via
