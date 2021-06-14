@@ -1,0 +1,7 @@
+--extra-index-url https://alpine-wheels.github.io/index
+
+aiohttp
+discord.py
+pytz
+stemming
+wikipedia
