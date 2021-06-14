@@ -1,7 +1,0 @@
-.git
-.github
-.gitignore
-.idea
-docker-compose.override.yaml
-
-**/__pycache__
