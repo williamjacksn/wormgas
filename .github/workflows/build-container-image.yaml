@@ -35,6 +35,5 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
           cache-from: |
             ghcr.io/${{ github.repository_owner }}/wormgas
-          cache-to: |
-            ghcr.io/${{ github.repository_owner }}/wormgas
+          load: true
           tags: ghcr.io/${{ github.repository_owner }}/wormgas
