@@ -3,4 +3,5 @@ version: '3.8'
 services:
   wormgas:
     image: ghcr.io/williamjacksn/wormgas
-    init: True
+    build: .
+    init: true
