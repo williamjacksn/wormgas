@@ -32,7 +32,7 @@ multidict==5.1.0
     # via
     #   aiohttp
     #   yarl
-pytz==2021.1
+pytz==2021.3
     # via -r requirements.in
 requests==2.25.1
     # via wikipedia
