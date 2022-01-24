@@ -15,7 +15,7 @@ class WikiCog(cmds.Cog):
         """Look up information on Wikipedia."""
 
         try:
-            page = wikipedia.page(search_terms)
+            page = wikipedia.page(search_terms, auto_suggest=False)
         except wikipedia.exceptions.DisambiguationError as err:
             await ctx.author.send('Your query returned a disambiguation page.')
             if len(err.options) < 6:
