@@ -1,7 +1,11 @@
-version: '3.8'
-
 services:
   wormgas:
     image: ghcr.io/williamjacksn/wormgas
-    build: .
     init: true
+
+  shell:
+    image: ghcr.io/williamjacksn/wormgas
+    init: true
+    volumes:
+      - ./:/home/python/wormgas
+    working_dir: /home/python/wormgas
