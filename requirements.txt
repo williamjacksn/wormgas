@@ -9,7 +9,7 @@
 aiohttp==3.7.4.post0
     # via
     #   -r requirements.in
-    #   discord.py
+    #   discord-py
 async-timeout==3.0.1
     # via aiohttp
 attrs==21.4.0
@@ -22,7 +22,7 @@ chardet==4.0.0
     # via aiohttp
 charset-normalizer==2.0.10
     # via requests
-discord.py==1.7.3
+discord-py==1.7.3
     # via -r requirements.in
 idna==3.3
     # via
@@ -32,7 +32,7 @@ multidict==6.0.2
     # via
     #   aiohttp
     #   yarl
-pytz==2021.3
+pytz==2022.1
     # via -r requirements.in
 requests==2.27.1
     # via wikipedia
