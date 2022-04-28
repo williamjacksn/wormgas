@@ -14,13 +14,13 @@ async-timeout==3.0.1
     # via aiohttp
 attrs==21.4.0
     # via aiohttp
-beautifulsoup4==4.10.0
+beautifulsoup4==4.11.1
     # via wikipedia
 certifi==2021.10.8
     # via requests
 chardet==4.0.0
     # via aiohttp
-charset-normalizer==2.0.10
+charset-normalizer==2.0.12
     # via requests
 discord-py==1.7.3
     # via -r requirements.in
@@ -36,13 +36,13 @@ pytz==2022.1
     # via -r requirements.in
 requests==2.27.1
     # via wikipedia
-soupsieve==2.3.1
+soupsieve==2.3.2.post1
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
-typing-extensions==4.0.1
+typing-extensions==4.2.0
     # via aiohttp
-urllib3==1.26.8
+urllib3==1.26.9
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
