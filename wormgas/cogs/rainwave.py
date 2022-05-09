@@ -317,6 +317,23 @@ class RainwaveCog(cmds.Cog):
                 future_events.append(e_text)
         return future_events
 
+    async def ph_mention(self, channel):
+        utc = pytz.utc.localize(datetime.datetime.utcnow())
+
+        current_time_eu = utc.astimezone(pytz.timezone('Europe/Paris'))
+        if 8 <= current_time_eu.hour < 17:
+            if 'rainwave:eu_ph_role_id' in self.bot.config:
+                log.info('Mentioning EU power hour notifications role')
+                role_id = self.bot.config.get('rainwave:eu_ph_role_id')
+                await channel.send(f'<@&{role_id}>')
+
+        current_time_na = utc.astimezone(pytz.timezone('America/Chicago'))
+        if 8 <= current_time_na.hour < 17:
+            if 'rainwave:na_ph_role_id' in self.bot.config:
+                log.info('Mentioning NA power hour notifications role')
+                role_id = self.bot.config.get('rainwave:na_ph_role_id')
+                await channel.send(f'<@&{role_id}>')
+
     async def check_special_events(self):
         log.debug('check_special_events')
         await self.bot.wait_until_ready()
@@ -350,6 +367,7 @@ class RainwaveCog(cmds.Cog):
                         for e in events:
                             m = '{text} {chan_url}'.format(**e)
                             await channel.send(m)
+                            await self.ph_mention(channel)
             log.info('I will check for events again in 60 seconds ...')
             await asyncio.sleep(60)
         log.info('check_special_events: bot connection is closed')
