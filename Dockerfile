@@ -9,7 +9,10 @@ COPY --chown=python:python requirements.txt /home/python/wormgas/requirements.tx
 RUN /home/python/venv/bin/pip install --no-cache-dir --requirement /home/python/wormgas/requirements.txt
 
 ENV APP_VERSION="2022.1" \
-    PYTHONUNBUFFERED="1"
+    PATH="/home/python/venv/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE="1" \
+    PYTHONUNBUFFERED="1" \
+    TZ="Etc/UTC"
 
 ENTRYPOINT ["/home/python/venv/bin/python"]
 CMD ["/home/python/wormgas/run.py"]
