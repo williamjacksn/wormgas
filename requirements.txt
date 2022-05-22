@@ -16,7 +16,7 @@ attrs==21.4.0
     # via aiohttp
 beautifulsoup4==4.11.1
     # via wikipedia
-certifi==2021.10.8
+certifi==2022.5.18.1
     # via requests
 chardet==4.0.0
     # via aiohttp
