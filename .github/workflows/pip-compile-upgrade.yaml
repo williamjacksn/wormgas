@@ -29,9 +29,9 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@v4
         with:
-          body: Upgrade all dependencies with `pip-compile --upgrade`
+          body: Upgrade all requirements with `pip-compile --upgrade`
           branch: pip-compile-upgrade
-          commit-message: Upgrade all dependencies with `pip-compile --upgrade`
+          commit-message: Upgrade all requirements with `pip-compile --upgrade`
           delete-branch: true
-          title: Upgrade all dependencies with `pip-compile --upgrade`
+          title: Upgrade all requirements with `pip-compile --upgrade`
           token: ${{ secrets.personal_token }}
