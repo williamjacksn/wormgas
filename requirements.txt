@@ -32,8 +32,6 @@ multidict==6.0.2
     # via
     #   aiohttp
     #   yarl
-pytz==2022.1
-    # via -r requirements.in
 requests==2.28.1
     # via wikipedia
 soupsieve==2.3.2.post1

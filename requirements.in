@@ -2,6 +2,5 @@
 
 aiohttp
 discord.py
-pytz
 stemming
 wikipedia

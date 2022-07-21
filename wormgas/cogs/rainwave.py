@@ -4,9 +4,9 @@ import discord
 import discord.ext.commands as cmds
 import enum
 import logging
-import pytz
 import time
 import uuid
+import zoneinfo
 
 from typing import Dict, List
 from wormgas.config import ConfigManager
@@ -309,8 +309,8 @@ class RainwaveCog(cmds.Cog):
                 e_name = p['name']
                 e_start = p['start']
                 log.info(f'get_future_events: {e_name} will start at {e_start}')
-                eastern = pytz.timezone('US/Eastern')
-                when = pytz.utc.localize(datetime.datetime.fromtimestamp(e_start)).astimezone(eastern)
+                eastern = zoneinfo.ZoneInfo('America/New_York')
+                when = datetime.datetime.fromtimestamp(e_start, eastern)
                 month = when.strftime('%b')
                 w_time = when.strftime('%H:%M')
                 e_text = f'[{chan.short_name}] {e_name} Power Hour: {month} {when.day} {w_time} {when.tzname()}'
@@ -318,16 +318,16 @@ class RainwaveCog(cmds.Cog):
         return future_events
 
     async def ph_mention(self, channel):
-        utc = pytz.utc.localize(datetime.datetime.utcnow())
+        utc = datetime.datetime.now(datetime.timezone.utc)
 
-        current_time_eu = utc.astimezone(pytz.timezone('Europe/Paris'))
+        current_time_eu = utc.astimezone(zoneinfo.ZoneInfo('Europe/Paris'))
         if 8 <= current_time_eu.hour < 17:
             if 'rainwave:eu_ph_role_id' in self.bot.config:
                 log.info('Mentioning EU power hour notifications role')
                 role_id = self.bot.config.get('rainwave:eu_ph_role_id')
                 await channel.send(f'<@&{role_id}>')
 
-        current_time_na = utc.astimezone(pytz.timezone('America/Chicago'))
+        current_time_na = utc.astimezone(zoneinfo.ZoneInfo('America/Chicago'))
         if 8 <= current_time_na.hour < 17:
             if 'rainwave:na_ph_role_id' in self.bot.config:
                 log.info('Mentioning NA power hour notifications role')
