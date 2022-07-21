@@ -8,7 +8,7 @@ RUN /usr/local/bin/python -m venv /home/python/venv
 COPY --chown=python:python requirements.txt /home/python/wormgas/requirements.txt
 RUN /home/python/venv/bin/pip install --no-cache-dir --requirement /home/python/wormgas/requirements.txt
 
-ENV APP_VERSION="2022.1" \
+ENV APP_VERSION="2022.2" \
     PATH="/home/python/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE="1" \
     PYTHONUNBUFFERED="1" \
