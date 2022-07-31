@@ -12,7 +12,7 @@ aiohttp==3.7.4.post0
     #   discord-py
 async-timeout==3.0.1
     # via aiohttp
-attrs==21.4.0
+attrs==22.1.0
     # via aiohttp
 beautifulsoup4==4.11.1
     # via wikipedia
@@ -40,7 +40,7 @@ stemming==1.0.1
     # via -r requirements.in
 typing-extensions==4.3.0
     # via aiohttp
-urllib3==1.26.10
+urllib3==1.26.11
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
