@@ -264,10 +264,10 @@ class RainwaveCog(commands.Cog):
         }
         return await self._call('update_user_nickname_by_discord_id', params=params)
 
-    async def rw_update_avatar(self, discord_user_id, avatar):
+    async def rw_update_avatar(self, discord_user_id: int, avatar: discord.Asset):
         params = {
             'discord_user_id': discord_user_id,
-            'avatar': avatar,
+            'avatar': avatar.url,
         }
         return await self._call('update_user_avatar_by_discord_id', params=params)
 
@@ -937,8 +937,8 @@ class RainwaveCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
-        if before.avatar != after.avatar:
-            await self.rw_update_avatar(after.id, after.avatar)
+        if before.display_avatar != after.display_avatar:
+            await self.rw_update_avatar(after.id, after.display_avatar)
 
     async def _sync_donors(self, guild: discord.Guild):
         donor_role_id = self.bot.config.get('rainwave:donor_role_id')
