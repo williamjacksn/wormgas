@@ -3,7 +3,7 @@ wormgas -- Discord bot for [Rainwave][]
 wormgas is a command-processing Discord bot that enables using many Rainwave features from Discord. It requires Python
 3.9 or higher.
 
-The core bot requires the [discord.py][] library >= 1.7.0. Some extensions do have other dependencies:
+The core bot requires the [discord.py][] library >= 2.0.0. Some extensions do have other dependencies:
 
 *   The `chat` extension requires [stemming][]
 *   The `wiki` plugin requires [wikipedia][]
