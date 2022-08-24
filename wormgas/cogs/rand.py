@@ -92,5 +92,5 @@ class RandCog(cmds.Cog):
             await ctx.author.send(cd_msg)
 
 
-def setup(bot: cmds.Bot):
-    bot.add_cog(RandCog(bot))
+async def setup(bot: cmds.Bot):
+    await bot.add_cog(RandCog(bot))

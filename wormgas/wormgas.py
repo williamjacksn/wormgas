@@ -14,7 +14,21 @@ class Wormgas(cmds.Bot):
     def __init__(self, config_path: pathlib.Path, command_prefix, **options):
         super().__init__(command_prefix, **options)
         self.config = ConfigManager(config_path)
-        self.session = aiohttp.ClientSession(loop=self.loop, timeout=(aiohttp.ClientTimeout(total=10)))
+        self.session = None
+
+    async def setup_hook(self):
+        self.session = aiohttp.ClientSession(loop=self.loop, timeout=aiohttp.ClientTimeout(total=10))
+        extension_names = [
+            'wormgas.cogs.chat',
+            'wormgas.cogs.config',
+            'wormgas.cogs.rainwave',
+            'wormgas.cogs.rand',
+            'wormgas.cogs.rps',
+            'wormgas.cogs.wiki',
+            'wormgas.cogs.wolframalpha',
+        ]
+        for extension_name in extension_names:
+            await self.load_extension(extension_name)
 
 
 def version():
@@ -33,14 +47,8 @@ def main():
     config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
     intents = discord.Intents.default()
     intents.members = True
+    intents.message_content = True
     bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
-    bot.load_extension('wormgas.cogs.chat')
-    bot.load_extension('wormgas.cogs.config')
-    bot.load_extension('wormgas.cogs.rainwave')
-    bot.load_extension('wormgas.cogs.rand')
-    bot.load_extension('wormgas.cogs.rps')
-    bot.load_extension('wormgas.cogs.wiki')
-    bot.load_extension('wormgas.cogs.wolframalpha')
     token = bot.config.get('discord:token')
     if token in (None, 'TOKEN'):
         bot.config.set('discord:token', 'TOKEN')

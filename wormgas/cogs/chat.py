@@ -88,7 +88,7 @@ class ChatCog(cmds.Cog):
         # Ignore messages that contain commands.
         ctx = await self.bot.get_context(message)
         if ctx.valid:
-            log.info('Context is valid.')
+            log.info('Ignoring message because it contains a command.')
             return
 
         # Do not learn from messages from ignored users.
@@ -139,5 +139,5 @@ class ChatCog(cmds.Cog):
         return self.brain.reply(to_brain)
 
 
-def setup(bot: Wormgas):
-    bot.add_cog(ChatCog(bot))
+async def setup(bot: Wormgas):
+    await bot.add_cog(ChatCog(bot))
