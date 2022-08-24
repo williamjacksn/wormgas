@@ -6,11 +6,13 @@
 #
 --extra-index-url https://alpine-wheels.github.io/index
 
-aiohttp==3.7.4.post0
+aiohttp==3.8.1
     # via
     #   -r requirements.in
     #   discord-py
-async-timeout==3.0.1
+aiosignal==1.2.0
+    # via aiohttp
+async-timeout==4.0.2
     # via aiohttp
 attrs==22.1.0
     # via aiohttp
@@ -18,12 +20,16 @@ beautifulsoup4==4.11.1
     # via wikipedia
 certifi==2022.6.15
     # via requests
-chardet==4.0.0
-    # via aiohttp
-charset-normalizer==2.1.0
-    # via requests
+charset-normalizer==2.1.1
+    # via
+    #   aiohttp
+    #   requests
 discord-py==2.0.0
     # via -r requirements.in
+frozenlist==1.3.1
+    # via
+    #   aiohttp
+    #   aiosignal
 idna==3.3
     # via
     #   requests
@@ -38,9 +44,7 @@ soupsieve==2.3.2.post1
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
-typing-extensions==4.3.0
-    # via aiohttp
-urllib3==1.26.11
+urllib3==1.26.12
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
