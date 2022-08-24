@@ -131,5 +131,5 @@ class RpsCog(cmds.Cog):
             await ctx.author.send(f'Use !rps reset {reset_code} to reset your RPS record and delete your history.')
 
 
-def setup(bot: Wormgas):
-    bot.add_cog(RpsCog(bot))
+async def setup(bot: Wormgas):
+    await bot.add_cog(RpsCog(bot))

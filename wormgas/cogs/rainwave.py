@@ -361,7 +361,7 @@ class RainwaveCog(cmds.Cog):
                 if new_topic_head != topic_parts[0]:
                     log.info('I need to update the topic')
                     topic_parts[0] = new_topic_head
-                    await channel.edit(topic=' | '.join(topic_parts))
+                    channel = await channel.edit(topic=' | '.join(topic_parts))
                     if event_now:
                         log.info('I also need to announce an event')
                         for e in events:
@@ -963,5 +963,5 @@ class RainwaveCog(cmds.Cog):
                 await self._sync_donors(guild)
 
 
-def setup(bot: Wormgas):
-    bot.add_cog(RainwaveCog(bot))
+async def setup(bot: Wormgas):
+    await bot.add_cog(RainwaveCog(bot))

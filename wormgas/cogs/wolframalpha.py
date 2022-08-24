@@ -58,5 +58,5 @@ class WolframAlphaCog(cmds.Cog):
             return ['Error: could not parse response.']
 
 
-def setup(bot: Wormgas):
-    bot.add_cog(WolframAlphaCog(bot))
+async def setup(bot: Wormgas):
+    await bot.add_cog(WolframAlphaCog(bot))

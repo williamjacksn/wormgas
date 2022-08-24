@@ -33,5 +33,5 @@ class WikiCog(cmds.Cog):
         await ctx.send(f'{page.title} // {summary} [ {page.url} ]')
 
 
-def setup(bot: cmds.Bot):
-    bot.add_cog(WikiCog(bot))
+async def setup(bot: cmds.Bot):
+    await bot.add_cog(WikiCog(bot))

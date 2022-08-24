@@ -50,5 +50,5 @@ class ConfigCog(cmds.Cog):
         await ctx.author.send(f'{key} has been unset.')
 
 
-def setup(bot: Wormgas):
-    bot.add_cog(ConfigCog(bot))
+async def setup(bot: Wormgas):
+    await bot.add_cog(ConfigCog(bot))
