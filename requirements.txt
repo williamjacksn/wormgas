@@ -20,7 +20,7 @@ beautifulsoup4==4.11.2
     # via wikipedia
 certifi==2022.12.7
     # via requests
-charset-normalizer==2.1.1
+charset-normalizer==3.1.0
     # via
     #   aiohttp
     #   requests
@@ -40,7 +40,7 @@ multidict==6.0.4
     #   yarl
 requests==2.28.2
     # via wikipedia
-soupsieve==2.3.2.post1
+soupsieve==2.4
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
