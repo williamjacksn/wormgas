@@ -946,9 +946,13 @@ class RainwaveCog(commands.Cog):
 
     async def _sync_donors(self, guild: discord.Guild):
         donor_role_id = self.bot.config.get('rainwave:donor_role_id')
-        if donor_role_id is not None:
-            role = guild.get_role(int(donor_role_id))
-            await self.rw_enable_perks(role.members)
+        patron_role_id = self.bot.config.get('rainwave:patron_role_id')
+        if donor_role_id is not None and patron_role_id is not None:
+            donor_role = guild.get_role(int(donor_role_id))
+            await self.rw_enable_perks(donor_role.members)
+            patron_role = guild.get_role(int(patron_role_id))
+            for member in patron_role.members:
+                await member.add_roles(donor_role)
 
     @commands.command()
     @commands.is_owner()
