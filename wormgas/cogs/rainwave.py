@@ -951,8 +951,9 @@ class RainwaveCog(commands.Cog):
             donor_role = guild.get_role(int(donor_role_id))
             await self.rw_enable_perks(donor_role.members)
             patron_role = guild.get_role(int(patron_role_id))
-            for member in patron_role.members:
-                await member.add_roles(donor_role)
+            for patron_member in patron_role.members:
+                if donor_role not in patron_member.roles:
+                    await patron_member.add_roles(donor_role)
 
     @commands.command()
     @commands.is_owner()
