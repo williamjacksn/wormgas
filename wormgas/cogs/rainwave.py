@@ -943,8 +943,17 @@ class RainwaveCog(commands.Cog):
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         notification_signup_message_id = int(self.bot.config.get('rainwave:notification_signup_message_id'))
         if payload.message_id == notification_signup_message_id:
+            emoji_name = 'other'
+            if str(payload.emoji) == '📰':
+                emoji_name = 'newspaper'
+            elif str(payload.emoji) == '🎵':
+                emoji_name = 'musical_note'
+            elif str(payload.emoji) == '🇪🇺':
+                emoji_name = 'flag_eu'
+            elif str(payload.emoji) == '🏴‍☠️':
+                emoji_name = 'pirate_flag'
             log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
-                     f'member:{payload.member.display_name} emoji:{payload.emoji}')
+                     f'member:{payload.member.display_name} emoji:{emoji_name}')
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
