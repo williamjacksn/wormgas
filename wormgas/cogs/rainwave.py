@@ -940,6 +940,10 @@ class RainwaveCog(commands.Cog):
             await self.rw_update_nickname(after.id, after.display_name)
 
     @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        log.info(f'reaction event:{payload.event_type} message:{payload.message_id} member:{payload.member.display_name}')
+
+    @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
         if before.display_avatar != after.display_avatar:
             await self.rw_update_avatar(after.id, after.display_avatar)
