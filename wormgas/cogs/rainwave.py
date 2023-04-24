@@ -944,7 +944,7 @@ class RainwaveCog(commands.Cog):
         notification_signup_message_id = int(self.bot.config.get('rainwave:notification_signup_message_id'))
         if payload.message_id == notification_signup_message_id:
             log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
-                     f'member:{payload.member.display_name} emoji:{payload.emoji.id}')
+                     f'member:{payload.member.display_name} emoji:{payload.emoji}')
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
