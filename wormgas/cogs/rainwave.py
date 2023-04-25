@@ -958,12 +958,12 @@ class RainwaveCog(commands.Cog):
             elif str(payload.emoji) == '🏴‍☠️':
                 target_role_id = int(self.bot.config.get('discord:goldtoken_role_id'))
                 emoji_name = 'pirate_flag'
-            log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
-                     f'member:{payload.member.display_name} emoji:{emoji_name}')
             if target_role_id:
                 target_role = payload.member.guild.get_role(target_role_id)
                 guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
+                log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
+                         f'member:{member.display_name} emoji:{emoji_name}')
                 if payload.event_type == 'REACTION_ADD':
                     await member.add_roles(target_role)
                     await member.send(f'I added you to the {target_role} role.')
