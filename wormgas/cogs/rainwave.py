@@ -939,8 +939,9 @@ class RainwaveCog(commands.Cog):
             log.info(f'{before.display_name!r} ({before.id}) changed display_name to {after.display_name!r}')
             await self.rw_update_nickname(after.id, after.display_name)
 
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+    @commands.Cog.listener(name='on_raw_reaction_add')
+    @commands.Cog.listener(name='on_raw_reaction_remove')
+    async def _handle_reaction_change(self, payload: discord.RawReactionActionEvent):
         notification_signup_message_id = int(self.bot.config.get('rainwave:notification_signup_message_id'))
         if payload.message_id == notification_signup_message_id:
             emoji_name = 'other'
@@ -961,8 +962,14 @@ class RainwaveCog(commands.Cog):
                      f'member:{payload.member.display_name} emoji:{emoji_name}')
             if target_role_id:
                 target_role = payload.member.guild.get_role(target_role_id)
-                await payload.member.add_roles(target_role)
-                await payload.member.send(f'I added you to the {target_role} role.')
+                guild = self.bot.get_guild(payload.guild_id)
+                member = guild.get_member(payload.user_id)
+                if payload.event_type == 'REACTION_ADD':
+                    await member.add_roles(target_role)
+                    await member.send(f'I added you to the {target_role} role.')
+                elif payload.event_type == 'REACTION_REMOVE':
+                    await member.remove_roles(target_role)
+                    await member.send(f'I removed you from the {target_role} role.')
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
