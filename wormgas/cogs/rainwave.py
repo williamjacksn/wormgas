@@ -960,7 +960,9 @@ class RainwaveCog(commands.Cog):
             log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
                      f'member:{payload.member.display_name} emoji:{emoji_name}')
             if target_role_id:
-                await payload.member.add_roles(payload.member.guild.get_role(target_role_id))
+                target_role = payload.member.guild.get_role(target_role_id)
+                await payload.member.add_roles(target_role)
+                await payload.member.send(f'I added you to the {target_role.mention} role.')
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
