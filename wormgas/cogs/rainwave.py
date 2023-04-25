@@ -944,16 +944,23 @@ class RainwaveCog(commands.Cog):
         notification_signup_message_id = int(self.bot.config.get('rainwave:notification_signup_message_id'))
         if payload.message_id == notification_signup_message_id:
             emoji_name = 'other'
+            target_role_id = None
             if str(payload.emoji) == '📰':
+                target_role_id = int(self.bot.config.get('discord:announcement_notify_role_id'))
                 emoji_name = 'newspaper'
             elif str(payload.emoji) == '🎵':
+                target_role_id = int(self.bot.config.get('rainwave:na_ph_role_id'))
                 emoji_name = 'musical_note'
             elif str(payload.emoji) == '🇪🇺':
+                target_role_id = int(self.bot.config.get('rainwave:eu_ph_role_id'))
                 emoji_name = 'flag_eu'
             elif str(payload.emoji) == '🏴‍☠️':
+                target_role_id = int(self.bot.config.get('discord:goldtoken_role_id'))
                 emoji_name = 'pirate_flag'
             log.info(f'reaction event:{payload.event_type} message:{payload.message_id} '
                      f'member:{payload.member.display_name} emoji:{emoji_name}')
+            if target_role_id:
+                await payload.member.add_roles(payload.member.guild.get_role(target_role_id))
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
