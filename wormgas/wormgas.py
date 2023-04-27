@@ -54,4 +54,4 @@ def main():
         bot.config.set('discord:token', 'TOKEN')
         logging.critical(f'Before you can run for the first time, edit {config_file} and set discord:token')
     else:
-        bot.run(bot.config.get('discord:token'))
+        bot.run(token)
