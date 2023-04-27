@@ -946,27 +946,10 @@ class RainwaveCog(commands.Cog):
         if payload.message_id == notification_signup_message_id:
             config_role_id = self.bot.config.get(f'notification-role:{payload.emoji}')
             if config_role_id:
-                log.info(f'Found a configured role id: {config_role_id}')
-            emoji_name = 'other'
-            target_role_id = None
-            if str(payload.emoji) == '📰':
-                target_role_id = int(self.bot.config.get('discord:announcement_notify_role_id'))
-                emoji_name = 'newspaper'
-            elif str(payload.emoji) == '🎵':
-                target_role_id = int(self.bot.config.get('rainwave:na_ph_role_id'))
-                emoji_name = 'musical_note'
-            elif str(payload.emoji) == '🇪🇺':
-                target_role_id = int(self.bot.config.get('rainwave:eu_ph_role_id'))
-                emoji_name = 'flag_eu'
-            elif str(payload.emoji) == '🏴‍☠️':
-                target_role_id = int(self.bot.config.get('discord:goldtoken_role_id'))
-                emoji_name = 'pirate_flag'
-            if target_role_id:
+                target_role_id = int(config_role_id)
                 guild = self.bot.get_guild(payload.guild_id)
                 member = guild.get_member(payload.user_id)
                 target_role = guild.get_role(target_role_id)
-                log.debug(f'reaction event:{payload.event_type} message:{payload.message_id} '
-                          f'member:{member.display_name} emoji:{emoji_name}')
                 if payload.event_type == 'REACTION_ADD':
                     await member.add_roles(target_role)
                     await member.send(f'I added you to the {target_role} role.')
