@@ -15,3 +15,15 @@ The `chat` extension is powered by [cobe][], but this dependency is bundled.
 [stemming]: http://pypi.python.org/pypi/stemming
 [wikipedia]: https://wikipedia.readthedocs.org/en/latest/
 [cobe]: https://github.com/pteichman/cobe/
+
+### Link a reaction emoji to a role
+
+1. Create a new role and copy the role ID
+2. Select an emoji that you want to link to the role
+3. Send the following DM to wormgas: !set discord:roles:notify:\<emoji> \<role-id>
+
+For example:
+
+    !set discord:roles:notify:🎵 874722421209436211
+
+Now, when someone reacts to the notification signup message with this emoji, wormgas will add them to the new role.
