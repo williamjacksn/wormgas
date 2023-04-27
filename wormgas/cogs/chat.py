@@ -42,42 +42,6 @@ class ChatCog(cmds.Cog):
         self.bot = bot
         brain_file = bot.config.path.with_name('_brain.sqlite')
         self.brain = brain.Brain(str(brain_file))
-        self.revive_task = self.bot.loop.create_task(self.revive_chat())
-
-    @cmds.command()
-    @cmds.has_permissions(manage_channels=True)
-    async def revive(self, ctx: cmds.Context, on_off: to_bool = None):
-        """Turn chat revive on or off."""
-        if isinstance(ctx.channel, discord.TextChannel):
-            revive_list = self.bot.config.get('chat:revive_channels', [])
-            if ctx.channel.id in revive_list:
-                revive_list.remove(ctx.channel.id)
-            if on_off:
-                revive_list.append(ctx.channel.id)
-                await ctx.author.send(f'Chat revive is ON for {ctx.channel.mention}')
-            else:
-                await ctx.author.send(f'Chat revive is OFF for {ctx.channel.mention}')
-            self.bot.config['chat:revive_channels'] = revive_list
-
-    async def revive_chat(self):
-        await self.bot.wait_until_ready()
-        while not self.bot.is_closed():
-            now = int(time.time())
-            for channel_id in self.bot.config.get('chat:revive_channels', []):
-                channel = self.bot.get_channel(channel_id)
-                last = int(self.bot.config.get(f'chat:last_time_public_message:{channel.id}', 0))
-                wait = int(self.bot.config.get('chat:wait_revive', 3600))
-                if last < now - wait:
-                    log.info(f'Reviving chat in {channel.id} (#{channel.name})')
-                    last_message = self.bot.config.get('chat:last_message', '')
-                    response = await self.reply(last_message, learn=False)
-                    await channel.send(response)
-                    self.bot.config[f'chat:last_time_respond:{channel.id}'] = now
-                    self.bot.config['chat:last_time_public_message:{channel.id}'] = now
-                else:
-                    remaining = last + wait - now
-                    log.info(f'{channel.id} (#{channel.name}): will revive chat in {remaining} seconds')
-            await asyncio.sleep(120)
 
     @cmds.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -131,7 +95,6 @@ class ChatCog(cmds.Cog):
         if ignore is not None and re.search(ignore, text, re.IGNORECASE):
             log.info(f'Ignoring {text!r}')
             return random.choice(self.quotes)
-        self.bot.config['chat:last_message'] = text
         to_brain = text
         if learn:
             log.info(f'Learning {to_brain!r}')
