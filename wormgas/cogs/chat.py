@@ -67,13 +67,11 @@ class ChatCog(cmds.Cog):
         log.info(f'Generating reply for {text!r}')
         response = await self.reply(text, learn=learn)
 
-        # Always respond to direct messages, and record the time for public messages.
+        # Always respond to direct messages
         now = int(time.time())
         if not message.guild:
             await message.author.send(response)
             return
-        else:
-            self.bot.config[f'chat:last_time_public_message:{message.channel.id}'] = now
 
         # If I was not mentioned, do not reply.
         if self.bot.user.id not in [u.id for u in message.mentions]:
