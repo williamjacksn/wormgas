@@ -23,6 +23,7 @@ class Wormgas(cmds.Bot):
             'wormgas.cogs.config',
             'wormgas.cogs.rainwave',
             'wormgas.cogs.rand',
+            'wormgas.cogs.roles',
             'wormgas.cogs.rps',
             'wormgas.cogs.wiki',
             'wormgas.cogs.wolframalpha',
