@@ -1,4 +1,3 @@
-import asyncio
 import discord
 import discord.ext.commands as cmds
 import logging
@@ -7,7 +6,6 @@ import random
 import time
 
 from .cobe import brain
-from wormgas.util import to_bool
 from wormgas.wormgas import Wormgas
 
 log = logging.getLogger(__name__)
