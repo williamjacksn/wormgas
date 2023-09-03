@@ -40,7 +40,7 @@ multidict==6.0.4
     #   yarl
 requests==2.31.0
     # via wikipedia
-soupsieve==2.4.1
+soupsieve==2.5
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
