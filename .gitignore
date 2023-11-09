@@ -1,4 +1,5 @@
 .idea
 .local
+.python-version
 __pycache__
 compose.override.yaml
