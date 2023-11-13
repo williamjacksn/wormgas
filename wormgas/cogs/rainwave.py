@@ -7,7 +7,7 @@ import time
 import uuid
 import zoneinfo
 
-from discord.ext import commands
+from discord.ext import commands, tasks
 from typing import Dict, List
 from wormgas.config import ConfigManager
 from wormgas.util import to_bool
@@ -62,7 +62,6 @@ class RainwaveCog(commands.Cog):
         codes = [code for code in RainwaveChannel.__members__.keys()]
         chan_code_ls = '**, **'.join(codes)
         self.channel_codes = f'Channel codes are **{chan_code_ls}**.'
-        self.topic_task = self.bot.loop.create_task(self.check_special_events())
 
     async def _call(self, path: str, params: Dict = None):
         log.debug(f'_call {path} {params}')
@@ -334,43 +333,39 @@ class RainwaveCog(commands.Cog):
                 log.info('Mentioning NA power hour notifications role')
                 await channel.send(f'<@&{role_id}>')
 
+    @tasks.loop(minutes=1)
     async def check_special_events(self):
-        log.debug('check_special_events')
         await self.bot.wait_until_ready()
-        while not self.bot.is_closed():
-            log.info('Checking for events ...')
-            new_topic_head = 'Welcome to Rainwave!'
-            event_now = False
-            events = await self.get_current_events()
-            future_events = await self.get_future_events()
-            if events:
-                log.info('There is an event on now')
-                event_now = True
-                new_topic_head = ' '.join([e['text'] for e in events])
-            elif future_events:
-                log.info('There is an upcoming event')
-                new_topic_head = future_events[0]
-                log.info(new_topic_head)
-            for channel_id in self.bot.config.get('rainwave:topic_control', []):
-                log.info(f'Topic control is on for channel {channel_id}')
-                channel = self.bot.get_channel(channel_id)
-                channel_topic = channel.topic
-                if channel_topic is None:
-                    channel_topic = ''
-                topic_parts = channel_topic.split(' | ')
-                if new_topic_head != topic_parts[0]:
-                    log.info('I need to update the topic')
-                    topic_parts[0] = new_topic_head
-                    channel = await channel.edit(topic=' | '.join(topic_parts))
-                    if event_now:
-                        log.info('I also need to announce an event')
-                        for e in events:
-                            m = '{text} {chan_url}'.format(**e)
-                            await channel.send(m)
-                            await self.ph_mention(channel)
-            log.info('I will check for events again in 60 seconds ...')
-            await asyncio.sleep(60)
-        log.info('check_special_events: bot connection is closed')
+        log.info('Checking for events ...')
+        new_topic_head = 'Welcome to Rainwave!'
+        event_now = False
+        events = await self.get_current_events()
+        future_events = await self.get_future_events()
+        if events:
+            log.info('There is an event on now')
+            event_now = True
+            new_topic_head = ' '.join([e['text'] for e in events])
+        elif future_events:
+            log.info('There is an upcoming event')
+            new_topic_head = future_events[0]
+            log.info(new_topic_head)
+        for channel_id in self.bot.config.get('rainwave:topic_control', []):
+            log.info(f'Topic control is on for channel {channel_id}')
+            channel = self.bot.get_channel(channel_id)
+            channel_topic = channel.topic
+            if channel_topic is None:
+                channel_topic = ''
+            topic_parts = channel_topic.split(' | ')
+            if new_topic_head != topic_parts[0]:
+                log.info('I need to update the topic')
+                topic_parts[0] = new_topic_head
+                channel = await channel.edit(topic=' | '.join(topic_parts))
+                if event_now:
+                    log.info('I also need to announce an event')
+                    for e in events:
+                        m = '{text} {chan_url}'.format(**e)
+                        await channel.send(m)
+                        await self.ph_mention(channel)
 
     @commands.command()
     @commands.has_permissions(manage_channels=True)
