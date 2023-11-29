@@ -62,6 +62,7 @@ class RainwaveCog(commands.Cog):
         codes = [code for code in RainwaveChannel.__members__.keys()]
         chan_code_ls = '**, **'.join(codes)
         self.channel_codes = f'Channel codes are **{chan_code_ls}**.'
+        self.check_special_events.start()
 
     async def _call(self, path: str, params: Dict = None):
         log.debug(f'_call {path} {params}')
@@ -962,6 +963,9 @@ class RainwaveCog(commands.Cog):
             for guild in self.bot.guilds:
                 log.info(f'Syncing donors for guild {guild.id}')
                 await self._sync_donors(guild)
+
+    def cog_unload(self):
+        self.check_special_events.cancel()
 
 
 async def setup(bot: Wormgas):
