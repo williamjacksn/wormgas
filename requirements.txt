@@ -6,7 +6,7 @@
 #
 --extra-index-url https://alpine-wheels.github.io/index
 
-aiohttp==3.9.1
+aiohttp==3.9.2
     # via
     #   -r requirements.in
     #   discord-py
