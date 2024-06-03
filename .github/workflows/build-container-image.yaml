@@ -12,7 +12,7 @@ on:
       - published
 
 env:
-  image_name: ghcr.io/williamjacksn/podcast-tools
+  image_name: ghcr.io/williamjacksn/wormgas
 
 jobs:
 
