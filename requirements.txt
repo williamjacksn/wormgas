@@ -16,7 +16,7 @@ attrs==23.2.0
     # via aiohttp
 beautifulsoup4==4.12.3
     # via wikipedia
-certifi==2024.6.2
+certifi==2024.7.4
     # via requests
 charset-normalizer==3.3.2
     # via requests
