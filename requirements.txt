@@ -8,7 +8,7 @@
 
 aiohappyeyeballs==2.3.5
     # via aiohttp
-aiohttp==3.10.2
+aiohttp==3.10.3
     # via
     #   -r requirements.in
     #   discord-py
