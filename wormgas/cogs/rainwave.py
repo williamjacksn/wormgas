@@ -250,7 +250,7 @@ class RainwaveCog(commands.Cog):
 
     async def rw_user_search_by_discord_user_id(self, discord_user_id: str):
         params = {
-            'discord_user_id': dscord_user_id,
+            'discord_user_id': discord_user_id,
         }
         return await self._call('user_search_by_discord_user_id', params=params)
 
