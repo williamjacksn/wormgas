@@ -140,7 +140,7 @@ class RainwaveCog(commands.Cog):
         user_sid = user_info.get('user', {}).get('sid')
         if user_sid:
             return RainwaveChannel(user_sid)
-        if user.voice:
+        if hasattr(user, 'voice') and user.voice:
             vc_name = user.voice.channel.name
             if vc_name.lower() in RainwaveChannel.__members__.keys():
                 return RainwaveChannel[vc_name.lower()]
