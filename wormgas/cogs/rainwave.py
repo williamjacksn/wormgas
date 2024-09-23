@@ -248,6 +248,12 @@ class RainwaveCog(commands.Cog):
         }
         return await self._call('user_search', params=params)
 
+    async def rw_user_search_by_discord_user_id(self, discord_user_id: str):
+        params = {
+            'discord_user_id': dscord_user_id,
+        }
+        return await self._call('user_search_by_discord_user_id', params=params)
+
     async def rw_vote(self, user_id, key, sid, entry_id):
         params = {
             'user_id': user_id,
@@ -607,8 +613,10 @@ class RainwaveCog(commands.Cog):
                     if channel.lower() in RainwaveChannel.__members__.keys():
                         chan = RainwaveChannel[channel.lower()]
                 if chan is None:
-                    listener_id = await self.get_id_for_user(ctx.author)
-                    chan = await self.get_current_channel_for_id(listener_id)
+                    user_info = await self.rw_user_search_by_discord_user_id(ctx.author.id)
+                    user_sid = user_info.get('user', {}).get('sid')
+                    if user_sid:
+                        chan = RainwaveChannel(user_sid)
                 if chan is None:
                     log.info(f'{ctx.author.name}, checking voice channel')
                     if ctx.author.voice:
