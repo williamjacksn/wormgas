@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import discord
 import enum
@@ -21,6 +20,7 @@ class RainwaveChannel(enum.Enum):
     rw = 1
     oc = 2
     ocr = 2
+    ocremix = 3
     cover = 3
     covers = 3
     mw = 3
@@ -28,6 +28,7 @@ class RainwaveChannel(enum.Enum):
     bw = 4
     ch = 4
     chip = 4
+    chiptune = 4
     all = 5
     omni = 5
     ow = 5
@@ -133,6 +134,16 @@ class RainwaveCog(commands.Cog):
         if chan_id is None:
             return None
         return RainwaveChannel(int(chan_id))
+
+    async def get_current_channel_for_user(self, user: discord.Member) -> RainwaveChannel:
+        user_info = await self.rw_user_search_by_discord_user_id(str(user.id))
+        user_sid = user_info.get('user', {}).get('sid')
+        if user_sid:
+            return RainwaveChannel(user_sid)
+        if user.voice:
+            vc_name = user.voice.channel.name
+            if vc_name.lower() in RainwaveChannel.__members__.keys():
+                return RainwaveChannel[vc_name.lower()]
 
     async def get_id_for_name(self, username: str):
         rw_user_id = self.bot.config.get('rainwave:user_id')
@@ -507,7 +518,7 @@ class RainwaveCog(commands.Cog):
         return embed
 
     @commands.command(aliases=['nx'] + [f'nx{ch}' for ch in RainwaveChannel.__members__.keys()])
-    async def next(self, ctx: commands.Context, chan_abbr: str = None):
+    async def next(self, ctx: commands.Context, channel: str = None):
         """See what will play next on the radio.
 
         Use "!next [<channel>]" to show what is up next on the radio.
@@ -520,35 +531,20 @@ class RainwaveCog(commands.Cog):
 
         if cmd in ['nxgame', 'nxrw']:
             chan = RainwaveChannel.game
-        elif cmd in ['nxoc', 'nxocr']:
+        elif cmd in ['nxoc', 'nxocr', 'nxocremix']:
             chan = RainwaveChannel.ocr
         elif cmd in ['nxcover', 'nxcovers', 'nxmw', 'nxvw']:
             chan = RainwaveChannel.covers
-        elif cmd in ['nxbw', 'nxch', 'nxchip']:
+        elif cmd in ['nxbw', 'nxch', 'nxchip', 'nxchiptune']:
             chan = RainwaveChannel.chip
         elif cmd in ['nxall', 'nxomni', 'nxow']:
             chan = RainwaveChannel.all
         elif cmd in ['next', 'nx']:
-            if chan_abbr:
-                if chan_abbr.lower() in RainwaveChannel.__members__.keys():
-                    chan = RainwaveChannel[chan_abbr.lower()]
+            if channel:
+                if channel.lower() in RainwaveChannel.__members__.keys():
+                    chan = RainwaveChannel[channel.lower()]
             if chan is None:
-                listener_id = await self.get_id_for_user(ctx.author)
-                chan = await self.get_current_channel_for_id(listener_id)
-            if chan is None:
-                log.info(f'{ctx.author.name}, checking voice channel')
-                if ctx.author.voice:
-                    vc_name = ctx.author.voice.channel.name
-                    if vc_name == 'all':
-                        chan = RainwaveChannel.all
-                    elif vc_name == 'game':
-                        chan = RainwaveChannel.game
-                    elif vc_name == 'chiptune':
-                        chan = RainwaveChannel.chip
-                    elif vc_name == 'ocremix':
-                        chan = RainwaveChannel.ocr
-                    elif vc_name == 'covers':
-                        chan = RainwaveChannel.covers
+                chan = await self.get_current_channel_for_user(ctx.author)
             if chan is None:
                 await ctx.author.send(self.not_tuned_in)
                 return
@@ -600,37 +596,19 @@ class RainwaveCog(commands.Cog):
 
             if cmd in ['npgame', 'nprw']:
                 chan = RainwaveChannel.game
-            elif cmd in ['npoc', 'npocr']:
+            elif cmd in ['npoc', 'npocr', 'npocremix']:
                 chan = RainwaveChannel.ocr
             elif cmd in ['npcover', 'npcovers', 'npmw', 'npvw']:
                 chan = RainwaveChannel.cover
-            elif cmd in ['npbw', 'npch', 'npchip']:
+            elif cmd in ['npbw', 'npch', 'npchip', 'npchiptune']:
                 chan = RainwaveChannel.chip
             elif cmd in ['npall', 'npomni', 'npow']:
                 chan = RainwaveChannel.all
             elif cmd in ['nowplaying', 'np']:
-                if channel:
-                    if channel.lower() in RainwaveChannel.__members__.keys():
-                        chan = RainwaveChannel[channel.lower()]
+                if channel and channel.lower() in RainwaveChannel.__members__.keys():
+                    chan = RainwaveChannel[channel.lower()]
                 if chan is None:
-                    user_info = await self.rw_user_search_by_discord_user_id(ctx.author.id)
-                    user_sid = user_info.get('user', {}).get('sid')
-                    if user_sid:
-                        chan = RainwaveChannel(user_sid)
-                if chan is None:
-                    log.info(f'{ctx.author.name}, checking voice channel')
-                    if ctx.author.voice:
-                        vc_name = ctx.author.voice.channel.name
-                        if vc_name == 'all':
-                            chan = RainwaveChannel.all
-                        elif vc_name == 'game':
-                            chan = RainwaveChannel.game
-                        elif vc_name == 'chiptune':
-                            chan = RainwaveChannel.chip
-                        elif vc_name == 'ocremix':
-                            chan = RainwaveChannel.ocr
-                        elif vc_name == 'covers':
-                            chan = RainwaveChannel.covers
+                    chan = await self.get_current_channel_for_user(ctx.author)
                 if chan is None:
                     await ctx.author.send(self.not_tuned_in)
                     return
@@ -681,11 +659,11 @@ class RainwaveCog(commands.Cog):
 
             if cmd in ['ppgame', 'pprw']:
                 chan = RainwaveChannel.game
-            elif cmd in ['ppoc', 'ppocr']:
+            elif cmd in ['ppoc', 'ppocr', 'ppocremix']:
                 chan = RainwaveChannel.ocr
             elif cmd in ['ppcover', 'ppcovers', 'ppmw', 'ppvw']:
                 chan = RainwaveChannel.cover
-            elif cmd in ['ppbw', 'ppch', 'ppchip']:
+            elif cmd in ['ppbw', 'ppch', 'ppchip', 'ppchiptune']:
                 chan = RainwaveChannel.chip
             elif cmd in ['ppall', 'ppomni', 'ppow']:
                 chan = RainwaveChannel.all
@@ -705,25 +683,7 @@ class RainwaveCog(commands.Cog):
                             if tokens[1].isdigit() and int(tokens[1]) in range(5):
                                 idx = int(tokens[1])
                 if chan is None:
-                    listener_id = await self.get_id_for_user(ctx.author)
-                    if listener_id is None:
-                        await ctx.author.send(self.nick_not_recognized)
-                        return
-                    chan = await self.get_current_channel_for_id(listener_id)
-                if chan is None:
-                    log.info(f'{ctx.author.name}, checking voice channel')
-                    if ctx.author.voice:
-                        vc_name = ctx.author.voice.channel.name
-                        if vc_name == 'all':
-                            chan = RainwaveChannel.all
-                        elif vc_name == 'game':
-                            chan = RainwaveChannel.game
-                        elif vc_name == 'chiptune':
-                            chan = RainwaveChannel.chip
-                        elif vc_name == 'ocremix':
-                            chan = RainwaveChannel.ocr
-                        elif vc_name == 'covers':
-                            chan = RainwaveChannel.covers
+                    chan = await self.get_current_channel_for_user(ctx.author)
                 if chan is None:
                     await ctx.author.send(self.not_tuned_in)
                     return
