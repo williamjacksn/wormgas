@@ -367,7 +367,7 @@ class RainwaveCog(commands.Cog):
             log.info('There is an upcoming event')
             new_topic_head = future_events[0]
             log.info(new_topic_head)
-        for channel_id in self.bot.config.get('rainwave:topic_control', []):
+        for channel_id in self.bot.db.topic_control_list():
             log.info(f'Topic control is on for channel {channel_id}')
             channel = self.bot.get_channel(channel_id)
             channel_topic = channel.topic
@@ -390,15 +390,14 @@ class RainwaveCog(commands.Cog):
     async def topic(self, ctx: commands.Context, on_off: to_bool = None):
         """Turn automatic topic control on or off."""
         if isinstance(ctx.channel, discord.TextChannel):
-            topic_control_list = self.bot.config.get('rainwave:topic_control', [])
+            topic_control_list = self.bot.db.topic_control_list()
             if ctx.channel.id in topic_control_list:
-                topic_control_list.remove(ctx.channel.id)
+                self.bot.db.topic_control_delete(str(ctx.channel.id))
             if on_off:
-                topic_control_list.append(ctx.channel.id)
+                self.bot.db.topic_control_insert(str(ctx.channel.id))
                 await ctx.author.send(f'Topic control is ON for {ctx.channel.mention}')
             else:
                 await ctx.author.send(f'Topic control is OFF for {ctx.channel.mention}')
-            self.bot.config['rainwave:topic_control'] = topic_control_list
 
     @commands.group()
     async def id(self, ctx: commands.Context):

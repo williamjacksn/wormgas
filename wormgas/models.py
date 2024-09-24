@@ -108,6 +108,14 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 3
+        if self.version < 4:
+            self.log.info('Migrating to database schema version 4')
+            self.u('''
+                create table topic_control (
+                    channel_id text
+                )
+            ''')
+            self.version = 4
 
     def rps_delete(self, user_id: str):
         sql = '''
@@ -160,6 +168,32 @@ class Database(fort.SQLiteDatabase):
         if 'reset_code' not in params:
             params['reset_code'] = None
         self.u(sql, params)
+
+    def topic_control_delete(self, channel_id: str):
+        sql = '''
+            delete from topic_control
+            where channel_id = :channel_id
+        '''
+        params = {
+            'channel_id': channel_id,
+        }
+        self.u(sql, params)
+
+    def topic_control_insert(self, channel_id: str):
+        sql = '''
+            insert into topic_control (channel_id) values (:channel_id)
+        '''
+        params = {
+            'channel_id': channel_id,
+        }
+        self.u(sql, params)
+
+    def topic_control_list(self) -> list[int]:
+        sql = '''
+            select distinct channel_id
+            from topic_control
+        '''
+        return [int(r['channel_id']) for r in self.q(sql)]
 
     def _table_exists(self, table_name):
         sql = '''
