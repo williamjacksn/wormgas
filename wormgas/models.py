@@ -49,7 +49,7 @@ class Database(fort.SQLiteDatabase):
     def _table_exists(self, table_name):
         sql = '''
             select name
-            from sqlite_schema
+            from sqlite_master
             where type = 'table'
                 and name = :name
         '''
