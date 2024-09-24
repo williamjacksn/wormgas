@@ -15,9 +15,9 @@ log = logging.getLogger(__name__)
 
 class Wormgas(cmds.Bot):
 
-    def __init__(self, config_path: pathlib.Path, command_prefix, **options):
+    def __init__(self, command_prefix, **options):
         super().__init__(command_prefix, **options)
-        self.config = ConfigManager(config_path)
+        self.config = ConfigManager(pathlib.Path(os.getenv('CONFIG_FILE', '/etc/wormgas/_config.json')))
         self.db = Database(os.getenv('DATABASE', '/etc/wormgas/config.db'))
         self.session = None
 
@@ -39,11 +39,10 @@ class Wormgas(cmds.Bot):
 
 def main():
     log.info(f'wormgas {__version__}')
-    config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
     intents = discord.Intents.default()
     intents.members = True
     intents.message_content = True
-    bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
+    bot = Wormgas(command_prefix='!', pm_help=True, intents=intents)
     bot.db.migrate()
     token = bot.db.config_get('discord:token')
     bot.run(token, log_handler=None)
