@@ -6,10 +6,11 @@ import discord.ext.commands as cmds
 import logging
 import os
 import pathlib
-import sys
 
 from wormgas.config import ConfigManager
 from wormgas.models import Database
+
+log = logging.getLogger(__name__)
 
 
 class Wormgas(cmds.Bot):
@@ -37,14 +38,7 @@ class Wormgas(cmds.Bot):
 
 
 def main():
-    log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
-    log_level = os.getenv('LOG_LEVEL', 'INFO')
-    logging.basicConfig(level='DEBUG', format=log_format, stream=sys.stdout)
-    logging.debug(f'wormgas {__version__}')
-    logging.debug(f'Changing log level to {log_level}')
-    logging.getLogger().setLevel(log_level)
-    for logger in ('discord.client', 'discord.gateway', 'websockets.protocol'):
-        logging.getLogger(logger).setLevel(logging.INFO)
+    log.info(f'wormgas {__version__}')
     config_file = os.getenv('CONFIG_FILE', '/opt/wormgas/_config.json')
     intents = discord.Intents.default()
     intents.members = True
@@ -54,6 +48,6 @@ def main():
     token = bot.config.get('discord:token')
     if token in (None, 'TOKEN'):
         bot.config.set('discord:token', 'TOKEN')
-        logging.critical(f'Before you can run for the first time, edit {config_file} and set discord:token')
+        log.critical(f'Before you can run for the first time, edit {config_file} and set discord:token')
     else:
         bot.run(token, log_handler=None)
