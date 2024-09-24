@@ -60,7 +60,7 @@ class Database(fort.SQLiteDatabase):
             from config
             order by key
         '''
-        return [r.get('key') for r in self.q(sql)]
+        return [r['key'] for r in self.q(sql)]
 
     def config_set(self, key: str, value: str):
         sql = '''
