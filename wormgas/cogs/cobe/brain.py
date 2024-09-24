@@ -474,7 +474,7 @@ class Graph:
         elif create:
             q = 'INSERT INTO tokens (text, is_word) VALUES (?, ?)'
 
-            is_word = bool(re.search('\w', text, re.UNICODE))
+            is_word = bool(re.search(r'\w', text, re.UNICODE))
             c.execute(q, (text, is_word))
 
             token_id = c.lastrowid

@@ -72,11 +72,11 @@ tokens."""
         # the list of non-word characters, so if it's found entirely within
         # punctuation it's a normal non-word (e.g. :-( )
 
-        self.regex = re.compile('(\w+:\S+'  # urls
-                                '|[\w\'-]+'  # words
-                                '|[^\w\s][^\w]*[^\w\s]'  # multiple punctuation
-                                '|[^\w\s]'  # a single punctuation character
-                                '|\s+)',    # whitespace
+        self.regex = re.compile(r'(\w+:\S+'  # urls
+                                r'|[\w\'-]+'  # words
+                                r'|[^\w\s][^\w]*[^\w\s]'  # multiple punctuation
+                                r'|[^\w\s]'  # a single punctuation character
+                                r'|\s+)',    # whitespace
                                 re.UNICODE)
 
     def split(self, phrase):
