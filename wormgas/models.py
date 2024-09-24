@@ -35,7 +35,28 @@ class Database(fort.SQLiteDatabase):
         self.u(sql, params)
         self._version = version
 
+    def config_get(self, key: str) -> str:
+        sql = '''
+            select value from config where key = :key
+        '''
+        params = {
+            'key': key,
+        }
+        return self.q_val(sql, params)
+
+    def config_set(self, key: str, value: str):
+        sql = '''
+            insert into config (key, value) values (:key, :value)
+            on conflict (key) do update set value = excluded.value
+        '''
+        params = {
+            'key': key,
+            'value': value,
+        }
+        self.u(sql, params)
+
     def migrate(self):
+        self.log.info(f'Database schema version is {self.version}')
         if self.version < 1:
             self.log.info('Migrating to database schema version 1')
             self.u('''
@@ -45,6 +66,15 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 1
+        if self.version < 2:
+            self.log.info('Migrating to database schema version 2')
+            self.u('''
+                create table config (
+                    key text primary key,
+                    value text
+                )
+            ''')
+            self.version = 2
 
     def _table_exists(self, table_name):
         sql = '''

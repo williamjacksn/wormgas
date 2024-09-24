@@ -46,8 +46,5 @@ def main():
     bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
     bot.db.migrate()
     token = bot.config.get('discord:token')
-    if token in (None, 'TOKEN'):
-        bot.config.set('discord:token', 'TOKEN')
-        log.critical(f'Before you can run for the first time, edit {config_file} and set discord:token')
-    else:
-        bot.run(token, log_handler=None)
+    bot.db.config_set('discord:token', token)
+    bot.run(token, log_handler=None)
