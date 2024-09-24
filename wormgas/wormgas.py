@@ -5,9 +5,7 @@ import discord
 import discord.ext.commands as cmds
 import logging
 import os
-import pathlib
 
-from wormgas.config import ConfigManager
 from wormgas.models import Database
 
 log = logging.getLogger(__name__)
@@ -17,7 +15,6 @@ class Wormgas(cmds.Bot):
 
     def __init__(self, command_prefix, **options):
         super().__init__(command_prefix, **options)
-        self.config = ConfigManager(pathlib.Path(os.getenv('CONFIG_FILE', '/etc/wormgas/_config.json')))
         self.db = Database(os.getenv('DATABASE', '/etc/wormgas/config.db'))
         self.session = None
 

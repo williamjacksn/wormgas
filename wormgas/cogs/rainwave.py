@@ -8,7 +8,6 @@ import zoneinfo
 
 from discord.ext import commands, tasks
 from typing import Dict, List
-from wormgas.config import ConfigManager
 from wormgas.util import to_bool
 from wormgas.wormgas import Wormgas
 
@@ -53,14 +52,6 @@ class RainwaveChannel(enum.Enum):
 class RainwaveCog(commands.Cog):
     def __init__(self, bot: Wormgas):
         self.bot = bot
-        self.config_path = bot.config.path.with_name('_rainwave.json')
-        self.config = ConfigManager(self.config_path)
-        for user in self.config.keys():
-            if user.isdigit():
-                discord_user_id = int(user)
-                if 'key' in self.config[user]:
-                    rw_api_key = self.config[user]['key']
-                    self.bot.db.rw_api_keys_set(discord_user_id, rw_api_key)
         self.nick_not_recognized = ('I do not recognize you. Use **!id add <id>** to link your Rainwave and Discord '
                                     'accounts.')
         self.missing_key = ('I do not have a key stored for you. Visit https://rainwave.cc/keys/ to get a key and tell '
