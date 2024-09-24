@@ -45,6 +45,5 @@ def main():
     intents.message_content = True
     bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
     bot.db.migrate()
-    token = bot.config.get('discord:token')
-    bot.db.config_set('discord:token', token)
+    token = bot.db.config_get('discord:token')
     bot.run(token, log_handler=None)
