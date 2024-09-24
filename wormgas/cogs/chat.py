@@ -1,6 +1,8 @@
 import discord
 import discord.ext.commands as cmds
 import logging
+import os
+import pathlib
 import re
 import random
 import time
@@ -38,7 +40,7 @@ class ChatCog(cmds.Cog):
 
     def __init__(self, bot: Wormgas):
         self.bot = bot
-        brain_file = bot.config.path.with_name('_brain.sqlite')
+        brain_file = pathlib.Path(os.getenv('BRAIN_FILE', '/etc/wormgas/_brain.sqlite'))
         self.brain = brain.Brain(str(brain_file))
 
     @cmds.Cog.listener()
@@ -53,17 +55,11 @@ class ChatCog(cmds.Cog):
             log.info('Ignoring message because it contains a command.')
             return
 
-        # Do not learn from messages from ignored users.
-        learn = True
-        if message.author.id in self.bot.config.get('chat:ignore_users', []):
-            log.info(f'{message.author.display_name} is in the chat:ignore_users list')
-            learn = False
-
         # Clean up message and generate response.
         text = message.clean_content
         text = text.replace(f'@{self.bot.user.display_name}', '')
         log.info(f'Generating reply for {text!r}')
-        response = await self.reply(text, learn=learn)
+        response = await self.reply(text)
 
         # Always respond to direct messages
         now = int(time.time())
