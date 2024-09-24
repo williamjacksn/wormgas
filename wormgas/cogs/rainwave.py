@@ -120,15 +120,15 @@ class RainwaveCog(commands.Cog):
     async def get_current_channel_for_id(self, listener_id: int):
         if listener_id is None:
             return None
-        user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
+        user_id = self.bot.db.config_get('rainwave:user_id')
+        key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_listener(user_id, key, listener_id)
         listener_name = d.get('listener').get('name')
         return await self.get_current_channel_for_name(listener_name)
 
     async def get_current_channel_for_name(self, name: str):
-        user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
+        user_id = self.bot.db.config_get('rainwave:user_id')
+        key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_user_search(user_id, key, name)
         chan_id = d.get('user').get('sid')
         if chan_id is None:
@@ -146,8 +146,8 @@ class RainwaveCog(commands.Cog):
                 return RainwaveChannel[vc_name.lower()]
 
     async def get_id_for_name(self, username: str):
-        rw_user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
+        rw_user_id = self.bot.db.config_get('rainwave:user_id')
+        key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_user_search(rw_user_id, key, username)
         return d.get('user').get('user_id')
 
@@ -315,8 +315,8 @@ class RainwaveCog(commands.Cog):
     async def get_future_events(self):
         log.debug('get_future_events')
         future_events = []
-        user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
+        user_id = self.bot.db.config_get('rainwave:user_id')
+        key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_admin_list_producers_all(user_id=user_id, key=key)
         for p in d.get('producers', []):
             p_type = p['type']
@@ -339,14 +339,14 @@ class RainwaveCog(commands.Cog):
 
         current_time_eu = utc.astimezone(zoneinfo.ZoneInfo('Europe/Paris'))
         if 8 <= current_time_eu.hour < 17:
-            role_id = self.bot.config.get('discord:roles:notify:🇪🇺')
+            role_id = self.bot.db.config_get('discord:roles:notify:🇪🇺')
             if role_id:
                 log.info('Mentioning EU power hour notifications role')
                 await channel.send(f'<@&{role_id}>')
 
         current_time_na = utc.astimezone(zoneinfo.ZoneInfo('America/Chicago'))
         if 8 <= current_time_na.hour < 17:
-            role_id = self.bot.config.get('discord:roles:notify:🎵')
+            role_id = self.bot.db.config_get('discord:roles:notify:🎵')
             if role_id:
                 log.info('Mentioning NA power hour notifications role')
                 await channel.send(f'<@&{role_id}>')
@@ -473,8 +473,8 @@ class RainwaveCog(commands.Cog):
         """See information about current Rainwave radio listeners."""
         m = 'Registered listeners: '
         total = 0
-        user_id = self.bot.config.get('rainwave:user_id')
-        key = self.bot.config.get('rainwave:key')
+        user_id = self.bot.db.config_get('rainwave:user_id')
+        key = self.bot.db.config_get('rainwave:key')
         for chan in RainwaveChannel:
             d = await self.rw_current_listeners(user_id, key, chan.channel_id)
             count = len(d.get('current_listeners'))
@@ -572,12 +572,12 @@ class RainwaveCog(commands.Cog):
 
         if ctx.guild:
             config_id = f'rainwave:nx:{chan.channel_id}:{idx}'
-            if sched_id == self.bot.config.get(config_id, 0):
+            if sched_id == (self.bot.db.config_get(config_id) or 0):
                 c = f'You can only use **{cmd}** in {ctx.channel.mention} once per song.'
                 await ctx.author.send(c)
                 await ctx.author.send(m)
             else:
-                self.bot.config.set(config_id, sched_id)
+                self.bot.db.config_set(config_id, sched_id)
                 await ctx.send(m)
         else:
             await ctx.send(m)
@@ -628,13 +628,13 @@ class RainwaveCog(commands.Cog):
             m += f': {self.song_string(song)}'
 
             if ctx.guild:
-                last = self.bot.config.get(f'rainwave:np:{chan.channel_id}', 0)
+                last = self.bot.db.config_get(f'rainwave:np:{chan.channel_id}') or 0
                 if sched_id == last:
                     c = f'You can only use **{cmd}** in {ctx.channel.mention} once per song.'
                     await ctx.author.send(c)
                     await ctx.author.send(m, embed=embed)
                 else:
-                    self.bot.config.set(f'rainwave:np:{chan.channel_id}', sched_id)
+                    self.bot.db.config_set(f'rainwave:np:{chan.channel_id}', sched_id)
                     await ctx.send(m, embed=embed)
             else:
                 await ctx.send(m, embed=embed)
@@ -703,12 +703,13 @@ class RainwaveCog(commands.Cog):
             m += f': {self.song_string(song)}'
 
             if ctx.guild:
-                last_sched_id = f'rainwave:pp:{chan.channel_id}:{idx}'
-                if sched_id == self.bot.config.get(last_sched_id, 0):
+                config_key = f'rainwave:pp:{chan.channel_id}:{idx}'
+                last = self.bot.db.config_get(config_key) or 0
+                if sched_id == last:
                     await ctx.author.send(f'You can only use {cmd} in {ctx.channel.mention} once per song.')
                     await ctx.author.send(m, embed=embed)
                 else:
-                    self.bot.config.set(last_sched_id, sched_id)
+                    self.bot.db.config_set(config_key, sched_id)
                     await ctx.send(m, embed=embed)
             else:
                 await ctx.send(m, embed=embed)
@@ -816,8 +817,8 @@ class RainwaveCog(commands.Cog):
                 await ctx.author.send(f'{username} is not a valid Rainwave user.')
                 return
 
-            user_id = self.bot.config.get('rainwave:user_id')
-            key = self.bot.config.get('rainwave:key')
+            user_id = self.bot.db.config_get('rainwave:user_id')
+            key = self.bot.db.config_get('rainwave:key')
             d = await self.rw_listener(user_id, key, listener_id)
             embed = self.build_embed_ustats(d.get('listener'))
 
@@ -831,11 +832,11 @@ class RainwaveCog(commands.Cog):
                 return
 
             now = int(time.time())
-            last = int(self.bot.config.get('rainwave:ustats:last', 0))
-            wait = int(self.bot.config.get('rainwave:ustats:wait', 0))
+            last = int(self.bot.db.config_get('rainwave:ustats:last') or 0)
+            wait = int(self.bot.db.config_get('rainwave:ustats:wait') or 0)
             if last < now - wait:
                 await ctx.send(embed=embed)
-                self.bot.config.set('rainwave:ustats:last', now)
+                self.bot.db.config_set('rainwave:ustats:last', now)
             else:
                 await ctx.author.send(embed=embed)
                 remaining = last + wait - now
@@ -888,8 +889,8 @@ class RainwaveCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        donor_role_id = self.bot.config.get('discord:roles:donor')
-        patron_role_id = self.bot.config.get('discord:roles:patron')
+        donor_role_id = self.bot.db.config_get('discord:roles:donor')
+        patron_role_id = self.bot.db.config_get('discord:roles:patron')
         if donor_role_id is not None and patron_role_id is not None:
             donor_role = before.guild.get_role(int(donor_role_id))
             patron_role = before.guild.get_role(int(patron_role_id))
@@ -909,8 +910,8 @@ class RainwaveCog(commands.Cog):
             await self.rw_update_avatar(after.id, after.display_avatar)
 
     async def _sync_donors(self, guild: discord.Guild):
-        donor_role_id = self.bot.config.get('discord:roles:donor')
-        patron_role_id = self.bot.config.get('discord:roles:patron')
+        donor_role_id = self.bot.db.config_get('discord:roles:donor')
+        patron_role_id = self.bot.db.config_get('discord:roles:patron')
         if donor_role_id is not None and patron_role_id is not None:
             donor_role = guild.get_role(int(donor_role_id))
             await self.rw_enable_perks(donor_role.members)
@@ -927,7 +928,7 @@ class RainwaveCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        if self.bot.config.get('rainwave:sync_donor_role_on_ready') == '1':
+        if self.bot.db.config_get('rainwave:sync_donor_role_on_ready') == '1':
             for guild in self.bot.guilds:
                 log.info(f'Syncing donors for guild {guild.id}')
                 await self._sync_donors(guild)

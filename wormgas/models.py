@@ -35,6 +35,16 @@ class Database(fort.SQLiteDatabase):
         self.u(sql, params)
         self._version = version
 
+    def config_delete(self, key: str):
+        sql = '''
+            delete from config
+            where key = :key
+        '''
+        params = {
+            'key': key,
+        }
+        self.u(sql, params)
+
     def config_get(self, key: str) -> str:
         sql = '''
             select value from config where key = :key
@@ -43,6 +53,14 @@ class Database(fort.SQLiteDatabase):
             'key': key,
         }
         return self.q_val(sql, params)
+
+    def config_list_keys(self) -> list[str]:
+        sql = '''
+            select key
+            from config
+            order by key
+        '''
+        return [r.get('key') for r in self.q(sql)]
 
     def config_set(self, key: str, value: str):
         sql = '''

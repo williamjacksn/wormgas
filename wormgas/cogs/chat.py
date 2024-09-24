@@ -75,11 +75,11 @@ class ChatCog(cmds.Cog):
         if self.bot.user.id not in [u.id for u in message.mentions]:
             return
 
-        last = int(self.bot.config.get(f'chat:last_time_respond:{message.channel.id}', 0))
-        wait = int(self.bot.config.get('chat:wait_respond', 0))
+        last = int(self.bot.db.config_get(f'chat:last_time_respond:{message.channel.id}') or 0)
+        wait = int(self.bot.db.config_get('chat:wait_respond') or 0)
         if last < now - wait:
             await message.channel.send(f'{message.author.mention}: {response}')
-            self.bot.config[f'chat:last_time_respond:{message.channel.id}'] = now
+            self.bot.db.config_set(f'chat:last_time_respond:{message.channel.id}', now)
         else:
             await message.author.send(response)
             remaining = last + wait - now
@@ -87,7 +87,7 @@ class ChatCog(cmds.Cog):
             await message.author.send(m)
 
     async def reply(self, text, learn=True):
-        ignore = self.bot.config.get('chat:ignore')
+        ignore = self.bot.db.config_get('chat:ignore')
         if ignore is not None and re.search(ignore, text, re.IGNORECASE):
             log.info(f'Ignoring {text!r}')
             return random.choice(self.quotes)
