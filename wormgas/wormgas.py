@@ -44,5 +44,9 @@ def main():
     intents.message_content = True
     bot = Wormgas(command_prefix='!', pm_help=True, intents=intents)
     bot.db.migrate()
+    for key in bot.config.keys():
+        if key != 'rainwave:topic_control':
+            value = bot.config.get(key)
+            bot.db.config_set(key, value)
     token = bot.db.config_get('discord:token')
     bot.run(token, log_handler=None)
