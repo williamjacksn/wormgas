@@ -24,6 +24,8 @@ charset-normalizer==3.3.2
     # via requests
 discord-py==2.4.0
     # via -r requirements.in
+fort==2024.2
+    # via -r requirements.in
 frozenlist==1.4.1
     # via
     #   aiohttp
