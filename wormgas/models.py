@@ -98,17 +98,68 @@ class Database(fort.SQLiteDatabase):
             self.u('''
                 create table rps_stats (
                     user_id text primary key,
-                    rock int,
-                    paper int,
-                    scissors int,
-                    wins int,
-                    losses int
+                    rock int default 0,
+                    paper int default 0,
+                    scissors int default 0,
+                    wins int default 0,
+                    draws int default 0,
+                    losses int default 0,
+                    reset_code text
                 )
             ''')
             self.version = 3
 
+    def rps_delete(self, user_id: str):
+        sql = '''
+            delete from rps_stats
+            where user_id = :user_id
+        '''
+        params = {
+            'user_id': user_id,
+        }
+        self.u(sql, params)
+
     def rps_get(self, user_id: str) -> dict:
-        return {}
+        sql = '''
+            select user_id, rock, paper, scissors, wins, draws, losses, reset_code
+            from rps_stats
+            where user_id = :user_id
+        '''
+        params = {
+            'user_id': user_id,
+        }
+        r = self.q_one(sql, params)
+        if r:
+            return {
+                'user_id': r['user_id'],
+                'rock': r['rock'],
+                'paper': r['paper'],
+                'scissors': r['scissors'],
+                'wins': r['wins'],
+                'draws': r['draws'],
+                'losses': r['losses'],
+                'reset_code': r['reset_code'],
+            }
+        return {
+            'user_id': user_id
+        }
+
+    def rps_set(self, params: dict):
+        sql = '''
+            insert into rps_stats (
+                user_id, rock, paper, scissors, wins, draws, losses, reset_code
+            ) values (
+                :user_id, :rock, :paper, :scissors, :wins, :draws, :losses, :reset_code
+            ) on conflict (user_id) do update set
+                rock = excluded.rock, paper = excluded.paper, scissors = excluded.scissors, wins = excluded.wins,
+                draws = excluded.draws, losses = excluded.losses, reset_code = excluded.reset_code
+        '''
+        for key in ('rock', 'paper', 'scissors', 'wins', 'draws', 'losses'):
+            if key not in params:
+                params[key] = 0
+        if 'reset_code' not in params:
+            params['reset_code'] = None
+        self.u(sql, params)
 
     def _table_exists(self, table_name):
         sql = '''

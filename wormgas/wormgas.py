@@ -44,5 +44,10 @@ def main():
     intents.message_content = True
     bot = Wormgas(command_prefix='!', pm_help=True, intents=intents)
     bot.db.migrate()
+    rps_conf = ConfigManager(pathlib.Path('/etc/wormgas/_rps.json'))
+    for key in rps_conf.keys():
+        rps_dict = rps_conf[key]
+        rps_dict['user_id'] = key
+        bot.db.rps_set(rps_dict)
     token = bot.db.config_get('discord:token')
     bot.run(token, log_handler=None)

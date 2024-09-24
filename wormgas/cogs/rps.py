@@ -2,7 +2,6 @@ import discord
 import discord.ext.commands as cmds
 import logging
 import random
-from wormgas.config import ConfigManager
 from wormgas.wormgas import Wormgas
 
 log = logging.getLogger(__name__)
@@ -19,31 +18,28 @@ class RpsCog(cmds.Cog):
 
     def __init__(self, bot: Wormgas):
         self.bot = bot
-        self.config_path = bot.config.path.with_name('_rps.json')
-        self.config: ConfigManager = bot.config.__class__(self.config_path)
 
     async def get_rps_record(self, player: discord.Member):
         player_id = str(player.id)
-        if player_id not in self.config:
+        player_dict = self.bot.db.rps_get(player_id)
+        if player_id is None:
             return f'{player.display_name} does not play. :('
 
-        player_dict = self.config.get(player_id)
         w = player_dict.get('wins', 0)
         d = player_dict.get('draws', 0)
         _l = player_dict.get('losses', 0)
         t = w + d + _l
-        m = f'RPS record for {player.display_name} ({t} game'
-        if t != 1:
-            m = f'{m}s'
-        m = f'{m}) is {w}-{d}-{_l} (w-d-l).'
-        return m
+        plural = 's'
+        if t == 1:
+            plural = ''
+        return f'RPS record for {player.display_name} ({t} game{plural}) is {w}-{d}-{_l} (w-d-l).'
 
     async def get_rps_stats(self, player: discord.Member):
         player_id = str(player.id)
-        if player_id not in self.config:
+        player_dict = self.bot.db.rps_get(player_id)
+        if player_id is None:
             return f'{player.display_name} does not play. :('
 
-        player_dict = self.config.get(player_id)
         r = player_dict.get('rock', 0)
         p = player_dict.get('paper', 0)
         s = player_dict.get('scissors', 0)
@@ -64,8 +60,8 @@ class RpsCog(cmds.Cog):
         action_map = ['rock', 'paper', 'scissors']
         challenge = action_map.index(action)
         response = random.randint(0, 2)
-        player_dict = self.config.get(str(challenger), {})
-        global_dict = self.config.get('!global', {})
+        player_dict = self.bot.db.rps_get(challenger)
+        global_dict = self.bot.db.rps_get('!global')
         player_dict[action] = player_dict.get(action, 0) + 1
         global_dict[action] = global_dict.get(action, 0) + 1
 
@@ -84,8 +80,8 @@ class RpsCog(cmds.Cog):
             global_dict['losses'] = global_dict.get('losses', 0) + 1
             m = m + ' You lose!'
 
-        self.config[challenger] = player_dict
-        self.config['!global'] = global_dict
+        self.bot.db.rps_set(player_dict)
+        self.bot.db.rps_set(global_dict)
 
         w = player_dict.get('wins', 0)
         d = player_dict.get('draws', 0)
@@ -121,14 +117,15 @@ class RpsCog(cmds.Cog):
     @rps.command()
     async def reset(self, ctx: cmds.Context, reset_code: str = None):
         """Reset your record and delete your game history."""
-        player_dict = self.config.get(str(ctx.author.id))
+        player_dict = self.bot.db.rps_get(str(ctx.author.id))
         if reset_code and reset_code == player_dict.get('reset_code'):
-            self.config.remove(str(ctx.author.id))
+            self.bot.db.rps_delete(str(ctx.author.id))
             await ctx.author.send(f'I reset your RPS record and deleted your game history.')
         else:
             reset_code = f'{random.randrange(999999):06d}'
             player_dict['reset_code'] = reset_code
-            await ctx.author.send(f'Use !rps reset {reset_code} to reset your RPS record and delete your history.')
+            self.bot.db.rps_set(player_dict)
+            await ctx.author.send(f'Use `!rps reset {reset_code}` to reset your RPS record and delete your history.')
 
 
 async def setup(bot: Wormgas):
