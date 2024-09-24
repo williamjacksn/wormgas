@@ -55,6 +55,12 @@ class RainwaveCog(commands.Cog):
         self.bot = bot
         self.config_path = bot.config.path.with_name('_rainwave.json')
         self.config = ConfigManager(self.config_path)
+        for user in self.config.keys():
+            if user.isdigit():
+                discord_user_id = int(user)
+                if 'key' in self.config[user]:
+                    rw_api_key = self.config[user]['key']
+                    self.bot.db.rw_api_keys_set(discord_user_id, rw_api_key)
         self.nick_not_recognized = ('I do not recognize you. Use **!id add <id>** to link your Rainwave and Discord '
                                     'accounts.')
         self.missing_key = ('I do not have a key stored for you. Visit https://rainwave.cc/keys/ to get a key and tell '
@@ -153,14 +159,11 @@ class RainwaveCog(commands.Cog):
 
     async def get_id_for_user(self, user: discord.User):
         user_id = str(user.id)
-        listener_id = self.config.get(user_id, {}).get('id')
-        if listener_id is None:
-            listener_id = await self.get_id_for_name(user.display_name)
-        return listener_id
+        user_info = await self.rw_user_search_by_discord_user_id(user_id)
+        return user_info.get('user').get('user_id')
 
     async def get_key_for_user(self, user: discord.User):
-        user_id = str(user.id)
-        return self.config.get(user_id, {}).get('key')
+        return self.bot.db.rw_api_keys_get(user.id)
 
     async def rw_admin_list_producers_all(self, user_id, key):
         params = {
@@ -400,70 +403,27 @@ class RainwaveCog(commands.Cog):
                 await ctx.author.send(f'Topic control is OFF for {ctx.channel.mention}')
 
     @commands.group()
-    async def id(self, ctx: commands.Context):
-        """Manage your Rainwave user id."""
-
-    @id.command(name='add')
-    async def id_add(self, ctx: commands.Context, rainwave_id: int):
-        """Add your Rainwave user id to your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        user_dict['id'] = rainwave_id
-        self.config[discord_id] = user_dict
-        await ctx.author.send(f'I assigned the user id {rainwave_id} to {ctx.author.mention}')
-
-    @id.command(name='drop')
-    async def id_drop(self, ctx: commands.Context):
-        """Drop your Rainwave user id from your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        if 'id' in user_dict:
-            del user_dict['id']
-            self.config[discord_id] = user_dict
-        await ctx.author.send(f'I dropped the user id for {ctx.author.mention}')
-
-    @id.command(name='show')
-    async def id_show(self, ctx: commands.Context):
-        """See the Rainwave user id associated with your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        if 'id' in user_dict:
-            rainwave_id = user_dict['id']
-            await ctx.author.send(f'The user id for {ctx.author.mention} is {rainwave_id}.')
-        else:
-            await ctx.author.send(f'I do not have a user id for {ctx.author.mention}.')
-
-    @commands.group()
     async def key(self, ctx: commands.Context):
         """Manage your Rainwave key"""
 
     @key.command(name='add')
     async def key_add(self, ctx: commands.Context, rainwave_key: str):
         """Add your Rainwave key to your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        user_dict['key'] = rainwave_key
-        self.config[discord_id] = user_dict
+        self.bot.db.rw_api_keys_set(ctx.author.id, rainwave_key)
         await ctx.author.send(f'I assigned the key {rainwave_key} to {ctx.author.mention}.')
 
     @key.command(name='drop')
     async def key_drop(self, ctx: commands.Context):
         """Drop your Rainwave key from your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        if 'key' in user_dict:
-            del user_dict['id']
-            self.config[discord_id] = user_dict
+        self.bot.db.rw_api_keys_delete(ctx.author.id)
         await ctx.author.send(f'I dropped the key for {ctx.author.mention}')
 
     @key.command(name='show')
     async def key_show(self, ctx: commands.Context):
         """See the Rainwave key associated with your Discord account."""
-        discord_id = str(ctx.author.id)
-        user_dict = self.config.get(discord_id, {})
-        if 'key' in user_dict:
-            rainwave_key = user_dict['key']
-            await ctx.author.send(f'The key for {ctx.author.mention} is {rainwave_key}.')
+        rw_api_key = self.bot.db.rw_api_keys_get(ctx.author.id)
+        if rw_api_key:
+            await ctx.author.send(f'The key for {ctx.author.mention} is {rw_api_key}.')
         else:
             await ctx.author.send(f'I do not have a key for {ctx.author.mention}')
 

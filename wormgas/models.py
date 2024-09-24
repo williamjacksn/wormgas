@@ -116,6 +116,15 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 4
+        if self.version < 5:
+            self.log.info('Migrating to database schema version 5')
+            self.u('''
+                create table rw_api_keys (
+                    discord_user_id text primary key,
+                    rw_api_key text
+                )
+            ''')
+            self.version = 5
 
     def rps_delete(self, user_id: str):
         sql = '''
@@ -167,6 +176,42 @@ class Database(fort.SQLiteDatabase):
                 params[key] = 0
         if 'reset_code' not in params:
             params['reset_code'] = None
+        self.u(sql, params)
+
+    def rw_api_keys_delete(self, discord_user_id: int):
+        sql = '''
+            delete from rw_api_keys
+            where discord_user_id = :discord_user_id
+        '''
+        params = {
+            'discord_user_id': str(discord_user_id),
+        }
+        self.u(sql, params)
+
+    def rw_api_keys_get(self, discord_user_id: int):
+        sql = '''
+            select rw_api_key
+            from rw_api_keys
+            where discord_user_id = :discord_user_id
+        '''
+        params = {
+            'discord_user_id': str(discord_user_id),
+        }
+        return self.q_val(sql, params)
+
+    def rw_api_keys_set(self, discord_user_id: int, rw_api_key: str):
+        sql = '''
+            insert into rw_api_keys (
+                discord_user_id, rw_api_key
+            ) values (
+                :discord_user_id, :rw_api_key
+            ) on conflict (discord_user_id) do update set
+                rw_api_key = excluded.rw_api_key
+        '''
+        params = {
+            'discord_user_id': str(discord_user_id),
+            'rw_api_key': rw_api_key,
+        }
         self.u(sql, params)
 
     def topic_control_delete(self, channel_id: str):
