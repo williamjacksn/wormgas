@@ -93,6 +93,22 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 2
+        if self.version < 3:
+            self.log.info('Migrating to database schema version 3')
+            self.u('''
+                create table rps_stats (
+                    user_id text primary key,
+                    rock int,
+                    paper int,
+                    scissors int,
+                    wins int,
+                    losses int
+                )
+            ''')
+            self.version = 3
+
+    def rps_get(self, user_id: str) -> dict:
+        return {}
 
     def _table_exists(self, table_name):
         sql = '''
