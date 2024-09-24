@@ -4,8 +4,6 @@
 #
 #    pip-compile
 #
---extra-index-url https://alpine-wheels.github.io/index
-
 aiohappyeyeballs==2.4.0
     # via aiohttp
 aiohttp==3.10.5

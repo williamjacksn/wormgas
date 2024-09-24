@@ -5,7 +5,7 @@ services:
 
   shell:
     entrypoint:
-      - /bin/sh
+      - /bin/bash
     image: ghcr.io/williamjacksn/wormgas
     init: true
     volumes:
