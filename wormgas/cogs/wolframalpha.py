@@ -23,7 +23,7 @@ class WolframAlphaCog(cmds.Cog):
             await ctx.send(line)
 
     async def _aux_wa(self, query):
-        api_key = self.bot.config.get('wolframalpha:key')
+        api_key = self.bot.db.config_get('wolframalpha:key')
         if api_key is None:
             return ['Wolfram Alpha API key not configured, cannot use !wa.']
         try:
