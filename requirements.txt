@@ -48,5 +48,5 @@ urllib3==2.2.3
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
-yarl==1.11.1
+yarl==1.12.1
     # via aiohttp
