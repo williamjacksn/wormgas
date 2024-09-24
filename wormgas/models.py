@@ -42,7 +42,7 @@ class Database(fort.SQLiteDatabase):
                 create table schema_versions (
                     schema_version int,
                     migration_applied_at text
-                ) strict
+                )
             ''')
             self.version = 1
 
