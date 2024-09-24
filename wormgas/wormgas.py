@@ -1,3 +1,5 @@
+__version__ = '2024.0'
+
 import aiohttp
 import discord
 import discord.ext.commands as cmds
@@ -34,15 +36,11 @@ class Wormgas(cmds.Bot):
             await self.load_extension(extension_name)
 
 
-def version():
-    return os.getenv('APP_VERSION', 'unknown')
-
-
 def main():
     log_format = os.getenv('LOG_FORMAT', '%(levelname)s [%(name)s] %(message)s')
     log_level = os.getenv('LOG_LEVEL', 'INFO')
     logging.basicConfig(level='DEBUG', format=log_format, stream=sys.stdout)
-    logging.debug(f'wormgas {version()}')
+    logging.debug(f'wormgas {__version__}')
     logging.debug(f'Changing log level to {log_level}')
     logging.getLogger().setLevel(log_level)
     for logger in ('discord.client', 'discord.gateway', 'websockets.protocol'):
