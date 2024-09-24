@@ -7,6 +7,7 @@ import pathlib
 import sys
 
 from wormgas.config import ConfigManager
+from wormgas.models import Database
 
 
 class Wormgas(cmds.Bot):
@@ -14,6 +15,7 @@ class Wormgas(cmds.Bot):
     def __init__(self, config_path: pathlib.Path, command_prefix, **options):
         super().__init__(command_prefix, **options)
         self.config = ConfigManager(config_path)
+        self.db = Database(os.getenv('DATABASE', '/etc/wormgas/config.db'))
         self.session = None
 
     async def setup_hook(self):
@@ -50,6 +52,7 @@ def main():
     intents.members = True
     intents.message_content = True
     bot = Wormgas(config_path=pathlib.Path(config_file).resolve(), command_prefix='!', pm_help=True, intents=intents)
+    bot.db.migrate()
     token = bot.config.get('discord:token')
     if token in (None, 'TOKEN'):
         bot.config.set('discord:token', 'TOKEN')
