@@ -85,7 +85,7 @@ class ChatCog(cmds.Cog):
     async def reply(self, text, learn=True):
         ignore = self.bot.db.config_get('chat:ignore')
         if ignore is not None and re.search(ignore, text, re.IGNORECASE):
-            log.info(f'Ignoring {text!r}')
+            log.debug(f'Ignoring {text!r}')
             return random.choice(self.quotes)
         to_brain = text
         if learn:
