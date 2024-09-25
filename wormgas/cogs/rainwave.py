@@ -2,6 +2,7 @@ import datetime
 import discord
 import enum
 import logging
+import pathlib
 import time
 import uuid
 import zoneinfo
@@ -298,9 +299,11 @@ class RainwaveCog(commands.Cog):
             sid = p.get('sid')
             rw_channel = RainwaveChannel(sid)
             if p.get('type') == 'PVPElectionProducer':
-                desc = f'Listener requests compete head-to-head in PvP elections on the {rw_channel.short_name} channel'
+                description = f'Listener requests compete head-to-head in PvP elections on the {rw_channel.long_name}'
+                image = pathlib.Path('pvp.jpg').read_bytes()
             else:
-                desc = f'Join us for this Power Hour on the {rw_channel.short_name} channel'
+                description = f'Join us for this Power Hour on the {rw_channel.long_name}'
+                image = None
             reason = f'Rainwave event id: {p_id}'
             for g in self.bot.guilds:
                 channel = None
@@ -310,8 +313,8 @@ class RainwaveCog(commands.Cog):
                         break
                 log.debug('Creating a new event in Discord')
                 event = await g.create_scheduled_event(
-                    name=name, description=desc, channel=channel, start_time=start_time, end_time=end_time,
-                    privacy_level=discord.PrivacyLevel.guild_only, reason=reason)
+                    name=name, description=description, channel=channel, start_time=start_time, end_time=end_time,
+                    privacy_level=discord.PrivacyLevel.guild_only, image=image, reason=reason)
                 self.bot.db.events_insert(p_id, event.id)
         for g in self.bot.guilds:
             for e in g.scheduled_events:
