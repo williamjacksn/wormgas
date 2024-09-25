@@ -48,6 +48,9 @@ class RainwaveChannel(enum.Enum):
     def url(self):
         return 'https://rainwave.cc/' + ('', 'game/', 'ocremix/', 'covers/', 'chiptune/', 'all/')[int(self.value)]
 
+    @property
+    def voice_channel_name(self):
+        return (None, 'game', 'ocremix', 'covers', 'chiptune', 'all')[int(self.value)]
 
 class RainwaveCog(commands.Cog):
     def __init__(self, bot: Wormgas):
@@ -60,7 +63,7 @@ class RainwaveCog(commands.Cog):
         codes = [code for code in RainwaveChannel.__members__.keys()]
         chan_code_ls = '**, **'.join(codes)
         self.channel_codes = f'Channel codes are **{chan_code_ls}**.'
-        self.check_special_events.start()
+        self.sync_events.start()
 
     async def _call(self, path: str, params: Dict = None):
         log.debug(f'_call {path} {params}')
@@ -174,10 +177,6 @@ class RainwaveCog(commands.Cog):
         params = {'sid': sid}
         return await self._call('info', params=params)
 
-    async def rw_info_all(self):
-        params = {'sid': 1}
-        return await self._call('info_all', params=params)
-
     async def rw_listener(self, user_id, key, listener_id):
         params = {
             'user_id': user_id,
@@ -279,110 +278,43 @@ class RainwaveCog(commands.Cog):
         }
         return await self._call('enable_perks_by_discord_ids', params=params)
 
-    @staticmethod
-    def build_event_dict(chan: RainwaveChannel, info):
-        event_name = info['event_name']
-        event = {'chan_id': chan.channel_id, 'chan_url': chan.url, 'chan_short_name': chan.short_name,
-                 'name': f'{event_name} Power Hour'}
-        event['text'] = '[{chan_short_name}] {name} on now!'.format(**event)
-        return event
-
-    async def get_current_events(self):
-        current_events = []
-        d = await self.rw_info_all()
-        for sid, info in d.get('all_stations_info', {}).items():
-            if info['event_type'] == 'OneUp':
-                chan = RainwaveChannel(int(sid))
-                event = self.build_event_dict(chan, info)
-                current_events.append(event)
-        return current_events
-
-    async def get_future_events(self):
-        log.debug('get_future_events')
-        future_events = []
+    @tasks.loop(minutes=1)
+    async def sync_events(self):
+        await self.bot.wait_until_ready()
+        log.info('Syncing Rainwave events with Discord')
         user_id = self.bot.db.config_get('rainwave:user_id')
         key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_admin_list_producers_all(user_id=user_id, key=key)
         for p in d.get('producers', []):
-            p_type = p['type']
-            log.debug(f'get_future_events: found a producer of type {p_type}')
-            if p_type == 'OneUpProducer':
-                chan = RainwaveChannel(p['sid'])
-                e_name = p['name']
-                e_start = p['start']
-                log.info(f'get_future_events: {e_name} will start at {e_start}')
-                eastern = zoneinfo.ZoneInfo('America/New_York')
-                when = datetime.datetime.fromtimestamp(e_start, eastern)
-                month = when.strftime('%b')
-                w_time = when.strftime('%H:%M')
-                e_text = f'[{chan.short_name}] {e_name} Power Hour: {month} {when.day} {w_time} {when.tzname()}'
-                future_events.append(e_text)
-        return future_events
-
-    async def ph_mention(self, channel):
-        utc = datetime.datetime.now(datetime.timezone.utc)
-
-        current_time_eu = utc.astimezone(zoneinfo.ZoneInfo('Europe/Paris'))
-        if 8 <= current_time_eu.hour < 17:
-            role_id = self.bot.db.config_get('discord:roles:notify:🇪🇺')
-            if role_id:
-                log.info('Mentioning EU power hour notifications role')
-                await channel.send(f'<@&{role_id}>')
-
-        current_time_na = utc.astimezone(zoneinfo.ZoneInfo('America/Chicago'))
-        if 8 <= current_time_na.hour < 17:
-            role_id = self.bot.db.config_get('discord:roles:notify:🎵')
-            if role_id:
-                log.info('Mentioning NA power hour notifications role')
-                await channel.send(f'<@&{role_id}>')
-
-    @tasks.loop(minutes=1)
-    async def check_special_events(self):
-        await self.bot.wait_until_ready()
-        log.info('Checking for events ...')
-        new_topic_head = 'Welcome to Rainwave!'
-        event_now = False
-        events = await self.get_current_events()
-        future_events = await self.get_future_events()
-        if events:
-            log.info('There is an event on now')
-            event_now = True
-            new_topic_head = ' '.join([e['text'] for e in events])
-        elif future_events:
-            log.info('There is an upcoming event')
-            new_topic_head = future_events[0]
-            log.info(new_topic_head)
-        for channel_id in self.bot.db.topic_control_list():
-            log.info(f'Topic control is on for channel {channel_id}')
-            channel = self.bot.get_channel(channel_id)
-            channel_topic = channel.topic
-            if channel_topic is None:
-                channel_topic = ''
-            topic_parts = channel_topic.split(' | ')
-            if new_topic_head != topic_parts[0]:
-                log.info('I need to update the topic')
-                topic_parts[0] = new_topic_head
-                channel = await channel.edit(topic=' | '.join(topic_parts))
-                if event_now:
-                    log.info('I also need to announce an event')
-                    for e in events:
-                        m = '{text} {chan_url}'.format(**e)
-                        await channel.send(m)
-                        await self.ph_mention(channel)
-
-    @commands.command()
-    @commands.has_permissions(manage_channels=True)
-    async def topic(self, ctx: commands.Context, on_off: to_bool = None):
-        """Turn automatic topic control on or off."""
-        if isinstance(ctx.channel, discord.TextChannel):
-            topic_control_list = self.bot.db.topic_control_list()
-            if ctx.channel.id in topic_control_list:
-                self.bot.db.topic_control_delete(str(ctx.channel.id))
-            if on_off:
-                self.bot.db.topic_control_insert(str(ctx.channel.id))
-                await ctx.author.send(f'Topic control is ON for {ctx.channel.mention}')
+            p_id = p.get('id')
+            local_record = self.bot.db.events_get(p_id)
+            if local_record is not None:
+                log.debug('This event is already known')
+                continue
+            name = p.get('name')
+            eastern = zoneinfo.ZoneInfo('America/New_York')
+            e_start = p.get('start')
+            start_time = datetime.datetime.fromtimestamp(e_start, eastern)
+            e_end = p.get('end')
+            end_time = datetime.datetime.fromtimestamp(e_end, eastern)
+            sid = p.get('sid')
+            rw_channel = RainwaveChannel(sid)
+            if p.get('type') == 'PVPElectionProducer':
+                desc = f'Listener requests compete head-to-head in PvP elections on the {rw_channel.short_name} channel'
             else:
-                await ctx.author.send(f'Topic control is OFF for {ctx.channel.mention}')
+                desc = f'Join us for this Power Hour on the {rw_channel.short_name} channel'
+            reason = f'Rainwave event id: {p_id}'
+            for g in self.bot.guilds:
+                channel = None
+                for vc in g.voice_channels:
+                    if vc.name == rw_channel.voice_channel_name:
+                        channel = vc
+                        break
+                log.debug('Creating a new event in Discord')
+                event = await g.create_scheduled_event(
+                    name=name, description=desc, channel=channel, start_time=start_time, end_time=end_time,
+                    privacy_level=discord.PrivacyLevel.guild_only, reason=reason)
+                self.bot.db.events_insert(p_id, event.id)
 
     @commands.group()
     async def key(self, ctx: commands.Context):
@@ -875,7 +807,7 @@ class RainwaveCog(commands.Cog):
                 await self._sync_donors(guild)
 
     def cog_unload(self):
-        self.check_special_events.cancel()
+        self.sync_events.cancel()
 
 
 async def setup(bot: Wormgas):

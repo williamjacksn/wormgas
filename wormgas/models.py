@@ -73,6 +73,27 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
+    def events_get(self, rw_event_id: int):
+        sql = '''
+            select rw_event_id, discord_event_id
+            from events
+            where rw_event_id = :rw_event_id
+        '''
+        params = {
+            'rw_event_id': rw_event_id,
+        }
+        return self.q_one(sql, params)
+
+    def events_insert(self, rw_event_id: int, discord_event_id: int):
+        sql = '''
+            insert into events (rw_event_id, discord_event_id) values (:rw_event_id, :discord_event_id)
+        '''
+        params = {
+            'rw_event_id': rw_event_id,
+            'discord_event_id': discord_event_id,
+        }
+        self.u(sql, params)
+
     def migrate(self):
         self.log.info(f'Database schema version is {self.version}')
         if self.version < 1:
@@ -125,6 +146,15 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 5
+        if self.version < 6:
+            self.log.info('Migrating to database schema version 6')
+            self.u('''
+                create table events (
+                    rw_event_id integer primary key,
+                    discord_event_id integer
+                )
+            ''')
+            self.version = 6
 
     def rps_delete(self, user_id: str):
         sql = '''
