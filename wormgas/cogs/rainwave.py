@@ -7,7 +7,6 @@ import uuid
 import zoneinfo
 
 from discord.ext import commands, tasks
-from wormgas.util import to_bool
 from wormgas.wormgas import Wormgas
 
 log = logging.getLogger(__name__)
