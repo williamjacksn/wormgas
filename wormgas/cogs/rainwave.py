@@ -313,6 +313,17 @@ class RainwaveCog(commands.Cog):
                     name=name, description=desc, channel=channel, start_time=start_time, end_time=end_time,
                     privacy_level=discord.PrivacyLevel.guild_only, reason=reason)
                 self.bot.db.events_insert(p_id, event.id)
+        for g in self.bot.guilds:
+            for e in g.scheduled_events:
+                log.debug(f'Event {e.name} status {e.status} start time {e.start_time}')
+                now = datetime.datetime.now(tz=datetime.UTC)
+                if e.status == discord.EventStatus.scheduled and e.start_time <= now:
+                    log.info(f'Starting event {e.id}')
+                    await e.start()
+                elif e.status == discord.EventStatus.active and e.end_time < now:
+                    log.info(f'Ending event {e.id}')
+                    await e.end()
+
 
     @commands.group()
     async def key(self, ctx: commands.Context):
