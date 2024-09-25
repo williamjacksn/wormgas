@@ -1,0 +1,26 @@
+name: Deploy productionapp
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Configure SSH key
+        run: |
+          install --mode=600 -D /dev/null ~/.ssh/id_ed25519
+          echo "${{ secrets.ssh_private_key }}" > ~/.ssh/id_ed25519
+          ssh-keyscan -H -p 2234 ${{ secrets.ssh_host }} > ~/.ssh/known_hosts
+
+      - name: Pull changes on remote server
+        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 git -C /opt/wormgas pull
+
+      - name: Ensure requirements are installed
+        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 /opt/venv/wormgas-3.12/bin/pip-sync /opt/wormgas/requirements.txt
+
+      - name: Restart app
+        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 sudo systemctl restart wormgas.service
