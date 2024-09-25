@@ -107,21 +107,12 @@ class RainwaveCog(commands.Cog):
         m += ')'
         return m
 
-    async def get_api_auth_for_user(self, user: discord.User):
-        auth = {'user_id': await self.get_id_for_user(user)}
-        user_id = auth.get('user_id')
-        auth['key'] = await self.get_key_for_user(user)
-        auth['chan'] = await self.get_current_channel_for_id(user_id)
-        return auth
-
-    async def get_current_channel_for_id(self, listener_id: int):
-        if listener_id is None:
-            return None
-        user_id = self.bot.db.config_get('rainwave:user_id')
-        key = self.bot.db.config_get('rainwave:key')
-        d = await self.rw_listener(user_id, key, listener_id)
-        listener_name = d.get('listener').get('name')
-        return await self.get_current_channel_for_name(listener_name)
+    async def get_api_auth_for_user(self, user: discord.User) -> dict:
+        return {
+            'user_id': await self.get_id_for_user(user),
+            'key': await self.get_key_for_user(user),
+            'chan': await self.get_current_channel_for_user(user)
+        }
 
     async def get_current_channel_for_name(self, name: str):
         user_id = self.bot.db.config_get('rainwave:user_id')
@@ -132,7 +123,7 @@ class RainwaveCog(commands.Cog):
             return None
         return RainwaveChannel(int(chan_id))
 
-    async def get_current_channel_for_user(self, user: discord.Member) -> RainwaveChannel:
+    async def get_current_channel_for_user(self, user: discord.User) -> RainwaveChannel:
         user_info = await self.rw_user_search_by_discord_user_id(str(user.id))
         user_sid = user_info.get('user', {}).get('sid')
         if user_sid:
@@ -151,7 +142,7 @@ class RainwaveCog(commands.Cog):
     async def get_id_for_user(self, user: discord.User):
         user_id = str(user.id)
         user_info = await self.rw_user_search_by_discord_user_id(user_id)
-        return user_info.get('user').get('user_id')
+        return user_info.get('user', {}).get('user_id')
 
     async def get_key_for_user(self, user: discord.User):
         return self.bot.db.rw_api_keys_get(user.id)
