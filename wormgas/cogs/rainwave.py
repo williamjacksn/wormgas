@@ -7,7 +7,6 @@ import uuid
 import zoneinfo
 
 from discord.ext import commands, tasks
-from typing import Dict, List
 from wormgas.util import to_bool
 from wormgas.wormgas import Wormgas
 
@@ -65,7 +64,7 @@ class RainwaveCog(commands.Cog):
         self.channel_codes = f'Channel codes are **{chan_code_ls}**.'
         self.sync_events.start()
 
-    async def _call(self, path: str, params: Dict = None):
+    async def _call(self, path: str, params: dict = None):
         log.debug(f'_call {path} {params}')
         if params is None:
             params = {}
@@ -272,7 +271,7 @@ class RainwaveCog(commands.Cog):
         }
         return await self._call('update_user_avatar_by_discord_id', params=params)
 
-    async def rw_enable_perks(self, discord_users: List[discord.Member]):
+    async def rw_enable_perks(self, discord_users: list[discord.Member]):
         params = {
             'discord_user_ids': ','.join([str(u.id) for u in discord_users]),
         }
@@ -357,7 +356,7 @@ class RainwaveCog(commands.Cog):
         await ctx.send(m)
 
     @staticmethod
-    def build_embed(song: Dict):
+    def build_embed(song: dict):
         channel = RainwaveChannel(song['sid'])
         album_name = song['albums'][0]['name']
         album_id = song['albums'][0]['id']
@@ -376,7 +375,7 @@ class RainwaveCog(commands.Cog):
         return embed
 
     @staticmethod
-    def build_embed_ustats(user: Dict):
+    def build_embed_ustats(user: dict):
         user_name = user.get('name')
         user_id = user.get('user_id')
         user_url = f'https://rainwave.cc/#!/listener/{user_id}'
