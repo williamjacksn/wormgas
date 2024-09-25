@@ -58,7 +58,7 @@ class ChatCog(cmds.Cog):
         # Clean up message and generate response.
         text = message.clean_content
         text = text.replace(f'@{self.bot.user.display_name}', '')
-        log.info(f'Generating reply for {text!r}')
+        log.debug(f'Generating reply for {text!r}')
         response = await self.reply(text)
 
         # Always respond to direct messages
@@ -89,7 +89,7 @@ class ChatCog(cmds.Cog):
             return random.choice(self.quotes)
         to_brain = text
         if learn:
-            log.info(f'Learning {to_brain!r}')
+            log.debug(f'Learning {to_brain!r}')
             self.brain.learn(to_brain)
         return self.brain.reply(to_brain)
 
