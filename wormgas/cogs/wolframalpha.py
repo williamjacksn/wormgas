@@ -1,9 +1,6 @@
-import discord
 import logging
-import urllib.parse
-import urllib.request
 
-from discord import app_commands
+from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 from wormgas.wormgas import Wormgas
 
@@ -26,12 +23,13 @@ class WolframAlphaCog(commands.Cog):
             'appid': api_key,
             'i': query,
         }
-        data = urllib.parse.urlencode(params).encode()
-        response = urllib.request.urlopen(url, data=data)
-        if response.status == 200:
-            return response.read().decode()
-        else:
-            return 'There was a problem.'
+        async with self.bot.session.get(url, params=params) as response:
+            content = await response.text()
+            log.debug(f'{response.status} {content}')
+            if response.status in (200, 501):
+                return await response.text()
+            else:
+                return 'There was a problem.'
 
     @commands.command(name='wa')
     async def bang_wa(self, ctx: commands.Context, *, query: str):
@@ -40,12 +38,12 @@ class WolframAlphaCog(commands.Cog):
             await ctx.send(await self._wa(query))
 
     @app_commands.command(name='wa')
-    async def slash_wa(self, interaction: discord.Interaction, query: str):
+    async def slash_wa(self, interaction: Interaction, query: str):
         """Send a query to Wolfram|Alpha"""
 
         title = await self._wa(query)
         description = f'{interaction.user.mention} asked {query!r}'
-        embed = discord.Embed(title=title, description=description)
+        embed = Embed(title=title, description=description)
         await interaction.response.send_message(embed=embed)
 
 
