@@ -33,11 +33,10 @@ class Wormgas(cmds.Bot):
         ]
         for extension_name in extension_names:
             await self.load_extension(extension_name)
-        test_guild_id = os.getenv('TEST_GUILD_ID')
-        if test_guild_id and test_guild_id.isdigit():
-            self.tree.copy_global_to(guild=discord.Object(id=test_guild_id))
-            await self.tree.sync(guild=discord.Object(id=test_guild_id))
-        await self.tree.sync(guild=None)
+
+        log.info('Synchronizing app commands...')
+        commands = await self.tree.sync()
+        log.info(f'Synchronized {len(commands)} commands')
 
 
 def main():
