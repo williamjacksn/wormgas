@@ -37,7 +37,7 @@ class RandCog(commands.Cog):
 
     @app_commands.command(name='8ball')
     async def eight_ball(self, interaction: discord.Interaction, question: str):
-        """Ask a question of the magic 8ball."""
+        """Ask a question of the magic 8ball"""
         title = f':8ball: {random.choice(self.eight_ball_responses)}'
         description = f'{interaction.user.mention} asked, {question!r}'
         embed = discord.Embed(title=title, description=description, colour=discord.Colour.default())
@@ -45,7 +45,7 @@ class RandCog(commands.Cog):
 
     @app_commands.command()
     async def flip(self, interaction: discord.Interaction):
-        """Flip a coin."""
+        """Flip a coin"""
         title = f':coin: {random.choice(('Heads!', 'Tails!'))}'
         embed = discord.Embed(title=title, colour=discord.Colour.gold())
         await interaction.response.send_message(embed=embed)
@@ -75,7 +75,7 @@ class RandCog(commands.Cog):
     @app_commands.command()
     @app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
     async def roll(self, interaction: discord.Interaction, die_spec: str = '1d6'):
-        """Roll some dice."""
+        """Roll some dice"""
         dice, sides = self.parse_die_spec(die_spec)
         title = self.roll_response(dice, sides)
         description = f'{interaction.user.mention} rolled {dice}d{sides}'
