@@ -1,11 +1,14 @@
-import discord.ext.commands as cmds
+import discord
 import logging
 import random
+
+from discord import app_commands
+from discord.ext import commands
 
 log = logging.getLogger(__name__)
 
 
-class RandCog(cmds.Cog):
+class RandCog(commands.Cog):
     eight_ball_responses = [
         'As I see it, yes.',
         'Ask again later.',
@@ -29,27 +32,23 @@ class RandCog(cmds.Cog):
         'You may rely on it.'
     ]
 
-    def __init__(self, bot: cmds.Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    def eight_ball_response(self):
-        return ':8ball: ' + random.choice(self.eight_ball_responses)
-
-    @cmds.command(name='8ball', aliases=['\U0001F3B1'])
-    @cmds.cooldown(1, 180, cmds.BucketType.channel)
-    async def eight_ball(self, ctx: cmds.Context):
+    @app_commands.command(name='8ball')
+    async def eight_ball(self, interaction: discord.Interaction, question: str):
         """Ask a question of the magic 8ball."""
-        await ctx.send(self.eight_ball_response())
+        title = f':8ball: {random.choice(self.eight_ball_responses)}'
+        description = f'{interaction.user.mention} asked, {question!r}'
+        embed = discord.Embed(title=title, description=description, colour=discord.Colour.default())
+        await interaction.response.send_message(embed=embed)
 
-    @staticmethod
-    def flip_response():
-        return random.choice(('Heads!', 'Tails!'))
-
-    @cmds.command()
-    @cmds.cooldown(1, 60, cmds.BucketType.channel)
-    async def flip(self, ctx: cmds.Context):
+    @app_commands.command()
+    async def flip(self, interaction: discord.Interaction):
         """Flip a coin."""
-        await ctx.send(self.flip_response())
+        title = f':coin: {random.choice(('Heads!', 'Tails!'))}'
+        embed = discord.Embed(title=title, colour=discord.Colour.gold())
+        await interaction.response.send_message(embed=embed)
 
     @staticmethod
     def parse_die_spec(die_spec):
@@ -67,30 +66,22 @@ class RandCog(cmds.Cog):
         if sides == 0:
             return 'Who ever heard of a 0-sided :game_die:?'
         rolls = [random.randint(1, sides) for _ in range(dice)]
-        m = f'{dice}d{sides}:'
+        m = ':game_die:'
         if 1 < dice < 11:
             m = f'{m} [{", ".join(map(str, rolls))}] ='
         m = f'{m} {sum(rolls)}'
         return m
 
-    @cmds.command(name='roll', aliases=['\U0001F3B2'])
-    @cmds.cooldown(1, 60, cmds.BucketType.channel)
-    async def roll(self, ctx: cmds.Context, die_spec: str = '1d6'):
-        """Roll a ^-sided die # times."""
+    @app_commands.command()
+    @app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
+    async def roll(self, interaction: discord.Interaction, die_spec: str = '1d6'):
+        """Roll some dice."""
         dice, sides = self.parse_die_spec(die_spec)
-        await ctx.send(self.roll_response(dice, sides))
-
-    @eight_ball.error
-    @flip.error
-    @roll.error
-    async def command_on_cooldown(self, ctx: cmds.Context, err: cmds.CommandOnCooldown):
-        if isinstance(err, cmds.CommandOnCooldown):
-            if not ctx.guild:
-                await ctx.reinvoke()
-                return
-            cd_msg = f'{ctx.command.name} is on cooldown. Try again in {int(err.retry_after)} seconds.'
-            await ctx.author.send(cd_msg)
+        title = self.roll_response(dice, sides)
+        description = f'{interaction.user.mention} rolled {dice}d{sides}'
+        embed = discord.Embed(title=title, description=description, colour=discord.Colour.red())
+        await interaction.response.send_message(embed=embed)
 
 
-async def setup(bot: cmds.Bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(RandCog(bot))

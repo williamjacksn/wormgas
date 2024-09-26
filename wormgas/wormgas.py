@@ -21,6 +21,7 @@ class Wormgas(cmds.Bot):
     async def setup_hook(self):
         self.session = aiohttp.ClientSession(loop=self.loop, timeout=aiohttp.ClientTimeout(total=10))
         extension_names = [
+            # 'wormgas.cogs.beta',
             'wormgas.cogs.chat',
             'wormgas.cogs.config',
             'wormgas.cogs.rainwave',
@@ -32,6 +33,8 @@ class Wormgas(cmds.Bot):
         ]
         for extension_name in extension_names:
             await self.load_extension(extension_name)
+        # self.tree.copy_global_to(guild=discord.Object(id=190918795320098816))
+        # await self.tree.sync(guild=discord.Object(id=190918795320098816))
 
 
 def main():
