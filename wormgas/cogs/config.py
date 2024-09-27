@@ -20,6 +20,8 @@ class ConfigCog(cmds.Cog):
         Leave off <key> and <value> to see a list of all currently set config keys.
         """
 
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         if len(tokens) > 1:
             value = ' '.join(tokens[1:])
             key = tokens[0]
@@ -45,6 +47,8 @@ class ConfigCog(cmds.Cog):
     @cmds.is_owner()
     async def unset(self, ctx: cmds.Context, key: str):
         """Remove a configuration setting."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         self.bot.db.config_delete(key)
         await ctx.author.send(f'{key} has been unset.')

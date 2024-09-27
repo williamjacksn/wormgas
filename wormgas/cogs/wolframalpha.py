@@ -34,12 +34,17 @@ class WolframAlphaCog(commands.Cog):
     @commands.command(name='wa')
     async def bang_wa(self, ctx: commands.Context, *, query: str):
         """Send a query to Wolfram|Alpha"""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             await ctx.send(await self._wa(query))
 
     @app_commands.command(name='wa')
     async def slash_wa(self, interaction: Interaction, query: str):
         """Send a query to Wolfram|Alpha"""
+
+        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
         title = await self._wa(query)
         description = f'{interaction.user.mention} asked {query!r}'

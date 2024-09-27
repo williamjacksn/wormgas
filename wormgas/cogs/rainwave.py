@@ -334,18 +334,27 @@ class RainwaveCog(commands.Cog):
     @key.command(name='add')
     async def key_add(self, ctx: commands.Context, rainwave_key: str):
         """Add your Rainwave key to your Discord account."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         self.bot.db.rw_api_keys_set(ctx.author.id, rainwave_key)
         await ctx.author.send(f'I assigned the key {rainwave_key} to {ctx.author.mention}.')
 
     @key.command(name='drop')
     async def key_drop(self, ctx: commands.Context):
         """Drop your Rainwave key from your Discord account."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         self.bot.db.rw_api_keys_delete(ctx.author.id)
         await ctx.author.send(f'I dropped the key for {ctx.author.mention}')
 
     @key.command(name='show')
     async def key_show(self, ctx: commands.Context):
         """See the Rainwave key associated with your Discord account."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         rw_api_key = self.bot.db.rw_api_keys_get(ctx.author.id)
         if rw_api_key:
             await ctx.author.send(f'The key for {ctx.author.mention} is {rw_api_key}.')
@@ -355,6 +364,9 @@ class RainwaveCog(commands.Cog):
     @commands.command()
     async def lstats(self, ctx: commands.Context):
         """See information about current Rainwave radio listeners."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         m = 'Registered listeners: '
         total = 0
         user_id = self.bot.db.config_get('rainwave:user_id')
@@ -408,6 +420,8 @@ class RainwaveCog(commands.Cog):
         Use "!next [<channel>]" to show what is up next on the radio.
         Short version is "!nx[<channel>]".
         Leave off <channel> to auto-detect the channel you are tuned to."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         cmd = ctx.invoked_with
         chan = None
@@ -474,6 +488,8 @@ class RainwaveCog(commands.Cog):
         Short version is "!np[<channel>]".
         Leave off <channel> to auto-detect the channel you are tuned to."""
 
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             cmd = ctx.invoked_with
             chan = None
@@ -531,6 +547,8 @@ class RainwaveCog(commands.Cog):
         Short version is "!pp[<channel>] [<index>]".
         Leave off <channel> to auto-detect the channel you are tuned to.
         <index> should be a number from 0 to 4 (default 0). The higher the number, the further back in time you go."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         async with ctx.typing():
             cmd = ctx.invoked_with
@@ -609,6 +627,8 @@ class RainwaveCog(commands.Cog):
         Use "!rq resume" to resume your request queue.
         Use "!rq clear" to remove all songs from your request queue."""
 
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         if args is None:
             args = ''
         tokens = args.split()
@@ -682,6 +702,8 @@ class RainwaveCog(commands.Cog):
         Use "!ustats [<username>]" to see some statistics about a Rainwave user.
         Leave off <username> to see your own stats."""
 
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             log.info(f'username: {username!r}')
 
@@ -735,6 +757,8 @@ class RainwaveCog(commands.Cog):
 
         Use "!vote <candidate>" to vote in the current election.
         Find the <candidate> (usually a number from 1 to 3) with "!next"."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         auth = await self.get_api_auth_for_user(ctx.author)
         if auth.get('user_id') is None:
@@ -807,6 +831,10 @@ class RainwaveCog(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def sync_donors(self, ctx: commands.Context):
+        """Sync donor status between Rainwave and Discord"""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         for guild in self.bot.guilds:
             await self._sync_donors(guild)
 

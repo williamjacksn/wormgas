@@ -3,6 +3,7 @@ import random
 
 from discord import app_commands, Colour, Embed, Interaction
 from discord.ext import commands
+from wormgas.wormgas import Wormgas
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class RandCog(commands.Cog):
         'You may rely on it.'
     ]
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: Wormgas):
         self.bot = bot
 
     async def _eight_ball(self):
@@ -40,6 +41,9 @@ class RandCog(commands.Cog):
     @app_commands.command(name='8ball')
     async def slash_eight_ball(self, interaction: Interaction, question: str):
         """Ask a question of the magic 8ball"""
+
+        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
+
         title = await self._eight_ball()
         description = f'{interaction.user.mention} asked, {question!r}'
         embed = Embed(title=title, description=description, colour=Colour.default())
@@ -47,6 +51,10 @@ class RandCog(commands.Cog):
 
     @commands.command(name='8ball')
     async def bang_eight_ball(self, ctx: commands.Context):
+        """Ask a question of the magic 8ball"""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             await ctx.send(await self._eight_ball())
 
@@ -57,6 +65,9 @@ class RandCog(commands.Cog):
     @app_commands.command(name='flip')
     async def slash_flip(self, interaction: Interaction):
         """Flip a coin"""
+
+        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
+
         title = await self._flip()
         embed = Embed(title=title, colour=Colour.gold())
         await interaction.response.send_message(embed=embed)
@@ -64,6 +75,9 @@ class RandCog(commands.Cog):
     @commands.command(name='flip')
     async def bang_flip(self, ctx: commands.Context):
         """Flip a coin"""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             await ctx.send(await self._flip())
 
@@ -93,6 +107,9 @@ class RandCog(commands.Cog):
     @app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
     async def slash_roll(self, interaction: Interaction, die_spec: str = '1d6'):
         """Roll some dice"""
+
+        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
+
         dice, sides = await self._parse_die_spec(die_spec)
         title = await self._roll(dice, sides)
         description = f'{interaction.user.mention} rolled {dice}d{sides}'
@@ -102,10 +119,13 @@ class RandCog(commands.Cog):
     @commands.command(name='roll')
     async def bang_roll(self, ctx: commands.Context, die_spec: str = '1d6'):
         """Roll some dice"""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+
         async with ctx.typing():
             dice, sides = await self._parse_die_spec(die_spec)
             await ctx.send(await self._roll(dice, sides))
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: Wormgas):
     await bot.add_cog(RandCog(bot))

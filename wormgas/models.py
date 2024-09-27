@@ -35,6 +35,22 @@ class Database(fort.SQLiteDatabase):
         self.u(sql, params)
         self._version = version
 
+    def command_log_insert(self, discord_user_id: int, command: str, message: str):
+        sql = '''
+            insert into command_log (
+                occurred_at, discord_user_id, command, message
+            ) values (
+                :occurred_at, :discord_user_id, :command, :message
+            )
+        '''
+        params = {
+            'occurred_at': datetime.datetime.now(tz=datetime.UTC).isoformat(),
+            'discord_user_id': discord_user_id,
+            'command': command,
+            'message': message,
+        }
+        self.u(sql, params)
+
     def config_delete(self, key: str):
         sql = '''
             delete from config
@@ -155,6 +171,17 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 6
+        if self.version < 7:
+            self.log.info('Migrating to database schema version 7')
+            self.u('''
+                create table command_log (
+                    occurred_at text,
+                    discord_user_id integer,
+                    command text,
+                    message text
+                )
+            ''')
+            self.version = 7
 
     def rps_delete(self, user_id: str):
         sql = '''

@@ -3,16 +3,20 @@ import logging
 import textwrap
 import wikipedia
 
+from wormgas.wormgas import Wormgas
+
 log = logging.getLogger(__name__)
 
 
 class WikiCog(cmds.Cog):
-    def __init__(self, bot: cmds.Bot):
+    def __init__(self, bot: Wormgas):
         self.bot = bot
 
     @cmds.command()
     async def wiki(self, ctx: cmds.Context, *, search_terms: str):
         """Look up information on Wikipedia."""
+
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         try:
             page = wikipedia.page(search_terms, auto_suggest=False)
@@ -33,5 +37,5 @@ class WikiCog(cmds.Cog):
         await ctx.send(f'{page.title} // {summary} [ {page.url} ]')
 
 
-async def setup(bot: cmds.Bot):
+async def setup(bot: Wormgas):
     await bot.add_cog(WikiCog(bot))
