@@ -280,7 +280,7 @@ class RainwaveCog(commands.Cog):
     @tasks.loop(minutes=1)
     async def sync_events(self):
         await self.bot.wait_until_ready()
-        log.info('Syncing Rainwave events with Discord')
+        log.debug('Syncing Rainwave events with Discord')
         user_id = self.bot.db.config_get('rainwave:user_id')
         key = self.bot.db.config_get('rainwave:key')
         d = await self.rw_admin_list_producers_all(user_id=user_id, key=key)
@@ -326,7 +326,6 @@ class RainwaveCog(commands.Cog):
                 elif e.status == discord.EventStatus.active and e.end_time < now:
                     log.info(f'Ending event {e.id}')
                     await e.end()
-
 
     @commands.group()
     async def key(self, ctx: commands.Context):
