@@ -21,7 +21,6 @@ class Wormgas(cmds.Bot):
     async def setup_hook(self):
         self.session = aiohttp.ClientSession(loop=self.loop, timeout=aiohttp.ClientTimeout(total=10))
         extension_names = [
-            # 'wormgas.cogs.beta',
             'wormgas.cogs.chat',
             'wormgas.cogs.config',
             'wormgas.cogs.rainwave',
