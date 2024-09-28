@@ -17,7 +17,8 @@ class ConfigCog(discord.ext.commands.Cog):
 
         results = self.bot.db.command_log_list()
         message = ', '.join([f'{r['command']} ({r['usage_count']})' for r in results])
-        await interaction.response.send(message)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(message)
 
     @discord.ext.commands.command(name='set')
     @discord.ext.commands.is_owner()
