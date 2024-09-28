@@ -50,7 +50,7 @@ class RandCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @commands.command(name='8ball')
-    async def bang_eight_ball(self, ctx: commands.Context, *, question: str):
+    async def bang_eight_ball(self, ctx: commands.Context, *, question: str = ''):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
