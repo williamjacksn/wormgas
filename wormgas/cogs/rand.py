@@ -33,13 +33,16 @@ class RandCog(discord.ext.commands.Cog):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    async def _eight_ball(self, user: discord.User, question: str) -> discord.Embed:
+    async def _eight_ball(self, user: discord.User, question: str = None) -> discord.Embed:
         title = f':8ball: {random.choice(self.eight_ball_responses)}'
-        description = f'{user.mention} asked, {question!r}'
+        if question is None:
+            description = f'{user.mention} did not ask a question'
+        else:
+            description = f'{user.mention} asked, {question!r}'
         return discord.Embed(title=title, description=description, colour=discord.Colour.default())
 
     @discord.app_commands.command(name='8ball')
-    async def slash_eight_ball(self, interaction: discord.Interaction, question: str):
+    async def slash_eight_ball(self, interaction: discord.Interaction, question: str = None):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
@@ -49,7 +52,7 @@ class RandCog(discord.ext.commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='8ball')
-    async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = ''):
+    async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = None):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
