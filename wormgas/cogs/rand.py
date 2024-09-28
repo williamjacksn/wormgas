@@ -1,14 +1,12 @@
+import discord.ext
 import logging
 import random
-
-from discord import app_commands, Colour, Embed, Interaction, User
-from discord.ext import commands
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
 
-class RandCog(commands.Cog):
+class RandCog(discord.ext.commands.Cog):
     eight_ball_responses = [
         'As I see it, yes.',
         'Ask again later.',
@@ -32,25 +30,26 @@ class RandCog(commands.Cog):
         'You may rely on it.'
     ]
 
-    def __init__(self, bot: Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    async def _eight_ball(self, user: User, question: str) -> Embed:
+    async def _eight_ball(self, user: discord.User, question: str) -> discord.Embed:
         title = f':8ball: {random.choice(self.eight_ball_responses)}'
         description = f'{user.mention} asked, {question!r}'
-        return Embed(title=title, description=description, colour=Colour.default())
+        return discord.Embed(title=title, description=description, colour=discord.Colour.default())
 
-    @app_commands.command(name='8ball')
-    async def slash_eight_ball(self, interaction: Interaction, question: str):
+    @discord.app_commands.command(name='8ball')
+    async def slash_eight_ball(self, interaction: discord.Interaction, question: str):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
         embed = await self._eight_ball(interaction.user, question)
-        await interaction.response.send_message(embed=embed)
+        ir: discord.InteractionResponse[discord.Client] = interaction.response()
+        await ir.send_message(embed=embed)
 
-    @commands.command(name='8ball')
-    async def bang_eight_ball(self, ctx: commands.Context, *, question: str = ''):
+    @discord.ext.commands.command(name='8ball')
+    async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = ''):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
@@ -60,21 +59,22 @@ class RandCog(commands.Cog):
             await ctx.send(embed=embed)
 
     @staticmethod
-    async def _flip() -> Embed:
+    async def _flip() -> discord.Embed:
         title = f':coin: {random.choice(('Heads!', 'Tails!'))}'
-        return Embed(title=title, colour=Colour.gold())
+        return discord.Embed(title=title, colour=discord.Colour.gold())
 
-    @app_commands.command(name='flip')
-    async def slash_flip(self, interaction: Interaction):
+    @discord.app_commands.command(name='flip')
+    async def slash_flip(self, interaction: discord.Interaction):
         """Flip a coin"""
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
         embed = await self._flip()
-        await interaction.response.send_message(embed=embed)
+        ir: discord.InteractionResponse[discord.Client] = interaction.response()
+        await ir.send_message(embed=embed)
 
-    @commands.command(name='flip')
-    async def bang_flip(self, ctx: commands.Context):
+    @discord.ext.commands.command(name='flip')
+    async def bang_flip(self, ctx: discord.ext.commands.Context):
         """Flip a coin"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
@@ -105,9 +105,9 @@ class RandCog(commands.Cog):
         m = f'{m} {sum(rolls)}'
         return m
 
-    @app_commands.command(name='roll')
-    @app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
-    async def slash_roll(self, interaction: Interaction, die_spec: str = '1d6'):
+    @discord.app_commands.command(name='roll')
+    @discord.app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
+    async def slash_roll(self, interaction: discord.Interaction, die_spec: str = '1d6'):
         """Roll some dice"""
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
@@ -115,11 +115,12 @@ class RandCog(commands.Cog):
         dice, sides = await self._parse_die_spec(die_spec)
         title = await self._roll(dice, sides)
         description = f'{interaction.user.mention} rolled {dice}d{sides}'
-        embed = Embed(title=title, description=description, colour=Colour.red())
-        await interaction.response.send_message(embed=embed)
+        embed = discord.Embed(title=title, description=description, colour=discord.Colour.red())
+        ir: discord.InteractionResponse[discord.Client] = interaction.response()
+        await ir.send_message(embed=embed)
 
-    @commands.command(name='roll')
-    async def bang_roll(self, ctx: commands.Context, die_spec: str = '1d6'):
+    @discord.ext.commands.command(name='roll')
+    async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = '1d6'):
         """Roll some dice"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
@@ -129,5 +130,5 @@ class RandCog(commands.Cog):
             await ctx.send(await self._roll(dice, sides))
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(RandCog(bot))
