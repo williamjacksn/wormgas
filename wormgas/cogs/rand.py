@@ -1,7 +1,7 @@
 import logging
 import random
 
-from discord import app_commands, Colour, Embed, Interaction
+from discord import app_commands, Colour, Embed, Interaction, User
 from discord.ext import commands
 from wormgas.wormgas import Wormgas
 
@@ -35,8 +35,10 @@ class RandCog(commands.Cog):
     def __init__(self, bot: Wormgas):
         self.bot = bot
 
-    async def _eight_ball(self):
-        return f':8ball: {random.choice(self.eight_ball_responses)}'
+    async def _eight_ball(self, user: User, question: str) -> Embed:
+        title = f':8ball: {random.choice(self.eight_ball_responses)}'
+        description = f'{user.mention} asked, {question!r}'
+        return Embed(title=title, description=description, colour=Colour.default())
 
     @app_commands.command(name='8ball')
     async def slash_eight_ball(self, interaction: Interaction, question: str):
@@ -44,23 +46,23 @@ class RandCog(commands.Cog):
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
-        title = await self._eight_ball()
-        description = f'{interaction.user.mention} asked, {question!r}'
-        embed = Embed(title=title, description=description, colour=Colour.default())
+        embed = await self._eight_ball(interaction.user, question)
         await interaction.response.send_message(embed=embed)
 
     @commands.command(name='8ball')
-    async def bang_eight_ball(self, ctx: commands.Context):
+    async def bang_eight_ball(self, ctx: commands.Context, *, question: str):
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         async with ctx.typing():
-            await ctx.send(await self._eight_ball())
+            embed = await self._eight_ball(ctx.author, question)
+            await ctx.send(embed=embed)
 
     @staticmethod
-    async def _flip():
-        return f':coin: {random.choice(('Heads!', 'Tails!'))}'
+    async def _flip() -> Embed:
+        title = f':coin: {random.choice(('Heads!', 'Tails!'))}'
+        return Embed(title=title, colour=Colour.gold())
 
     @app_commands.command(name='flip')
     async def slash_flip(self, interaction: Interaction):
@@ -68,8 +70,7 @@ class RandCog(commands.Cog):
 
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
-        title = await self._flip()
-        embed = Embed(title=title, colour=Colour.gold())
+        embed = await self._flip()
         await interaction.response.send_message(embed=embed)
 
     @commands.command(name='flip')
@@ -79,7 +80,8 @@ class RandCog(commands.Cog):
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         async with ctx.typing():
-            await ctx.send(await self._flip())
+            embed = await self._flip()
+            await ctx.send(embed=embed)
 
     @staticmethod
     async def _parse_die_spec(die_spec):
