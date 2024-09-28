@@ -45,8 +45,8 @@ class RandCog(discord.ext.commands.Cog):
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
         embed = await self._eight_ball(interaction.user, question)
-        ir: discord.InteractionResponse[discord.Client] = interaction.response()
-        await ir.send_message(embed=embed)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='8ball')
     async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = ''):
@@ -70,8 +70,8 @@ class RandCog(discord.ext.commands.Cog):
         self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
 
         embed = await self._flip()
-        ir: discord.InteractionResponse[discord.Client] = interaction.response()
-        await ir.send_message(embed=embed)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='flip')
     async def bang_flip(self, ctx: discord.ext.commands.Context):
@@ -116,8 +116,8 @@ class RandCog(discord.ext.commands.Cog):
         title = await self._roll(dice, sides)
         description = f'{interaction.user.mention} rolled {dice}d{sides}'
         embed = discord.Embed(title=title, description=description, colour=discord.Colour.red())
-        ir: discord.InteractionResponse[discord.Client] = interaction.response()
-        await ir.send_message(embed=embed)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='roll')
     async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = '1d6'):
