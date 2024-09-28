@@ -1,18 +1,27 @@
-import discord.ext.commands as cmds
+import discord.ext.commands
 import logging
-
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
 
-class ConfigCog(cmds.Cog):
-    def __init__(self, bot: Wormgas):
+class ConfigCog(discord.ext.commands.Cog):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    @cmds.command(name='set')
-    @cmds.is_owner()
-    async def _set(self, ctx: cmds.Context, *tokens):
+    @discord.app_commands.command(name='command-stats')
+    async def slash_command_stats(self, interaction: discord.Interaction):
+        """Show simple statistics about how often commands are used"""
+
+        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
+
+        results = self.bot.db.command_log_list()
+        message = ', '.join([f'{r['command']} ({r['usage_count']})' for r in results])
+        await interaction.response.send(message)
+
+    @discord.ext.commands.command(name='set')
+    @discord.ext.commands.is_owner()
+    async def _set(self, ctx: discord.ext.commands.Context, *tokens):
         """Display or change configuration settings.
 
         Use "!set [<key>] [<value>]" to display or change configuration settings.
@@ -43,9 +52,9 @@ class ConfigCog(cmds.Cog):
                 await ctx.author.send(', '.join(config_list))
             await ctx.author.send(', '.join(config_keys))
 
-    @cmds.command()
-    @cmds.is_owner()
-    async def unset(self, ctx: cmds.Context, key: str):
+    @discord.ext.commands.command()
+    @discord.ext.commands.is_owner()
+    async def unset(self, ctx: discord.ext.commands.Context, key: str):
         """Remove a configuration setting."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
@@ -54,5 +63,5 @@ class ConfigCog(cmds.Cog):
         await ctx.author.send(f'{key} has been unset.')
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(ConfigCog(bot))

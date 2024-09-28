@@ -51,6 +51,16 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
+    def command_log_list(self):
+        sql = '''
+            select command, count(*) usage_count
+            from command_log
+            group by command
+            order by usage_count desc
+            limit 5
+        '''
+        return self.q(sql)
+
     def config_delete(self, key: str):
         sql = '''
             delete from config
