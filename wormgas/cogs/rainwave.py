@@ -303,7 +303,7 @@ class RainwaveCog(commands.Cog):
                 image = pathlib.Path('pvp.jpg').read_bytes()
             else:
                 description = f'Join us for this Power Hour on the {rw_channel.long_name}'
-                image = discord.utils.MISSING
+                image = pathlib.Path('ph.jpg').read_bytes()
             reason = f'Rainwave event id: {p_id}'
             for g in self.bot.guilds:
                 channel = None
