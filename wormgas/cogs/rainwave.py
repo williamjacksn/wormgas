@@ -300,10 +300,8 @@ class RainwaveCog(commands.Cog):
             rw_channel = RainwaveChannel(sid)
             if p.get('type') == 'PVPElectionProducer':
                 description = f'Listener requests compete head-to-head in PvP elections on the {rw_channel.long_name}'
-                image = pathlib.Path('pvp.jpg').read_bytes()
             else:
                 description = f'Join us for this Power Hour on the {rw_channel.long_name}'
-                image = pathlib.Path('ph.jpg').read_bytes()
             reason = f'Rainwave event id: {p_id}'
             for g in self.bot.guilds:
                 channel = None
@@ -314,7 +312,7 @@ class RainwaveCog(commands.Cog):
                 log.debug('Creating a new event in Discord')
                 event = await g.create_scheduled_event(
                     name=name, description=description, channel=channel, start_time=start_time, end_time=end_time,
-                    privacy_level=discord.PrivacyLevel.guild_only, image=image, reason=reason)
+                    privacy_level=discord.PrivacyLevel.guild_only, reason=reason)
                 self.bot.db.events_insert(p_id, event.id)
         for g in self.bot.guilds:
             for e in g.scheduled_events:
