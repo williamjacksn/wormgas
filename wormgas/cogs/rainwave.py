@@ -2,7 +2,6 @@ import datetime
 import discord
 import enum
 import logging
-import pathlib
 import time
 import uuid
 import zoneinfo
@@ -290,14 +289,14 @@ class RainwaveCog(commands.Cog):
             if local_record is not None:
                 log.debug('This event is already known')
                 continue
-            name = p.get('name')
+            sid = p.get('sid')
+            rw_channel = RainwaveChannel(sid)
+            name = f'{rw_channel.short_name}: {p.get('name')}'
             eastern = zoneinfo.ZoneInfo('America/New_York')
             e_start = p.get('start')
             start_time = datetime.datetime.fromtimestamp(e_start, eastern)
             e_end = p.get('end')
             end_time = datetime.datetime.fromtimestamp(e_end, eastern)
-            sid = p.get('sid')
-            rw_channel = RainwaveChannel(sid)
             if p.get('type') == 'PVPElectionProducer':
                 description = f'Listener requests compete head-to-head in PvP elections on the {rw_channel.long_name}'
             else:
