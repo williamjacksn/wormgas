@@ -38,6 +38,8 @@ multidict==6.1.0
     #   yarl
 notch==2023.1
     # via -r requirements.in
+propcache==0.2.0
+    # via yarl
 requests==2.32.3
     # via wikipedia
 soupsieve==2.6
@@ -48,5 +50,5 @@ urllib3==2.2.3
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
-yarl==1.13.1
+yarl==1.14.0
     # via aiohttp
