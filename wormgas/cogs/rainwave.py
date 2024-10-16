@@ -320,6 +320,25 @@ class RainwaveCog(commands.Cog):
                 if e.status == discord.EventStatus.scheduled and e.start_time <= now:
                     log.info(f'Starting event {e.id}')
                     await e.start()
+                    channel_id = self.bot.db.config_get('ph-notification-channel-id')
+                    if channel_id:
+                        notify_roles = []
+                        channel = g.get_channel(int(channel_id))
+                        if channel:
+                            current_time_eu = now.astimezone(zoneinfo.ZoneInfo('Europe/Paris'))
+                            if 8 <= current_time_eu.hour < 17:
+                                role_id = self.bot.db.config_get('discord:roles:notify:🇪🇺')
+                                if role_id:
+                                    notify_roles.append(g.get_role(int(role_id)))
+                            current_time_na = now.astimezone(zoneinfo.ZoneInfo('America/Chicago'))
+                            if 8 <= current_time_na.hour < 17:
+                                role_id = self.bot.db.config_get('discord:roles:notify:🎵')
+                                if role_id:
+                                    notify_roles.append(g.get_role(int(role_id)))
+                        if notify_roles:
+                            m = ' '.join([r.mention for r in notify_roles])
+                            m = f'{m} {e.name} is starting now!'
+                            await channel.send(m)
                 elif e.status == discord.EventStatus.active and e.end_time < now:
                     log.info(f'Ending event {e.id}')
                     await e.end()
