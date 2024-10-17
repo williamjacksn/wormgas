@@ -20,7 +20,7 @@ jobs:
         run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 git -C /opt/wormgas pull
 
       - name: Ensure requirements are installed
-        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 /opt/venv/wormgas-3.12/bin/pip-sync /opt/wormgas/requirements.txt
+        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 /opt/venv/wormgas-3.13/bin/pip-sync /opt/wormgas/requirements.txt
 
       - name: Restart app
         run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 sudo systemctl restart wormgas.service
