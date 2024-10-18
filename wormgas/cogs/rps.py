@@ -1,13 +1,12 @@
-import discord
-import discord.ext.commands as cmds
+import discord.ext
 import logging
 import random
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
 
-class RpsCog(cmds.Cog):
+class RpsCog(discord.ext.commands.Cog):
     canonical_actions = {
         'rock': 'rock',
         'paper': 'paper',
@@ -16,7 +15,7 @@ class RpsCog(cmds.Cog):
         '\ufe0f': 'scissors'
     }
 
-    def __init__(self, bot: Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
     async def get_rps_record(self, player: discord.Member):
@@ -91,20 +90,20 @@ class RpsCog(cmds.Cog):
         pl = int(float(_l) / float(w + d + _l) * 100)
         return m + f' Your current record is {w}-{d}-{_l} or {pw}%-{pd}%-{pl}% (w-d-l).'
 
-    @cmds.command(name='rock', aliases=['paper', 'scissors', '\u2702'])
-    async def rock(self, ctx: cmds.Context):
+    @discord.ext.commands.command(name='rock', aliases=['paper', 'scissors', '\u2702'])
+    async def rock(self, ctx: discord.ext.commands.Context):
         """Play a game of rock-paper-scissors."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         await ctx.send(await self.play_game(ctx.author, ctx.invoked_with))
 
-    @cmds.group(name='rps')
-    async def rps(self, ctx: cmds.Context):
+    @discord.ext.commands.group(name='rps')
+    async def rps(self, ctx: discord.ext.commands.Context):
         """Administrative commands for rock-paper-scissors."""
 
     @rps.command()
-    async def record(self, ctx: cmds.Context, player: discord.Member = None):
+    async def record(self, ctx: discord.ext.commands.Context, player: discord.Member = None):
         """Request the record for a rock-paper-scissors player."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -114,7 +113,7 @@ class RpsCog(cmds.Cog):
         await ctx.send(await self.get_rps_record(player))
 
     @rps.command()
-    async def stats(self, ctx: cmds.Context, player: discord.Member = None):
+    async def stats(self, ctx: discord.ext.commands.Context, player: discord.Member = None):
         """Request statistics for a rock-paper-scissors player."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -124,7 +123,7 @@ class RpsCog(cmds.Cog):
         await ctx.send(await self.get_rps_stats(player))
 
     @rps.command()
-    async def reset(self, ctx: cmds.Context, reset_code: str = None):
+    async def reset(self, ctx: discord.ext.commands.Context, reset_code: str = None):
         """Reset your record and delete your game history."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -140,5 +139,5 @@ class RpsCog(cmds.Cog):
             await ctx.author.send(f'Use `!rps reset {reset_code}` to reset your RPS record and delete your history.')
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(RpsCog(bot))

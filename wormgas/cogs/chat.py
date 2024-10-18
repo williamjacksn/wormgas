@@ -1,19 +1,17 @@
-import discord
-import discord.ext.commands as cmds
+import discord.ext
 import logging
 import os
 import pathlib
 import re
 import random
 import time
-
-from .cobe import brain
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
+import wormgas.cogs.cobe.brain
 
 log = logging.getLogger(__name__)
 
 
-class ChatCog(cmds.Cog):
+class ChatCog(discord.ext.commands.Cog):
     quotes = [
         'Attack the evil that is within yourself, rather than attacking the evil that is in others.',
         'Before you embark on a journey of revenge, dig two graves.',
@@ -38,12 +36,12 @@ class ChatCog(cmds.Cog):
         'What you know, you know, what you do not know, you do not know. This is true wisdom.'
     ]
 
-    def __init__(self, bot: Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
         brain_file = pathlib.Path(os.getenv('BRAIN_FILE', '/etc/wormgas/_brain.sqlite'))
-        self.brain = brain.Brain(str(brain_file))
+        self.brain = wormgas.cogs.cobe.brain.Brain(str(brain_file))
 
-    @cmds.Cog.listener()
+    @discord.ext.commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Ignore messages from myself.
         if message.author == self.bot.user:
@@ -94,5 +92,5 @@ class ChatCog(cmds.Cog):
         return self.brain.reply(to_brain)
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(ChatCog(bot))

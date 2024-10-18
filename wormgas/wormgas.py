@@ -1,8 +1,7 @@
 __version__ = '2024.0'
 
 import aiohttp
-import discord
-import discord.ext.commands as cmds
+import discord.ext.commands
 import logging
 import os
 
@@ -11,7 +10,7 @@ from wormgas.models import Database
 log = logging.getLogger(__name__)
 
 
-class Wormgas(cmds.Bot):
+class Wormgas(discord.ext.commands.Bot):
 
     def __init__(self, command_prefix, **options):
         super().__init__(command_prefix, **options)

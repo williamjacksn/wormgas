@@ -1,19 +1,18 @@
-import discord.ext.commands as cmds
+import discord.ext
 import logging
 import textwrap
 import wikipedia
-
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
 
-class WikiCog(cmds.Cog):
-    def __init__(self, bot: Wormgas):
+class WikiCog(discord.ext.commands.Cog):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    @cmds.command()
-    async def wiki(self, ctx: cmds.Context, *, search_terms: str):
+    @discord.ext.commands.command()
+    async def wiki(self, ctx: discord.ext.commands.Context, *, search_terms: str):
         """Look up information on Wikipedia."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -37,5 +36,5 @@ class WikiCog(cmds.Cog):
         await ctx.send(f'{page.title} // {summary} [ {page.url} ]')
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(WikiCog(bot))

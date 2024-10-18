@@ -1,15 +1,13 @@
-import discord
-
-from discord.ext import commands
-from wormgas.wormgas import Wormgas
+import discord.ext
+import wormgas.wormgas
 
 
-class RolesCog(commands.Cog):
-    def __init__(self, bot: Wormgas):
+class RolesCog(discord.ext.commands.Cog):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    @commands.Cog.listener(name='on_raw_reaction_add')
-    @commands.Cog.listener(name='on_raw_reaction_remove')
+    @discord.ext.commands.Cog.listener(name='on_raw_reaction_add')
+    @discord.ext.commands.Cog.listener(name='on_raw_reaction_remove')
     async def _handle_reaction_change(self, payload: discord.RawReactionActionEvent):
         notification_signup_message_id = int(self.bot.db.config_get('discord:messages:notification-signup'))
         if payload.message_id == notification_signup_message_id:
@@ -28,5 +26,5 @@ class RolesCog(commands.Cog):
 
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(RolesCog(bot))

@@ -1,13 +1,12 @@
 import datetime
-import discord
+import discord.ext.commands
+import discord.ext.tasks
 import enum
 import logging
 import time
 import uuid
 import zoneinfo
-
-from discord.ext import commands, tasks
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
@@ -50,8 +49,8 @@ class RainwaveChannel(enum.Enum):
     def voice_channel_name(self):
         return (None, 'game', 'ocremix', 'covers', 'chiptune', 'all')[int(self.value)]
 
-class RainwaveCog(commands.Cog):
-    def __init__(self, bot: Wormgas):
+class RainwaveCog(discord.ext.commands.Cog):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
         self.nick_not_recognized = ('I do not recognize you. Use **!id add <id>** to link your Rainwave and Discord '
                                     'accounts.')
@@ -276,7 +275,7 @@ class RainwaveCog(commands.Cog):
         }
         return await self._call('enable_perks_by_discord_ids', params=params)
 
-    @tasks.loop(minutes=1)
+    @discord.ext.tasks.loop(minutes=1)
     async def sync_events(self):
         await self.bot.wait_until_ready()
         log.debug('Syncing Rainwave events with Discord')
@@ -343,12 +342,12 @@ class RainwaveCog(commands.Cog):
                     log.info(f'Ending event {e.id}')
                     await e.end()
 
-    @commands.group()
-    async def key(self, ctx: commands.Context):
+    @discord.ext.commands.group()
+    async def key(self, ctx: discord.ext.commands.Context):
         """Manage your Rainwave key"""
 
     @key.command(name='add')
-    async def key_add(self, ctx: commands.Context, rainwave_key: str):
+    async def key_add(self, ctx: discord.ext.commands.Context, rainwave_key: str):
         """Add your Rainwave key to your Discord account."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -357,7 +356,7 @@ class RainwaveCog(commands.Cog):
         await ctx.author.send(f'I assigned the key {rainwave_key} to {ctx.author.mention}.')
 
     @key.command(name='drop')
-    async def key_drop(self, ctx: commands.Context):
+    async def key_drop(self, ctx: discord.ext.commands.Context):
         """Drop your Rainwave key from your Discord account."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -366,7 +365,7 @@ class RainwaveCog(commands.Cog):
         await ctx.author.send(f'I dropped the key for {ctx.author.mention}')
 
     @key.command(name='show')
-    async def key_show(self, ctx: commands.Context):
+    async def key_show(self, ctx: discord.ext.commands.Context):
         """See the Rainwave key associated with your Discord account."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -377,8 +376,8 @@ class RainwaveCog(commands.Cog):
         else:
             await ctx.author.send(f'I do not have a key for {ctx.author.mention}')
 
-    @commands.command()
-    async def lstats(self, ctx: commands.Context):
+    @discord.ext.commands.command()
+    async def lstats(self, ctx: discord.ext.commands.Context):
         """See information about current Rainwave radio listeners."""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -429,8 +428,8 @@ class RainwaveCog(commands.Cog):
         embed.add_field(name='Covers', value=f'{user.get("rating_completion").get("3")}% rated', inline=True)
         return embed
 
-    @commands.command(aliases=['nx'] + [f'nx{ch}' for ch in RainwaveChannel.__members__.keys()])
-    async def next(self, ctx: commands.Context, channel: str = None):
+    @discord.ext.commands.command(aliases=['nx'] + [f'nx{ch}' for ch in RainwaveChannel.__members__.keys()])
+    async def next(self, ctx: discord.ext.commands.Context, channel: str = None):
         """See what will play next on the radio.
 
         Use "!next [<channel>]" to show what is up next on the radio.
@@ -496,8 +495,8 @@ class RainwaveCog(commands.Cog):
         else:
             await ctx.send(m)
 
-    @commands.command(aliases=['np'] + [f'np{ch}' for ch in RainwaveChannel.__members__.keys()])
-    async def nowplaying(self, ctx: commands.Context, channel: str = None):
+    @discord.ext.commands.command(aliases=['np'] + [f'np{ch}' for ch in RainwaveChannel.__members__.keys()])
+    async def nowplaying(self, ctx: discord.ext.commands.Context, channel: str = None):
         """See what is now playing on the radio.
 
         Use "!nowplaying [<channel>]" to show what is now playing on the radio.
@@ -555,8 +554,8 @@ class RainwaveCog(commands.Cog):
             else:
                 await ctx.send(m, embed=embed)
 
-    @commands.command(aliases=['pp'] + [f'pp{ch}' for ch in RainwaveChannel.__members__.keys()])
-    async def prevplayed(self, ctx: commands.Context, *, args: str = None):
+    @discord.ext.commands.command(aliases=['pp'] + [f'pp{ch}' for ch in RainwaveChannel.__members__.keys()])
+    async def prevplayed(self, ctx: discord.ext.commands.Context, *, args: str = None):
         """Show what was previously playing on the radio.
 
         Use "!prevplayed [<channel>] [<index>]" to show what was previously playing on the radio.
@@ -632,8 +631,8 @@ class RainwaveCog(commands.Cog):
             else:
                 await ctx.send(m, embed=embed)
 
-    @commands.command(aliases=['rq'])
-    async def request(self, ctx: commands.Context, *, args: str = None):
+    @discord.ext.commands.command(aliases=['rq'])
+    async def request(self, ctx: discord.ext.commands.Context, *, args: str = None):
         """Manage your Rainwave request queue.
 
         Use "!rq <song_id>" to add a song to your request queue.
@@ -711,8 +710,8 @@ class RainwaveCog(commands.Cog):
             d = await self.rw_unpause_request_queue(user_id, key, chan_id)
             await ctx.author.send(d.get('unpause_request_queue_result').get('text'))
 
-    @commands.command()
-    async def ustats(self, ctx: commands.Context, *, username: str = None):
+    @discord.ext.commands.command()
+    async def ustats(self, ctx: discord.ext.commands.Context, *, username: str = None):
         """See some statistics about a Rainwave user.
 
         Use "!ustats [<username>]" to see some statistics about a Rainwave user.
@@ -767,8 +766,8 @@ class RainwaveCog(commands.Cog):
                      f'seconds.')
                 await ctx.author.send(m)
 
-    @commands.command(aliases=['vt'])
-    async def vote(self, ctx: commands.Context, candidate: int):
+    @discord.ext.commands.command(aliases=['vt'])
+    async def vote(self, ctx: discord.ext.commands.Context, candidate: int):
         """Vote in the current election.
 
         Use "!vote <candidate>" to vote in the current election.
@@ -811,7 +810,7 @@ class RainwaveCog(commands.Cog):
         else:
             await ctx.author.send('Your attempt to vote was not successful.')
 
-    @commands.Cog.listener()
+    @discord.ext.commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
         donor_role_id = self.bot.db.config_get('discord:roles:donor')
         patron_role_id = self.bot.db.config_get('discord:roles:patron')
@@ -828,7 +827,7 @@ class RainwaveCog(commands.Cog):
             log.info(f'{before.display_name!r} ({before.id}) changed display_name to {after.display_name!r}')
             await self.rw_update_nickname(after.id, after.display_name)
 
-    @commands.Cog.listener()
+    @discord.ext.commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
         if before.display_avatar != after.display_avatar:
             await self.rw_update_avatar(after.id, after.display_avatar)
@@ -844,9 +843,9 @@ class RainwaveCog(commands.Cog):
                 if donor_role not in patron_member.roles:
                     await patron_member.add_roles(donor_role)
 
-    @commands.command()
-    @commands.is_owner()
-    async def sync_donors(self, ctx: commands.Context):
+    @discord.ext.commands.command()
+    @discord.ext.commands.is_owner()
+    async def sync_donors(self, ctx: discord.ext.commands.Context):
         """Sync donor status between Rainwave and Discord"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
@@ -854,7 +853,7 @@ class RainwaveCog(commands.Cog):
         for guild in self.bot.guilds:
             await self._sync_donors(guild)
 
-    @commands.Cog.listener()
+    @discord.ext.commands.Cog.listener()
     async def on_ready(self):
         if self.bot.db.config_get('rainwave:sync_donor_role_on_ready') == '1':
             for guild in self.bot.guilds:
@@ -865,5 +864,5 @@ class RainwaveCog(commands.Cog):
         self.sync_events.cancel()
 
 
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(RainwaveCog(bot))
