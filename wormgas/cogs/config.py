@@ -16,8 +16,12 @@ class ConfigCog(discord.ext.commands.Cog):
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         results = self.bot.db.command_log_list()
-        message = ', '.join([f'{r['command']} ({r['usage_count']})' for r in results])
-        await ctx.author.send(message)
+        embed = discord.Embed(title='Command stats')
+        commands = '\n'.join([r['command'] for r in results])
+        embed.add_field(name='Command', value=commands, inline=True)
+        invocations = '\n'.join([str(r['usage_count']) for r in results])
+        embed.add_field(name='Invocations', value=invocations, inline=True)
+        await ctx.send(embed=embed)
 
     @discord.ext.commands.command(name='set')
     @discord.ext.commands.is_owner()
