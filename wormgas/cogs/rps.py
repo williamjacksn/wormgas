@@ -6,7 +6,7 @@ import wormgas.wormgas
 log = logging.getLogger(__name__)
 
 
-class RpsCog(discord.ext.commands.Cog):
+class RpsCog(discord.ext.commands.Cog, name='Rock/Paper/Scissors'):
     canonical_actions = {
         'rock': 'rock',
         'paper': 'paper',

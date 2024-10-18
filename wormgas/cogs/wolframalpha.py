@@ -5,7 +5,7 @@ import wormgas.wormgas
 log = logging.getLogger(__name__)
 
 
-class WolframAlphaCog(discord.ext.commands.Cog):
+class WolframAlphaCog(discord.ext.commands.Cog, name='Wolfram|Alpha'):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 

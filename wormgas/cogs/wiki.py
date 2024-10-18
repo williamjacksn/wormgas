@@ -7,7 +7,7 @@ import wormgas.wormgas
 log = logging.getLogger(__name__)
 
 
-class WikiCog(discord.ext.commands.Cog):
+class WikiCog(discord.ext.commands.Cog, name='Wikipedia'):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 

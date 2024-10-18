@@ -5,7 +5,7 @@ import wormgas.wormgas
 log = logging.getLogger(__name__)
 
 
-class ConfigCog(discord.ext.commands.Cog):
+class ConfigCog(discord.ext.commands.Cog, name='Bot configuration'):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 

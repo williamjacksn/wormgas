@@ -6,7 +6,7 @@ import wormgas.wormgas
 log = logging.getLogger(__name__)
 
 
-class RandCog(discord.ext.commands.Cog):
+class RandCog(discord.ext.commands.Cog, name='Randomness'):
     eight_ball_responses = [
         'As I see it, yes.',
         'Ask again later.',

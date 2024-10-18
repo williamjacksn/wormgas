@@ -49,7 +49,7 @@ class RainwaveChannel(enum.Enum):
     def voice_channel_name(self):
         return (None, 'game', 'ocremix', 'covers', 'chiptune', 'all')[int(self.value)]
 
-class RainwaveCog(discord.ext.commands.Cog):
+class RainwaveCog(discord.ext.commands.Cog, name='Rainwave'):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
         self.nick_not_recognized = ('I do not recognize you. Use **!id add <id>** to link your Rainwave and Discord '
