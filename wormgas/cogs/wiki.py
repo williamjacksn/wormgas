@@ -16,7 +16,7 @@ class WikiCog(cmds.Cog):
     async def wiki(self, ctx: cmds.Context, *, search_terms: str):
         """Look up information on Wikipedia."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         try:
             page = wikipedia.page(search_terms, auto_suggest=False)

@@ -95,7 +95,7 @@ class RpsCog(cmds.Cog):
     async def rock(self, ctx: cmds.Context):
         """Play a game of rock-paper-scissors."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         await ctx.send(await self.play_game(ctx.author, ctx.invoked_with))
 
@@ -107,7 +107,7 @@ class RpsCog(cmds.Cog):
     async def record(self, ctx: cmds.Context, player: discord.Member = None):
         """Request the record for a rock-paper-scissors player."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         if player is None:
             player = ctx.author
@@ -117,7 +117,7 @@ class RpsCog(cmds.Cog):
     async def stats(self, ctx: cmds.Context, player: discord.Member = None):
         """Request statistics for a rock-paper-scissors player."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         if player is None:
             player = ctx.author
@@ -127,7 +127,7 @@ class RpsCog(cmds.Cog):
     async def reset(self, ctx: cmds.Context, reset_code: str = None):
         """Reset your record and delete your game history."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         player_dict = self.bot.db.rps_get(str(ctx.author.id))
         if reset_code and reset_code == player_dict.get('reset_code'):

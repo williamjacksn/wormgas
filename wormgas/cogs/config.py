@@ -13,7 +13,7 @@ class ConfigCog(discord.ext.commands.Cog):
     async def command_stats(self, ctx: discord.ext.commands.Context):
         """Show simple statistics about how often commands are used"""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         results = self.bot.db.command_log_list()
         embed = discord.Embed(title='Command stats')
@@ -33,7 +33,7 @@ class ConfigCog(discord.ext.commands.Cog):
         Leave off <key> and <value> to see a list of all currently set config keys.
         """
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         if len(tokens) > 1:
             value = ' '.join(tokens[1:])
@@ -61,7 +61,7 @@ class ConfigCog(discord.ext.commands.Cog):
     async def unset(self, ctx: discord.ext.commands.Context, key: str):
         """Remove a configuration setting."""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         self.bot.db.config_delete(key)
         await ctx.author.send(f'{key} has been unset.')

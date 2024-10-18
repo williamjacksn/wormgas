@@ -45,7 +45,7 @@ class RandCog(discord.ext.commands.Cog):
     async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = None):
         """Ask a question of the magic 8ball"""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         async with ctx.typing():
             embed = await self._eight_ball(ctx.author, question)
@@ -60,7 +60,7 @@ class RandCog(discord.ext.commands.Cog):
     async def bang_flip(self, ctx: discord.ext.commands.Context):
         """Flip a coin"""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         async with ctx.typing():
             embed = await self._flip()
@@ -92,7 +92,7 @@ class RandCog(discord.ext.commands.Cog):
     async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = '1d6'):
         """Roll some dice"""
 
-        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
+        self.bot.db.command_log_insert(ctx.author.id, ctx.command.qualified_name, ctx.message.content)
 
         async with ctx.typing():
             dice, sides = await self._parse_die_spec(die_spec)
