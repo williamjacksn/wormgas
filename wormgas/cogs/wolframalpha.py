@@ -1,14 +1,12 @@
+import discord.ext
 import logging
-
-from discord import app_commands, Embed, Interaction
-from discord.ext import commands
-from wormgas.wormgas import Wormgas
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 
 
-class WolframAlphaCog(commands.Cog):
-    def __init__(self, bot: Wormgas):
+class WolframAlphaCog(discord.ext.commands.Cog):
+    def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
     async def _wa(self, query: str):
@@ -31,8 +29,8 @@ class WolframAlphaCog(commands.Cog):
             else:
                 return 'There was a problem.'
 
-    @commands.command(name='wa')
-    async def bang_wa(self, ctx: commands.Context, *, query: str):
+    @discord.ext.commands.command(name='wa')
+    async def bang_wa(self, ctx: discord.ext.commands.Context, *, query: str):
         """Send a query to Wolfram|Alpha"""
 
         self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
@@ -40,17 +38,6 @@ class WolframAlphaCog(commands.Cog):
         async with ctx.typing():
             await ctx.send(await self._wa(query))
 
-    @app_commands.command(name='wa')
-    async def slash_wa(self, interaction: Interaction, query: str):
-        """Send a query to Wolfram|Alpha"""
 
-        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
-
-        title = await self._wa(query)
-        description = f'{interaction.user.mention} asked {query!r}'
-        embed = Embed(title=title, description=description)
-        await interaction.response.send_message(embed=embed)
-
-
-async def setup(bot: Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas):
     await bot.add_cog(WolframAlphaCog(bot))
