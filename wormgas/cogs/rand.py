@@ -41,16 +41,6 @@ class RandCog(discord.ext.commands.Cog):
             description = f'{user.mention} asked, {question!r}'
         return discord.Embed(title=title, description=description, colour=discord.Colour.default())
 
-    @discord.app_commands.command(name='8ball')
-    async def slash_eight_ball(self, interaction: discord.Interaction, question: str = None):
-        """Ask a question of the magic 8ball"""
-
-        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
-
-        embed = await self._eight_ball(interaction.user, question)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
-
     @discord.ext.commands.command(name='8ball')
     async def bang_eight_ball(self, ctx: discord.ext.commands.Context, *, question: str = None):
         """Ask a question of the magic 8ball"""
@@ -65,16 +55,6 @@ class RandCog(discord.ext.commands.Cog):
     async def _flip() -> discord.Embed:
         title = f':coin: {random.choice(('Heads!', 'Tails!'))}'
         return discord.Embed(title=title, colour=discord.Colour.gold())
-
-    @discord.app_commands.command(name='flip')
-    async def slash_flip(self, interaction: discord.Interaction):
-        """Flip a coin"""
-
-        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
-
-        embed = await self._flip()
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='flip')
     async def bang_flip(self, ctx: discord.ext.commands.Context):
@@ -107,20 +87,6 @@ class RandCog(discord.ext.commands.Cog):
             m = f'{m} [{", ".join(map(str, rolls))}] ='
         m = f'{m} {sum(rolls)}'
         return m
-
-    @discord.app_commands.command(name='roll')
-    @discord.app_commands.describe(die_spec='<dice>d<sides>, default 1d6')
-    async def slash_roll(self, interaction: discord.Interaction, die_spec: str = '1d6'):
-        """Roll some dice"""
-
-        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
-
-        dice, sides = await self._parse_die_spec(die_spec)
-        title = await self._roll(dice, sides)
-        description = f'{interaction.user.mention} rolled {dice}d{sides}'
-        embed = discord.Embed(title=title, description=description, colour=discord.Colour.red())
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
 
     @discord.ext.commands.command(name='roll')
     async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = '1d6'):
