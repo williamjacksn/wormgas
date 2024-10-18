@@ -1,4 +1,4 @@
-import discord.ext.commands
+import discord.ext
 import logging
 import wormgas.wormgas
 
@@ -9,16 +9,15 @@ class ConfigCog(discord.ext.commands.Cog):
     def __init__(self, bot: wormgas.wormgas.Wormgas):
         self.bot = bot
 
-    @discord.app_commands.command(name='command-stats')
-    async def slash_command_stats(self, interaction: discord.Interaction):
+    @discord.ext.commands.command(name='command-stats')
+    async def command_stats(self, ctx: discord.ext.commands.Context):
         """Show simple statistics about how often commands are used"""
 
-        self.bot.db.command_log_insert(interaction.user.id, interaction.command.name, str(interaction.data))
+        self.bot.db.command_log_insert(ctx.author.id, ctx.invoked_with, ctx.message.content)
 
         results = self.bot.db.command_log_list()
         message = ', '.join([f'{r['command']} ({r['usage_count']})' for r in results])
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(message)
+        await ctx.author.send(message)
 
     @discord.ext.commands.command(name='set')
     @discord.ext.commands.is_owner()
