@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.4.3
     # via aiohttp
-aiohttp==3.10.10
+aiohttp==3.11.0
     # via
     #   -r requirements.in
     #   discord-py
@@ -39,7 +39,9 @@ multidict==6.1.0
 notch==2023.1
     # via -r requirements.in
 propcache==0.2.0
-    # via yarl
+    # via
+    #   aiohttp
+    #   yarl
 requests==2.32.3
     # via wikipedia
 soupsieve==2.6
