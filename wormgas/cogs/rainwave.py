@@ -821,7 +821,7 @@ class RainwaveCog(discord.ext.commands.Cog, name='Rainwave'):
             is_patron = patron_role in after.roles
             if is_donor or is_patron:
                 log.info(f'Enabling perks for {after.display_name!r}')
-                await self.rw_enable_perks([after])
+                log.info(await self.rw_enable_perks([after]))
                 if not is_donor:
                     await after.add_roles(donor_role)
         if before.display_name != after.display_name:
