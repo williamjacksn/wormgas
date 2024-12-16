@@ -12,7 +12,7 @@ aiohttp==3.11.10
     #   discord-py
 aiosignal==1.3.1
     # via aiohttp
-attrs==24.2.0
+attrs==24.3.0
     # via aiohttp
 beautifulsoup4==4.12.3
     # via wikipedia
