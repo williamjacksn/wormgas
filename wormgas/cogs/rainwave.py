@@ -74,6 +74,7 @@ class RainwaveCog(discord.ext.commands.Cog, name='Rainwave'):
             log.debug(f'{response.status} {content}')
             if response.status == 200:
                 return await response.json()
+            log.critical(response.json())
         raise RuntimeError
 
     @staticmethod
