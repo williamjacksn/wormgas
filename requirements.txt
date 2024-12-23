@@ -48,7 +48,7 @@ soupsieve==2.6
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
-urllib3==2.2.3
+urllib3==2.3.0
     # via requests
 wikipedia==1.4.0
     # via -r requirements.in
