@@ -42,7 +42,7 @@ class ChatCog(discord.ext.commands.Cog):
         self.brain = wormgas.cogs.cobe.brain.Brain(str(brain_file))
 
     @discord.ext.commands.command()
-    async def mention(self, ctx: discord.ext.commands.Context, watch_word: str):
+    async def mention(self, ctx: discord.ext.commands.Context, *, watch_word: str):
         normalized_watch_word = watch_word.lower()
         await ctx.author.send(f'Okay, I will ping you whenever I see a message that contains {normalized_watch_word!r}')
 
