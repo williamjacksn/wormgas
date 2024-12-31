@@ -316,6 +316,11 @@ class RainwaveCog(discord.ext.commands.Cog, name='Rainwave'):
                 self.bot.db.events_insert(p_id, event.id)
         for g in self.bot.guilds:
             for e in g.scheduled_events:
+                now = datetime.datetime.now(tz=datetime.UTC)
+                if e.status == discord.EventStatus.active and e.end_time < now:
+                    log.info(f'Ending event {e.id}')
+                    await e.end()
+            for e in g.scheduled_events:
                 log.debug(f'Event {e.name} status {e.status} start time {e.start_time}')
                 now = datetime.datetime.now(tz=datetime.UTC)
                 if e.status == discord.EventStatus.scheduled and e.start_time <= now:
@@ -340,9 +345,6 @@ class RainwaveCog(discord.ext.commands.Cog, name='Rainwave'):
                             m = ' '.join([r.mention for r in notify_roles])
                             m = f'{m} {e.name} is starting now!'
                             await channel.send(m)
-                elif e.status == discord.EventStatus.active and e.end_time < now:
-                    log.info(f'Ending event {e.id}')
-                    await e.end()
 
     @discord.ext.commands.group()
     async def key(self, ctx: discord.ext.commands.Context):
