@@ -32,10 +32,6 @@ class Wormgas(discord.ext.commands.Bot):
         for extension_name in extension_names:
             await self.load_extension(extension_name)
 
-        log.info('Synchronizing app commands...')
-        commands = await self.tree.sync()
-        log.info(f'Synchronized {len(commands)} commands')
-
 
 def main():
     log.info(f'wormgas {__version__}')
