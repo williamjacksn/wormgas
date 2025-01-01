@@ -192,6 +192,16 @@ class Database(fort.SQLiteDatabase):
                 )
             ''')
             self.version = 7
+        if self.version < 8:
+            self.log.info('Migrating to database schema version 8')
+            self.u('''
+                create table watch_words (
+                   channel_id integer,
+                   discord_user_id integer,
+                   watch_text text
+                )
+            ''')
+            self.version = 8
 
     def rps_delete(self, user_id: str):
         sql = '''
@@ -306,6 +316,33 @@ class Database(fort.SQLiteDatabase):
             from topic_control
         '''
         return [int(r['channel_id']) for r in self.q(sql)]
+
+    def watch_words_insert(self, channel_id: int, discord_user_id: int, watch_text: str):
+        sql = '''
+            insert into watch_words (
+                channel_id, discord_user_id, watch_text
+            ) values (
+                :channel_id, :discord_user_id, :watch_text
+            )
+        '''
+        params = {
+            'channel_id': channel_id,
+            'discord_user_id': discord_user_id,
+            'watch_text': watch_text,
+        }
+        self.u(sql, params)
+
+    def watch_words_list(self, channel_id: int) -> list[dict]:
+        sql = '''
+            select channel_id, discord_user_id, watch_text
+            from watch_words
+            order by discord_user_id, watch_text
+            where channel_id = :channel_id
+        '''
+        params = {
+            'channel_id': channel_id,
+        }
+        return self.q(sql, params)
 
     def _table_exists(self, table_name):
         sql = '''

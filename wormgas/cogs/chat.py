@@ -42,9 +42,27 @@ class ChatCog(discord.ext.commands.Cog):
         self.brain = wormgas.cogs.cobe.brain.Brain(str(brain_file))
 
     @discord.ext.commands.command()
-    async def mention(self, ctx: discord.ext.commands.Context, *, watch_word: str):
-        normalized_watch_word = watch_word.lower()
-        await ctx.author.send(f'Okay, I will ping you whenever I see a message that contains {normalized_watch_word!r}')
+    async def mention(self, ctx: discord.ext.commands.Context, channel: discord.Channel, *, watch_text: str):
+        normalized_watch_text = watch_text.lower()
+        self.bot.db.watch_words_insert(channel.id, ctx.author.id, normalized_watch_text)
+        await ctx.author.send(f'Okay, I will ping you whenever I see a message in {channel} that contains {normalized_watch_text!r}')
+
+    @discord.ext.commands.Cog.listener('on_message')
+    async def listen_for_mentions(self, message: discord.Message):
+        watch_words = self.bot.db.watch_words_list(message.channel.id)
+        pinged_users = []
+        for ww in watch_words:
+            user = self.bot.get_user(ww['discord_user_id'])
+            watch_text = ww['watch_text']
+            if user == message.author:
+                # Do not ping the person who sent the message
+                continue
+            if user in pinged_users:
+                # Do not ping a user more than once for the same message
+                continue
+            if watch_text in message.clean_content.lower():
+                pinged_users.append(user)
+                await user.send(f'{message.author} mentioned {watch_text} in {message.channel}: {message.jump_url}')
 
     @discord.ext.commands.Cog.listener()
     async def on_message(self, message: discord.Message):
