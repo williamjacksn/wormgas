@@ -1,4 +1,3 @@
-import discord
 import discord.ext
 import logging
 import os
@@ -43,7 +42,7 @@ class ChatCog(discord.ext.commands.Cog):
         self.brain = wormgas.cogs.cobe.brain.Brain(str(brain_file))
 
     @discord.ext.commands.command()
-    async def mention(self, ctx: discord.ext.commands.Context, channel: discord.Channel, *, watch_text: str):
+    async def mention(self, ctx: discord.ext.commands.Context, channel: discord.TextChannel, *, watch_text: str):
         normalized_watch_text = watch_text.lower()
         self.bot.db.watch_words_insert(channel.id, ctx.author.id, normalized_watch_text)
         await ctx.author.send(f'Okay, I will ping you whenever I see a message in {channel} that contains {normalized_watch_text!r}')
