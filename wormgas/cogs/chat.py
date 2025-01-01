@@ -52,6 +52,11 @@ class ChatCog(discord.ext.commands.Cog):
         if not isinstance(message.channel, discord.TextChannel):
             log.debug('Ignoring message that is not in a TextChannel')
             return
+
+        if message.author == self.bot.user:
+            log.debug('Ignoring message from myself')
+            return
+
         watch_words = self.bot.db.watch_words_list(message.channel.id)
         pinged_users = []
         for ww in watch_words:
