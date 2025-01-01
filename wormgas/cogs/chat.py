@@ -1,3 +1,4 @@
+import discord
 import discord.ext
 import logging
 import os
