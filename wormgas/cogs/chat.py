@@ -49,6 +49,7 @@ class ChatCog(discord.ext.commands.Cog):
 
     @discord.ext.commands.Cog.listener('on_message')
     async def listen_for_mentions(self, message: discord.Message):
+        log.info(f'Processing message on channel {message.channel.id} {message.channel.name}')
         if not isinstance(message.channel, discord.TextChannel):
             log.debug('Ignoring message that is not in a TextChannel')
             return
