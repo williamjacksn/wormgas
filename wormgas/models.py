@@ -336,8 +336,8 @@ class Database(fort.SQLiteDatabase):
         sql = '''
             select channel_id, discord_user_id, watch_text
             from watch_words
-            order by discord_user_id, watch_text
             where channel_id = :channel_id
+            order by discord_user_id, watch_text
         '''
         params = {
             'channel_id': channel_id,
