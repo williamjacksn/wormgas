@@ -58,7 +58,7 @@ class ChatCog(discord.ext.commands.Cog):
             return
 
         watch_words = self.bot.db.watch_words_list(message.channel.id)
-        pinged_users = []
+        pinged_users = message.mentions
         for ww in watch_words:
             user = self.bot.get_user(ww['discord_user_id'])
             watch_text = ww['watch_text']
