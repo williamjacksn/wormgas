@@ -1,5 +1,5 @@
 services:
-  wormgas:
+  app:
     image: ghcr.io/williamjacksn/wormgas
     init: true
 
