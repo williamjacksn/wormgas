@@ -1,5 +1,4 @@
 aiohttp
-audioop-lts; python_version>='3.13'
 discord.py
 fort
 notch
