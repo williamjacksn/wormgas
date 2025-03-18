@@ -34,7 +34,7 @@ idna==3.10
     # via
     #   requests
     #   yarl
-multidict==6.1.0
+multidict==6.2.0
     # via
     #   aiohttp
     #   yarl
