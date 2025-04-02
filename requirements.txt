@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.15
+aiohttp==3.11.16
     # via
     #   -r requirements.in
     #   discord-py
