@@ -50,7 +50,7 @@ soupsieve==2.6
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
-typing-extensions==4.13.1
+typing-extensions==4.13.2
     # via beautifulsoup4
 urllib3==2.3.0
     # via requests
