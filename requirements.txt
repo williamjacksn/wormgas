@@ -46,7 +46,7 @@ propcache==0.3.1
     #   yarl
 requests==2.32.3
     # via wikipedia
-soupsieve==2.6
+soupsieve==2.7
     # via beautifulsoup4
 stemming==1.0.1
     # via -r requirements.in
