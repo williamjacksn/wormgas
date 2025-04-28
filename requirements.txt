@@ -38,7 +38,7 @@ multidict==6.4.3
     # via
     #   aiohttp
     #   yarl
-notch==2023.1
+notch==2025.1
     # via -r requirements.in
 propcache==0.3.1
     # via
