@@ -1,5 +1,3 @@
-__version__ = "2024.0"
-
 import aiohttp
 import discord.ext.commands
 import logging
@@ -35,7 +33,7 @@ class Wormgas(discord.ext.commands.Bot):
 
 
 def main():
-    log.info(f"wormgas {__version__}")
+    log.info("Starting wormgas")
     intents = discord.Intents.default()
     intents.members = True
     intents.message_content = True
