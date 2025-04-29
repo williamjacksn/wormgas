@@ -28,14 +28,14 @@ class Scorer:
 class ScorerGroup:
     def __init__(self):
         self.scorers = []
-        self.total_weight = 0.
+        self.total_weight = 0.0
 
     def add_scorer(self, weight, scorer):
         # add a scorer with a negative weight if you want to reverse
         # its impact
         self.scorers.append((weight, scorer))
 
-        total = 0.
+        total = 0.0
         for weight, _ in self.scorers:
             total += abs(weight)
         self.total_weight = total
@@ -46,7 +46,7 @@ class ScorerGroup:
 
     def score(self, reply):
         # normalize to 0..1
-        score = 0.
+        score = 0.0
         for weight, scorer in self.scorers:
             s = scorer.score(reply)
 
@@ -63,8 +63,9 @@ class ScorerGroup:
 
 class CobeScorer(Scorer):
     """Classic Cobe scorer"""
+
     def score(self, reply):
-        info = 0.
+        info = 0.0
 
         cache = self.cache
         nodes = set()
@@ -117,6 +118,7 @@ class CobeScorer(Scorer):
 
 class IdentityScorer(Scorer):
     """Parrot the input exactly. Best used with a negative weight."""
+
     def token_iter(self, reply):
         cache = self.cache
 
@@ -149,8 +151,9 @@ class IdentityScorer(Scorer):
 
 class InformationScorer(Scorer):
     """Score based on the information of each edge in the graph"""
+
     def score(self, reply):
-        info = 0.
+        info = 0.0
 
         get_node_count = reply.graph.get_node_count
 

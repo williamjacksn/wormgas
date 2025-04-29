@@ -7,26 +7,26 @@ import stemming.porter2
 
 class MegaHALTokenizer:
     """A traditional MegaHAL style tokenizer. This considers any of these
-to be a token:
-  * one or more consecutive alpha characters (plus apostrophe)
-  * one or more consecutive numeric characters
-  * one or more consecutive punctuation/space characters (not apostrophe)
+    to be a token:
+      * one or more consecutive alpha characters (plus apostrophe)
+      * one or more consecutive numeric characters
+      * one or more consecutive punctuation/space characters (not apostrophe)
 
-This tokenizer ignores differences in capitalization."""
+    This tokenizer ignores differences in capitalization."""
+
     @staticmethod
     def split(phrase):
         if not isinstance(phrase, str):
-            raise TypeError('Input must be Unicode')
+            raise TypeError("Input must be Unicode")
 
         if len(phrase) == 0:
             return []
 
         # add ending punctuation if it is missing
-        if phrase[-1] not in '.!?':
-            phrase = '{}.'.format(phrase)
+        if phrase[-1] not in ".!?":
+            phrase = "{}.".format(phrase)
 
-        words = re.findall('([A-Z\']+|[0-9]+|[^A-Z\'0-9]+)', phrase.upper(),
-                           re.UNICODE)
+        words = re.findall("([A-Z']+|[0-9]+|[^A-Z'0-9]+)", phrase.upper(), re.UNICODE)
         return words
 
     @staticmethod
@@ -34,7 +34,7 @@ This tokenizer ignores differences in capitalization."""
         """Capitalize the first alpha character in the reply and the
         first alpha character that follows one of [.?!] and a
         space."""
-        chars = list(''.join(words))
+        chars = list("".join(words))
         start = True
 
         for i, char in enumerate(chars):
@@ -46,42 +46,45 @@ This tokenizer ignores differences in capitalization."""
 
                 start = False
             else:
-                if i > 2 and chars[i - 1] in '.?!' and char.isspace():
+                if i > 2 and chars[i - 1] in ".?!" and char.isspace():
                     start = True
 
-        return ''.join(chars)
+        return "".join(chars)
 
 
 class CobeTokenizer:
     """A tokenizer that is somewhat improved from MegaHAL. These are
-considered tokens:
-  * one or more consecutive Unicode word characters (plus apostrophe and dash)
-  * one or more consecutive Unicode non-word characters, possibly with
-    internal whitespace
-  * the whitespace between word or non-word tokens
-  * an HTTP url, [word]: followed by any run of non-space characters.
+    considered tokens:
+      * one or more consecutive Unicode word characters (plus apostrophe and dash)
+      * one or more consecutive Unicode non-word characters, possibly with
+        internal whitespace
+      * the whitespace between word or non-word tokens
+      * an HTTP url, [word]: followed by any run of non-space characters.
 
-This tokenizer collapses multiple spaces in a whitespace token into a
-single space character.
+    This tokenizer collapses multiple spaces in a whitespace token into a
+    single space character.
 
-It preserves differences in case. foo, Foo, and FOO are different
-tokens."""
+    It preserves differences in case. foo, Foo, and FOO are different
+    tokens."""
+
     def __init__(self):
         # Add hyphen to the list of possible word characters, so hyphenated
         # words become one token (e.g. hy-phen). But don't remove it from
         # the list of non-word characters, so if it's found entirely within
         # punctuation it's a normal non-word (e.g. :-( )
 
-        self.regex = re.compile(r'(\w+:\S+'  # urls
-                                r'|[\w\'-]+'  # words
-                                r'|[^\w\s][^\w]*[^\w\s]'  # multiple punctuation
-                                r'|[^\w\s]'  # a single punctuation character
-                                r'|\s+)',    # whitespace
-                                re.UNICODE)
+        self.regex = re.compile(
+            r"(\w+:\S+"  # urls
+            r"|[\w\'-]+"  # words
+            r"|[^\w\s][^\w]*[^\w\s]"  # multiple punctuation
+            r"|[^\w\s]"  # a single punctuation character
+            r"|\s+)",  # whitespace
+            re.UNICODE,
+        )
 
     def split(self, phrase):
         if not isinstance(phrase, str):
-            raise TypeError('Input must be Unicode')
+            raise TypeError("Input must be Unicode")
 
         # Strip leading and trailing whitespace. This might not be the
         # correct choice long-term, but in the brain it prevents edges
@@ -94,16 +97,17 @@ tokens."""
         tokens = self.regex.findall(phrase)
 
         # collapse runs of whitespace into a single space
-        space = ' '
+        space = " "
         for i, token in enumerate(tokens):
-            if token[0] == ' ' and len(token) > 1:
+            if token[0] == " " and len(token) > 1:
                 tokens[i] = space
 
         return tokens
 
     @staticmethod
     def join(words):
-        return ''.join(words)
+        return "".join(words)
+
 
 # Modified from original source by cpetosky on 3/11:
 #    Replaced Snowball dependency with stemming library.
