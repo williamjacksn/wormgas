@@ -496,7 +496,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         elif sched_type == "Election":
             if sched_name:
                 m += f" ({sched_name})"
-            m += f":"
+            m += ":"
             for i, s in enumerate(event.get("songs"), start=1):
                 song_string = self.song_string(s, simple=True)
                 m += f" **[{i}]** {song_string}"
@@ -766,7 +766,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 listener_id = await self.get_id_for_user(ctx.author)
                 if listener_id is None:
                     await ctx.author.send(
-                        f"Use **!id add <id>** to connect your Rainwave and Discord accounts."
+                        "Use **!id add <id>** to connect your Rainwave and Discord accounts."
                     )
                     return
             elif (

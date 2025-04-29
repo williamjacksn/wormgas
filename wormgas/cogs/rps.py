@@ -144,7 +144,7 @@ class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
         if reset_code and reset_code == player_dict.get("reset_code"):
             self.bot.db.rps_delete(str(ctx.author.id))
             await ctx.author.send(
-                f"I reset your RPS record and deleted your game history."
+                "I reset your RPS record and deleted your game history."
             )
         else:
             reset_code = f"{random.randrange(999999):06d}"
