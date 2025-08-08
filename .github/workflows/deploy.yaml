@@ -1,4 +1,4 @@
-name: Deploy production app
+name: Deploy
 
 on:
   push:
@@ -7,17 +7,16 @@ on:
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
     steps:
 
-      - name: Configure SSH key
-        run: |
-          install --mode=600 -D /dev/null ~/.ssh/id_ed25519
-          echo "${{ secrets.ssh_private_key }}" > ~/.ssh/id_ed25519
-          ssh-keyscan -H -p 2234 ${{ secrets.ssh_host }} > ~/.ssh/known_hosts
+      - name: Check out the repository
+        uses: actions/checkout@v4
 
-      - name: Pull changes on remote server
-        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 git -C /opt/wormgas pull
-
-      - name: Restart app
-        run: ssh ssh://${{ secrets.ssh_user }}@${{ secrets.ssh_host }}:2234 sudo systemctl restart wormgas.service
+      - name: Deploy
+        run: sh ci/ssh-deploy.sh
+        env:
+          SSH_HOST: ${{ secrets.ssh_host }}
+          SSH_PRIVATE_KEY: ${{ secrets.ssh_private_key }}
+          SSH_USER: ${{ secrets.ssh_user }}
