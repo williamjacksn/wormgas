@@ -1,6 +1,6 @@
 [project]
 name = "wormgas"
-version = "2025.0"
+version = "2025.1"
 description = "Discord bot for rainwave.cc"
 readme = "README.md"
 requires-python = ">=3.13"

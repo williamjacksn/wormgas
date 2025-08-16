@@ -376,7 +376,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/67/35/25e68fbc99e672127
 
 [[package]]
 name = "wormgas"
-version = "2025.0"
+version = "2025.1"
 source = { virtual = "." }
 dependencies = [
     { name = "discord-py" },
