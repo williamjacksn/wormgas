@@ -164,11 +164,11 @@ wheels = [
 
 [[package]]
 name = "fort"
-version = "2024.2"
+version = "2025.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/3d/de/cca429ec357613626634f91ac16757610f82529a1d90a489319b4fe3c427/fort-2024.2.tar.gz", hash = "sha256:ee202d786e9067dcd463af3e226a25e0f963ad5d424fb71fb8b5f6cab691198e", size = 5465, upload-time = "2024-03-08T17:39:53.202Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/35/44ea08da29f19bf0f78048309449d35cf2799345b3ac25f5d63dfaea41e1/fort-2025.0.tar.gz", hash = "sha256:04c8c8d19a56b4e04686d817b1b5c56d1f99e9cb92104fcfaadc0281d0ec41b4", size = 4491, upload-time = "2025-04-30T19:11:32.96Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/a5/8b8fafc6393aabc0aaf7f1ed56e0006974e0da09540fc07b6d17f9a079eb/fort-2024.2-py3-none-any.whl", hash = "sha256:fa56ed0a1a1a12031c0b7c0fde36020e83904848d16ef1f1f414e2bfc5d9c3c8", size = 5886, upload-time = "2024-03-08T17:39:52.03Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/02/3517c819352649ab13801368257fd6670a5b26d10fad01d9413e6ea2dba3/fort-2025.0-py3-none-any.whl", hash = "sha256:302a4fe2b7dcfdfdeb8cf60562271342569d9bf274eca6b01de4623c7e5eb3d0", size = 5283, upload-time = "2025-04-30T19:11:31.468Z" },
 ]
 
 [[package]]
