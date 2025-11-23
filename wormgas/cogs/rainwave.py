@@ -885,6 +885,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     @discord.ext.commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User):
         if before.display_avatar != after.display_avatar:
+            log.info(
+                f"{after.display_name!r} ({after.id}) changed avatar to {after.display_avatar}"
+            )
             await self.rw_update_avatar(after.id, after.display_avatar)
 
     async def _sync_donors(self, guild: discord.Guild):
