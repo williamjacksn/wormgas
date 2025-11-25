@@ -70,7 +70,6 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         codes = [code for code in RainwaveChannel.__members__.keys()]
         chan_code_ls = "**, **".join(codes)
         self.channel_codes = f"Channel codes are **{chan_code_ls}**."
-        self.sync_events.start()
 
     async def _call(self, path: str, params: dict = None):
         log.debug(f"_call {path} {params}")
@@ -238,91 +237,6 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             "discord_user_ids": ",".join([str(u.id) for u in discord_users]),
         }
         return await self._call("enable_perks_by_discord_ids", params=params)
-
-    @discord.ext.tasks.loop(minutes=1)
-    async def sync_events(self):
-        await self.bot.wait_until_ready()
-        log.debug("Syncing Rainwave events with Discord")
-        user_id = self.bot.db.config_get("rainwave:user_id")
-        key = self.bot.db.config_get("rainwave:key")
-        d = await self.rw_admin_list_producers_all(user_id=user_id, key=key)
-        for p in d.get("producers", []):
-            p_id = p.get("id")
-            local_record = self.bot.db.events_get(p_id)
-            if local_record is not None:
-                log.debug("This event is already known")
-                continue
-            sid = p.get("sid")
-            rw_channel = RainwaveChannel(sid)
-            name = f"{rw_channel.short_name}: {p.get('name')}"
-            eastern = zoneinfo.ZoneInfo("America/New_York")
-            e_start = p.get("start")
-            start_time = datetime.datetime.fromtimestamp(e_start, eastern)
-            e_end = p.get("end")
-            end_time = datetime.datetime.fromtimestamp(e_end, eastern)
-            if p.get("type") == "PVPElectionProducer":
-                description = f"Listener requests compete head-to-head in PvP elections on the {rw_channel.long_name}"
-            else:
-                description = (
-                    f"Join us for this Power Hour on the {rw_channel.long_name}"
-                )
-            reason = f"Rainwave event id: {p_id}"
-            for g in self.bot.guilds:
-                channel = None
-                for vc in g.voice_channels:
-                    if vc.name == rw_channel.voice_channel_name:
-                        channel = vc
-                        break
-                log.debug("Creating a new event in Discord")
-                event = await g.create_scheduled_event(
-                    name=name,
-                    description=description,
-                    channel=channel,
-                    start_time=start_time,
-                    end_time=end_time,
-                    privacy_level=discord.PrivacyLevel.guild_only,
-                    reason=reason,
-                )
-                self.bot.db.events_insert(p_id, event.id)
-        for g in self.bot.guilds:
-            for e in g.scheduled_events:
-                now = datetime.datetime.now(tz=datetime.UTC)
-                if e.status == discord.EventStatus.active and e.end_time < now:
-                    log.info(f"Ending event {e.id}")
-                    await e.end()
-            for e in g.scheduled_events:
-                log.debug(f"Event {e.name} status {e.status} start time {e.start_time}")
-                now = datetime.datetime.now(tz=datetime.UTC)
-                if e.status == discord.EventStatus.scheduled and e.start_time <= now:
-                    log.info(f"Starting event {e.id}")
-                    await e.start()
-                    channel_id = self.bot.db.config_get("ph-notification-channel-id")
-                    if channel_id:
-                        notify_roles = []
-                        channel = g.get_channel(int(channel_id))
-                        if channel:
-                            current_time_eu = now.astimezone(
-                                zoneinfo.ZoneInfo("Europe/Paris")
-                            )
-                            if 8 <= current_time_eu.hour < 17:
-                                role_id = self.bot.db.config_get(
-                                    "discord:roles:notify:🇪🇺"
-                                )
-                                if role_id:
-                                    notify_roles.append(g.get_role(int(role_id)))
-                            current_time_na = now.astimezone(
-                                zoneinfo.ZoneInfo("America/Chicago")
-                            )
-                            if 8 <= current_time_na.hour < 17:
-                                role_id = self.bot.db.config_get(
-                                    "discord:roles:notify:🎵"
-                                )
-                                if role_id:
-                                    notify_roles.append(g.get_role(int(role_id)))
-                        if notify_roles:
-                            m = " ".join([r.mention for r in notify_roles])
-                            m = f"{m} {e.name} is starting now!"
-                            await channel.send(m)
 
     @discord.ext.commands.group()
     async def key(self, ctx: discord.ext.commands.Context):
@@ -919,9 +833,6 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             for guild in self.bot.guilds:
                 log.info(f"Syncing donors for guild {guild.id}")
                 await self._sync_donors(guild)
-
-    def cog_unload(self):
-        self.sync_events.cancel()
 
 
 async def setup(bot: wormgas.wormgas.Wormgas):
