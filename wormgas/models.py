@@ -37,7 +37,9 @@ class Database(fort.SQLiteDatabase):
         self.u(sql, params)
         self._version = version
 
-    def command_log_insert(self, discord_user_id: int, command: str, message: str) -> None:
+    def command_log_insert(
+        self, discord_user_id: int, command: str, message: str
+    ) -> None:
         sql = """
             insert into command_log (
                 occurred_at, discord_user_id, command, message
@@ -53,7 +55,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def command_log_list(self):
+    def command_log_list(self) -> list:
         sql = """
             select command, count(*) usage_count
             from command_log
@@ -101,7 +103,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def events_get(self, rw_event_id: int):
+    def events_get(self, rw_event_id: int) -> dict | None:
         sql = """
             select rw_event_id, discord_event_id
             from events
@@ -114,7 +116,8 @@ class Database(fort.SQLiteDatabase):
 
     def events_insert(self, rw_event_id: int, discord_event_id: int) -> None:
         sql = """
-            insert into events (rw_event_id, discord_event_id) values (:rw_event_id, :discord_event_id)
+            insert into events (rw_event_id, discord_event_id)
+            values (:rw_event_id, :discord_event_id)
         """
         params = {
             "rw_event_id": rw_event_id,
@@ -245,8 +248,10 @@ class Database(fort.SQLiteDatabase):
             ) values (
                 :user_id, :rock, :paper, :scissors, :wins, :draws, :losses, :reset_code
             ) on conflict (user_id) do update set
-                rock = excluded.rock, paper = excluded.paper, scissors = excluded.scissors, wins = excluded.wins,
-                draws = excluded.draws, losses = excluded.losses, reset_code = excluded.reset_code
+                rock = excluded.rock, paper = excluded.paper,
+                scissors = excluded.scissors, wins = excluded.wins,
+                draws = excluded.draws, losses = excluded.losses,
+                reset_code = excluded.reset_code
         """
         for key in ("rock", "paper", "scissors", "wins", "draws", "losses"):
             if key not in params:
@@ -265,7 +270,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def rw_api_keys_get(self, discord_user_id: int):
+    def rw_api_keys_get(self, discord_user_id: int) -> str:
         sql = """
             select rw_api_key
             from rw_api_keys
@@ -346,7 +351,7 @@ class Database(fort.SQLiteDatabase):
         }
         return self.q(sql, params)
 
-    def _table_exists(self, table_name) -> bool:
+    def _table_exists(self, table_name: str) -> bool:
         sql = """
             select name
             from sqlite_master
