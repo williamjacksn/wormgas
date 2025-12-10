@@ -11,7 +11,7 @@ class WolframAlphaCog(discord.ext.commands.Cog, name="Wolfram|Alpha"):
     def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
 
-    async def _wa(self, query: str):
+    async def _wa(self, query: str) -> str:
         api_key = self.bot.db.config_get("wolframalpha:key")
         if api_key is None:
             return "Wolfram|Alpha API key not configured, cannot use /wa"

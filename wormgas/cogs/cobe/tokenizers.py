@@ -16,7 +16,7 @@ class MegaHALTokenizer:
     This tokenizer ignores differences in capitalization."""
 
     @staticmethod
-    def split(phrase):
+    def split(phrase: str) -> list:
         if not isinstance(phrase, str):
             raise TypeError("Input must be Unicode")
 
@@ -31,7 +31,7 @@ class MegaHALTokenizer:
         return words
 
     @staticmethod
-    def join(words):
+    def join(words: list) -> str:
         """Capitalize the first alpha character in the reply and the
         first alpha character that follows one of [.?!] and a
         space."""
@@ -83,7 +83,7 @@ class CobeTokenizer:
             re.UNICODE,
         )
 
-    def split(self, phrase):
+    def split(self, phrase: str) -> list:
         if not isinstance(phrase, str):
             raise TypeError("Input must be Unicode")
 
@@ -106,7 +106,7 @@ class CobeTokenizer:
         return tokens
 
     @staticmethod
-    def join(words):
+    def join(words: list) -> str:
         return "".join(words)
 
 
@@ -120,7 +120,7 @@ class CobeStemmer:
         pass
 
     @staticmethod
-    def stem(word):
+    def stem(word: str) -> str:
         # Don't preserve case when stemming, i.e. create lowercase stems.
         # This will allow us to create replies that switch the case of
         # input words, but still generate the reply in context with the

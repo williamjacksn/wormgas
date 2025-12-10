@@ -29,7 +29,7 @@ class ConfigCog(discord.ext.commands.Cog, name="Bot configuration"):
 
     @discord.ext.commands.command(name="set")
     @discord.ext.commands.is_owner()
-    async def _set(self, ctx: discord.ext.commands.Context, *tokens) -> None:
+    async def _set(self, ctx: discord.ext.commands.Context, *tokens: list[str]) -> None:
         """Display or change configuration settings.
 
         Use "!set [<key>] [<value>]" to display or change configuration settings.

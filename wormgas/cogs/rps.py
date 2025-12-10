@@ -1,5 +1,5 @@
 import logging
-import random
+import secrets
 
 import discord.ext
 
@@ -9,16 +9,15 @@ log = logging.getLogger(__name__)
 
 
 class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
-    canonical_actions = {
-        "rock": "rock",
-        "paper": "paper",
-        "scissors": "scissors",
-        "\u2702": "scissors",
-        "\ufe0f": "scissors",
-    }
-
     def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
+        self.canonical_actions: dict[str, str] = {
+            "rock": "rock",
+            "paper": "paper",
+            "scissors": "scissors",
+            "\u2702": "scissors",
+            "\ufe0f": "scissors",
+        }
 
     async def get_rps_record(self, player: discord.Member) -> str:
         player_id = str(player.id)
@@ -33,9 +32,12 @@ class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
         plural = "s"
         if t == 1:
             plural = ""
-        return f"RPS record for {player.display_name} ({t} game{plural}) is {w}-{d}-{_l} (w-d-l)."
+        return (
+            f"RPS record for {player.display_name} "
+            f"({t} game{plural}) is {w}-{d}-{_l} (w-d-l)."
+        )
 
-    async def get_rps_stats(self, player: discord.Member):
+    async def get_rps_stats(self, player: discord.Member) -> str:
         player_id = str(player.id)
         player_dict = self.bot.db.rps_get(player_id)
         if player_id is None:
@@ -49,24 +51,30 @@ class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
             r_rate = r / float(t) * 100
             p_rate = p / float(t) * 100
             s_rate = s / float(t) * 100
-            m = f"{player.display_name} challenges with rock/paper/scissors at these rates: "
+            m = (
+                f"{player.display_name} challenges with rock/paper/scissors "
+                f"at these rates: "
+            )
             m = f"{m}{r_rate:3.1f}/{p_rate:3.1f}/{s_rate:3.1f}%."
         else:
             m = f"{player.display_name} does not play. :("
         return m
 
-    async def play_game(self, challenger: discord.User, action: str):
-        challenger = str(challenger.id)
+    async def play_game(self, challenger: discord.User, action: str) -> str:
+        challenger_id = str(challenger.id)
         action = self.canonical_actions[action]
         action_map = ["rock", "paper", "scissors"]
         challenge = action_map.index(action)
-        response = random.randint(0, 2)
-        player_dict = self.bot.db.rps_get(challenger)
+        response = secrets.randbelow(3)
+        player_dict = self.bot.db.rps_get(challenger_id)
         global_dict = self.bot.db.rps_get("!global")
         player_dict[action] = player_dict.get(action, 0) + 1
         global_dict[action] = global_dict.get(action, 0) + 1
 
-        m = f"You challenge with **{action}**. I counter with **{action_map[response]}**."
+        m = (
+            f"You challenge with **{action}**. "
+            f"I counter with **{action_map[response]}**."
+        )
 
         if challenge == (response + 1) % 3:
             player_dict["wins"] = player_dict.get("wins", 0) + 1
@@ -135,7 +143,9 @@ class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
         await ctx.send(await self.get_rps_stats(player))
 
     @rps.command()
-    async def reset(self, ctx: discord.ext.commands.Context, reset_code: str | None = None) -> None:
+    async def reset(
+        self, ctx: discord.ext.commands.Context, reset_code: str | None = None
+    ) -> None:
         """Reset your record and delete your game history."""
 
         self.bot.db.command_log_insert(
@@ -149,11 +159,12 @@ class RpsCog(discord.ext.commands.Cog, name="Rock/Paper/Scissors"):
                 "I reset your RPS record and deleted your game history."
             )
         else:
-            reset_code = f"{random.randrange(999999):06d}"
+            reset_code = f"{secrets.randbelow(1000000):06d}"
             player_dict["reset_code"] = reset_code
             self.bot.db.rps_set(player_dict)
             await ctx.author.send(
-                f"Use `!rps reset {reset_code}` to reset your RPS record and delete your history."
+                f"Use `!rps reset {reset_code}` to reset your RPS record "
+                f"and delete your history."
             )
 
 

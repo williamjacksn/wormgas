@@ -30,7 +30,7 @@ class RainwaveChannel(enum.Enum):
     ow = 5
 
     @property
-    def channel_id(self):
+    def channel_id(self) -> int:
         return self.value
 
     @property
@@ -38,18 +38,18 @@ class RainwaveChannel(enum.Enum):
         return f"{self.short_name} channel"
 
     @property
-    def short_name(self):
+    def short_name(self) -> str | None:
         return (None, "Game", "OCR", "Covers", "Chiptune", "All")[int(self.value)]
 
     @property
-    def url(self):
+    def url(self) -> str:
         return (
             "https://rainwave.cc/"
             + ("", "game/", "ocremix/", "covers/", "chiptune/", "all/")[int(self.value)]
         )
 
     @property
-    def voice_channel_name(self):
+    def voice_channel_name(self) -> str | None:
         return (None, "game", "ocremix", "covers", "chiptune", "all")[int(self.value)]
 
 
@@ -57,12 +57,12 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
         self.nick_not_recognized = (
-            "I do not recognize you. Use **!id add <id>** to link your Rainwave and Discord "
-            "accounts."
+            "I do not recognize you. Use **!id add <id>** to link "
+            "your Rainwave and Discord accounts."
         )
         self.missing_key = (
-            "I do not have a key stored for you. Visit https://rainwave.cc/keys/ to get a key and tell "
-            "me about it with **!key add <key>**."
+            "I do not have a key stored for you. Visit https://rainwave.cc/keys/ "
+            "to get a key and tell me about it with **!key add <key>**."
         )
         self.not_tuned_in = (
             "You are not tuned in and you did not specify a valid channel code."
@@ -71,7 +71,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         chan_code_ls = "**, **".join(codes)
         self.channel_codes = f"Channel codes are **{chan_code_ls}**."
 
-    async def _call(self, path: str, params: dict | None = None):
+    async def _call(self, path: str, params: dict | None = None) -> dict:
         log.debug(f"_call {path} {params}")
         if params is None:
             params = {}
@@ -90,10 +90,10 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         raise RuntimeError
 
     @staticmethod
-    def artist_string(artists):
+    def artist_string(artists: list) -> str:
         return ", ".join([a.get("name") for a in artists])
 
-    def song_string(self, song, simple=False):
+    def song_string(self, song: dict, simple: bool = False) -> str:
         album = song.get("albums")[0].get("name")
         title = song.get("title")
         artists = self.artist_string(song.get("artists"))
@@ -127,8 +127,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             "chan": await self.get_current_channel_for_user(user),
         }
 
-    async def get_current_channel_for_name(self, name: str):
-        user_id = self.bot.db.config_get("rainwave:user_id")
+    async def get_current_channel_for_name(self, name: str) -> RainwaveChannel | None:
+        user_id = int(self.bot.db.config_get("rainwave:user_id"))
         key = self.bot.db.config_get("rainwave:key")
         d = await self.rw_user_search(user_id, key, name)
         chan_id = d.get("user").get("sid")
@@ -136,7 +136,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             return None
         return RainwaveChannel(int(chan_id))
 
-    async def get_current_channel_for_user(self, user: discord.User) -> RainwaveChannel:
+    async def get_current_channel_for_user(
+        self, user: discord.User
+    ) -> RainwaveChannel | None:
         user_info = await self.rw_user_search_by_discord_user_id(str(user.id))
         user_sid = user_info.get("user", {}).get("sid")
         if user_sid:
@@ -146,93 +148,97 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             if vc_name.lower() in RainwaveChannel.__members__.keys():
                 return RainwaveChannel[vc_name.lower()]
 
-    async def get_id_for_name(self, username: str):
+    async def get_id_for_name(self, username: str) -> int:
         rw_user_id = self.bot.db.config_get("rainwave:user_id")
         key = self.bot.db.config_get("rainwave:key")
         d = await self.rw_user_search(rw_user_id, key, username)
         return d.get("user").get("user_id")
 
-    async def get_id_for_user(self, user: discord.User):
+    async def get_id_for_user(self, user: discord.User) -> int:
         user_id = str(user.id)
         user_info = await self.rw_user_search_by_discord_user_id(user_id)
         return user_info.get("user", {}).get("user_id")
 
-    async def get_key_for_user(self, user: discord.User):
+    async def get_key_for_user(self, user: discord.User) -> str:
         return self.bot.db.rw_api_keys_get(user.id)
 
-    async def rw_admin_list_producers_all(self, user_id, key):
+    async def rw_admin_list_producers_all(self, user_id: int, key: str) -> dict:
         params = {"user_id": user_id, "key": key}
         return await self._call("admin/list_producers_all", params=params)
 
-    async def rw_clear_requests(self, user_id, key, sid):
+    async def rw_clear_requests(self, user_id: int, key: str, sid: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("clear_requests", params=params)
 
-    async def rw_current_listeners(self, user_id, key, sid):
+    async def rw_current_listeners(self, user_id: int, key: str, sid: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("current_listeners", params=params)
 
-    async def rw_info(self, sid):
+    async def rw_info(self, sid: int) -> dict:
         params = {"sid": sid}
         return await self._call("info", params=params)
 
-    async def rw_listener(self, user_id, key, listener_id):
+    async def rw_listener(self, user_id: int, key: str, listener_id: int) -> dict:
         params = {"user_id": user_id, "key": key, "id": listener_id}
         return await self._call("listener", params=params)
 
-    async def rw_pause_request_queue(self, user_id, key, sid):
+    async def rw_pause_request_queue(self, user_id: int, key: str, sid: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("pause_request_queue", params=params)
 
-    async def rw_request(self, user_id, key, sid, song_id):
+    async def rw_request(self, user_id: int, key: str, sid: int, song_id: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid, "song_id": song_id}
         return await self._call("request", params=params)
 
-    async def rw_request_favorited_songs(self, user_id, key, sid):
+    async def rw_request_favorited_songs(
+        self, user_id: int, key: str, sid: int
+    ) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("request_favorited_songs", params=params)
 
-    async def rw_request_unrated_songs(self, user_id, key, sid):
+    async def rw_request_unrated_songs(self, user_id: int, key: str, sid: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("request_unrated_songs", params=params)
 
-    async def rw_song(self, user_id, key, sid, song_id):
+    async def rw_song(self, user_id: int, key: str, sid: int, song_id: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid, "id": song_id}
         return await self._call("song", params=params)
 
-    async def rw_unpause_request_queue(self, user_id, key, sid):
+    async def rw_unpause_request_queue(self, user_id: int, key: str, sid: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid}
         return await self._call("unpause_request_queue", params=params)
 
-    async def rw_user_search(self, user_id, key, username):
+    async def rw_user_search(self, user_id: int, key: str, username: str) -> dict:
         params = {"user_id": user_id, "key": key, "username": username}
         return await self._call("user_search", params=params)
 
-    async def rw_user_search_by_discord_user_id(self, discord_user_id: str):
+    async def rw_user_search_by_discord_user_id(self, discord_user_id: str) -> dict:
         params = {
             "discord_user_id": discord_user_id,
         }
         return await self._call("user_search_by_discord_user_id", params=params)
 
-    async def rw_vote(self, user_id, key, sid, entry_id):
+    async def rw_vote(self, user_id: int, key: str, sid: int, entry_id: int) -> dict:
         params = {"user_id": user_id, "key": key, "sid": sid, "entry_id": entry_id}
         return await self._call("vote", params=params)
 
-    async def rw_update_nickname(self, discord_user_id, nickname):
+    async def rw_update_nickname(self, discord_user_id: int, nickname: str) -> dict:
         params = {
             "discord_user_id": discord_user_id,
             "nickname": nickname,
         }
         return await self._call("update_user_nickname_by_discord_id", params=params)
 
-    async def rw_update_avatar(self, discord_user_id: int, avatar: discord.Asset):
+    async def rw_update_avatar(
+        self, discord_user_id: int, avatar: discord.Asset
+    ) -> dict:
         params = {
             "discord_user_id": discord_user_id,
             "avatar": avatar.url,
         }
         return await self._call("update_user_avatar_by_discord_id", params=params)
 
-    async def rw_enable_perks(self, discord_users: list[discord.Member]):
+    async def rw_enable_perks(self, discord_users: list[discord.Member]) -> dict:
         params = {
             "discord_user_ids": ",".join([str(u.id) for u in discord_users]),
         }
@@ -243,7 +249,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         """Manage your Rainwave key"""
 
     @key.command(name="add")
-    async def key_add(self, ctx: discord.ext.commands.Context, rainwave_key: str) -> None:
+    async def key_add(
+        self, ctx: discord.ext.commands.Context, rainwave_key: str
+    ) -> None:
         """Add your Rainwave key to your Discord account."""
 
         self.bot.db.command_log_insert(
@@ -301,7 +309,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         await ctx.send(m)
 
     @staticmethod
-    def build_embed(song: dict):
+    def build_embed(song: dict) -> discord.Embed:
         channel = RainwaveChannel(song["sid"])
         album_name = song["albums"][0]["name"]
         album_id = song["albums"][0]["id"]
@@ -324,7 +332,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         return embed
 
     @staticmethod
-    def build_embed_ustats(user: dict):
+    def build_embed_ustats(user: dict) -> discord.Embed:
         user_name = user.get("name")
         user_id = user.get("user_id")
         user_url = f"https://rainwave.cc/#!/listener/{user_id}"
@@ -362,7 +370,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     @discord.ext.commands.command(
         aliases=["nx"] + [f"nx{ch}" for ch in RainwaveChannel.__members__.keys()]
     )
-    async def next(self, ctx: discord.ext.commands.Context, channel: str | None = None) -> None:
+    async def next(
+        self, ctx: discord.ext.commands.Context, channel: str | None = None
+    ) -> None:
         """See what will play next on the radio.
 
         Use "!next [<channel>]" to show what is up next on the radio.
@@ -421,7 +431,10 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         if ctx.guild:
             config_id = f"rainwave:nx:{chan.channel_id}:{idx}"
             if sched_id == (self.bot.db.config_get(config_id) or 0):
-                c = f"You can only use **{cmd}** in {ctx.channel.mention} once per song."
+                c = (
+                    f"You can only use **{cmd}** in "
+                    f"{ctx.channel.mention} once per song."
+                )
                 await ctx.author.send(c)
                 await ctx.author.send(m)
             else:
@@ -433,7 +446,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     @discord.ext.commands.command(
         aliases=["np"] + [f"np{ch}" for ch in RainwaveChannel.__members__.keys()]
     )
-    async def nowplaying(self, ctx: discord.ext.commands.Context, channel: str | None = None) -> None:
+    async def nowplaying(
+        self, ctx: discord.ext.commands.Context, channel: str | None = None
+    ) -> None:
         """See what is now playing on the radio.
 
         Use "!nowplaying [<channel>]" to show what is now playing on the radio.
@@ -482,13 +497,20 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             m += f": {self.song_string(song)}"
 
             if ctx.guild:
-                last = self.bot.db.config_get(f"rainwave:np:{chan.channel_id}") or 0
+                last: int = (
+                    int(self.bot.db.config_get(f"rainwave:np:{chan.channel_id}")) or 0
+                )
                 if sched_id == last:
-                    c = f"You can only use **{cmd}** in {ctx.channel.mention} once per song."
+                    c = (
+                        f"You can only use **{cmd}** in "
+                        f"{ctx.channel.mention} once per song."
+                    )
                     await ctx.author.send(c)
                     await ctx.author.send(m, embed=embed)
                 else:
-                    self.bot.db.config_set(f"rainwave:np:{chan.channel_id}", sched_id)
+                    self.bot.db.config_set(
+                        f"rainwave:np:{chan.channel_id}", str(sched_id)
+                    )
                     await ctx.send(m, embed=embed)
             else:
                 await ctx.send(m, embed=embed)
@@ -496,13 +518,17 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     @discord.ext.commands.command(
         aliases=["pp"] + [f"pp{ch}" for ch in RainwaveChannel.__members__.keys()]
     )
-    async def prevplayed(self, ctx: discord.ext.commands.Context, *, args: str | None = None) -> None:
+    async def prevplayed(
+        self, ctx: discord.ext.commands.Context, *, args: str | None = None
+    ) -> None:
         """Show what was previously playing on the radio.
 
-        Use "!prevplayed [<channel>] [<index>]" to show what was previously playing on the radio.
+        Use "!prevplayed [<channel>] [<index>]" to show what was previously playing on
+        the radio.
         Short version is "!pp[<channel>] [<index>]".
         Leave off <channel> to auto-detect the channel you are tuned to.
-        <index> should be a number from 0 to 4 (default 0). The higher the number, the further back in time you go."""
+        <index> should be a number from 0 to 4 (default 0). The higher the number, the
+        further back in time you go."""
 
         self.bot.db.command_log_insert(
             ctx.author.id, ctx.command.qualified_name, ctx.message.content
@@ -572,7 +598,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 last = self.bot.db.config_get(config_key) or 0
                 if sched_id == last:
                     await ctx.author.send(
-                        f"You can only use {cmd} in {ctx.channel.mention} once per song."
+                        f"You can only use {cmd} in {ctx.channel.mention} "
+                        f"once per song."
                     )
                     await ctx.author.send(m, embed=embed)
                 else:
@@ -582,7 +609,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 await ctx.send(m, embed=embed)
 
     @discord.ext.commands.command(aliases=["rq"])
-    async def request(self, ctx: discord.ext.commands.Context, *, args: str | None = None) -> None:
+    async def request(
+        self, ctx: discord.ext.commands.Context, *, args: str | None = None
+    ) -> None:
         """Manage your Rainwave request queue.
 
         Use "!rq <song_id>" to add a song to your request queue.
@@ -663,7 +692,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             await ctx.author.send(d.get("unpause_request_queue_result").get("text"))
 
     @discord.ext.commands.command()
-    async def ustats(self, ctx: discord.ext.commands.Context, *, username: str | None = None) -> None:
+    async def ustats(
+        self, ctx: discord.ext.commands.Context, *, username: str | None = None
+    ) -> None:
         """See some statistics about a Rainwave user.
 
         Use "!ustats [<username>]" to see some statistics about a Rainwave user.
@@ -680,7 +711,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 listener_id = await self.get_id_for_user(ctx.author)
                 if listener_id is None:
                     await ctx.author.send(
-                        "Use **!id add <id>** to connect your Rainwave and Discord accounts."
+                        "Use **!id add <id>** to connect your "
+                        "Rainwave and Discord accounts."
                     )
                     return
             elif (
@@ -725,8 +757,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 remaining = last + wait - now
                 cmd = ctx.invoked_with
                 m = (
-                    f"I am cooling down. You cannot use **{cmd}** in {ctx.channel.mention} for another {remaining} "
-                    f"seconds."
+                    f"I am cooling down. You cannot use **{cmd}** in "
+                    f"{ctx.channel.mention} for another {remaining} seconds."
                 )
                 await ctx.author.send(m)
 
@@ -777,7 +809,9 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             await ctx.author.send("Your attempt to vote was not successful.")
 
     @discord.ext.commands.Cog.listener()
-    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
+    async def on_member_update(
+        self, before: discord.Member, after: discord.Member
+    ) -> None:
         donor_role_id = self.bot.db.config_get("discord:roles:donor")
         patron_role_id = self.bot.db.config_get("discord:roles:patron")
         if donor_role_id is not None and patron_role_id is not None:
@@ -792,7 +826,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                     await after.add_roles(donor_role)
         if before.display_name != after.display_name:
             log.info(
-                f"{before.display_name!r} ({before.id}) changed display_name to {after.display_name!r}"
+                f"{before.display_name!r} ({before.id}) "
+                f"changed display_name to {after.display_name!r}"
             )
             await self.rw_update_nickname(after.id, after.display_name)
 
@@ -800,7 +835,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
     async def on_user_update(self, before: discord.User, after: discord.User) -> None:
         if before.display_avatar != after.display_avatar:
             log.info(
-                f"{after.display_name!r} ({after.id}) changed avatar to {after.display_avatar}"
+                f"{after.display_name!r} ({after.id}) "
+                f"changed avatar to {after.display_avatar}"
             )
             await self.rw_update_avatar(after.id, after.display_avatar)
 

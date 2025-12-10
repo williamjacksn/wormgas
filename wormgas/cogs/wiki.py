@@ -14,7 +14,9 @@ class WikiCog(discord.ext.commands.Cog, name="Wikipedia"):
         self.bot = bot
 
     @discord.ext.commands.command()
-    async def wiki(self, ctx: discord.ext.commands.Context, *, search_terms: str) -> None:
+    async def wiki(
+        self, ctx: discord.ext.commands.Context, *, search_terms: str
+    ) -> None:
         """Look up information on Wikipedia."""
 
         self.bot.db.command_log_insert(

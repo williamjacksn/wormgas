@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 
 class Wormgas(discord.ext.commands.Bot):
-    def __init__(self, command_prefix, **options) -> None:
+    def __init__(self, command_prefix: str, **options) -> None:  # noqa: ANN003
         super().__init__(command_prefix, **options)
         self.db = Database(os.getenv("DATABASE", "/etc/wormgas/config.db"))
         self.session = None

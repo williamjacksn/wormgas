@@ -2,7 +2,11 @@
 # Edited 2015-02-11 for simplicity and Python 3 compatibility by William Jackson
 
 import math
+import typing
 from itertools import islice
+
+if typing.TYPE_CHECKING:
+    from .brain import Reply
 
 
 class Scorer:
@@ -118,7 +122,7 @@ class CobeScorer(Scorer):
 class IdentityScorer(Scorer):
     """Parrot the input exactly. Best used with a negative weight."""
 
-    def token_iter(self, reply):
+    def token_iter(self, reply: "Reply"):
         cache = self.cache
 
         for edge in islice(reply.edges, 1, None):
@@ -134,7 +138,7 @@ class IdentityScorer(Scorer):
             if edge.has_space:
                 yield None
 
-    def score(self, reply) -> float:
+    def score(self, reply: "Reply") -> float:
         len_token_ids = 0
         for _ in reply.token_ids:
             len_token_ids += 1
@@ -151,7 +155,7 @@ class IdentityScorer(Scorer):
 class InformationScorer(Scorer):
     """Score based on the information of each edge in the graph"""
 
-    def score(self, reply):
+    def score(self, reply: "Reply") -> float:
         info = 0.0
 
         get_node_count = reply.graph.get_node_count
@@ -172,5 +176,5 @@ class InformationScorer(Scorer):
 
 
 class LengthScorer(Scorer):
-    def score(self, reply):
+    def score(self, reply: "Reply") -> float:
         return self.normalize(len(reply.edges))
