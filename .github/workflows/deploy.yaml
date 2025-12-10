@@ -1,34 +1,23 @@
-{
-  "env": {
-    "description": "This workflow (.github/workflows/deploy.yaml) was generated from ci/gen.py"
-  },
-  "jobs": {
-    "deploy": {
-      "name": "Deploy",
-      "runs-on": "ubuntu-latest",
-      "steps": [
-        {
-          "name": "Check out repository",
-          "uses": "actions/checkout@v5"
-        },
-        {
-          "env": {
-            "SSH_HOST": "${{ secrets.ssh_host }}",
-            "SSH_PRIVATE_KEY": "${{ secrets.ssh_private_key }}",
-            "SSH_USER": "${{ secrets.ssh_user }}"
-          },
-          "name": "Deploy",
-          "run": "sh ci/ssh-deploy.sh"
-        }
-      ]
-    }
-  },
-  "name": "Deploy",
-  "on": {
-    "push": {
-      "branches": [
-        "master"
-      ]
-    }
-  }
-}
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: deploy
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Deploy
+        run: sh ci/ssh-deploy.sh
+        env:
+          SSH_HOST: ${{ secrets.ssh_host }}
+          SSH_PRIVATE_KEY: ${{ secrets.ssh_private_key }}
+          SSH_USER: ${{ secrets.ssh_user }}

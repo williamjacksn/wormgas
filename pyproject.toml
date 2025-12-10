@@ -11,3 +11,8 @@ dependencies = [
     "stemming>=1.0.1",
     "wikipedia>=1.4.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.8",
+]
