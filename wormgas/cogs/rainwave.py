@@ -1,9 +1,11 @@
-import discord.ext.commands
-import discord.ext.tasks
 import enum
 import logging
 import time
 import uuid
+
+import discord.ext.commands
+import discord.ext.tasks
+
 import wormgas.wormgas
 
 log = logging.getLogger(__name__)

@@ -1,7 +1,8 @@
-import aiohttp
-import discord.ext.commands
 import logging
 import os
+
+import aiohttp
+import discord.ext.commands
 
 from wormgas.models import Database
 

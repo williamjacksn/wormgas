@@ -2,7 +2,6 @@
 # Edited 2015-02-11 for simplicity and Python 3 compatibility by William Jackson
 
 import math
-
 from itertools import islice
 
 

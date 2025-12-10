@@ -9,8 +9,7 @@ import re
 import sqlite3
 import time
 
-from . import scoring
-from . import tokenizers
+from . import scoring, tokenizers
 
 
 class CobeError(Exception):

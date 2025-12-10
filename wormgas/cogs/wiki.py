@@ -1,7 +1,9 @@
-import discord.ext
 import logging
 import textwrap
+
+import discord.ext
 import wikipedia
+
 import wormgas.wormgas
 
 log = logging.getLogger(__name__)

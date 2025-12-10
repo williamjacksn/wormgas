@@ -1,6 +1,8 @@
-import discord.ext
 import logging
 import random
+
+import discord.ext
+
 import wormgas.wormgas
 
 log = logging.getLogger(__name__)

@@ -1,12 +1,14 @@
-import discord.ext
 import logging
 import os
 import pathlib
-import re
 import random
+import re
 import time
-import wormgas.wormgas
+
+import discord.ext
+
 import wormgas.cogs.cobe.brain
+import wormgas.wormgas
 
 log = logging.getLogger(__name__)
 

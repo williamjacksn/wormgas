@@ -17,3 +17,6 @@ dev = [
     "ruff>=0.14.8",
     "ty>=0.0.1a33",
 ]
+
+[tool.ruff.lint]
+select = ["ANN", "E", "F", "FURB", "I", "PERF", "RUF", "S", "UP"]
