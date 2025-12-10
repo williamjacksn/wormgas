@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 class WolframAlphaCog(discord.ext.commands.Cog, name="Wolfram|Alpha"):
-    def __init__(self, bot: wormgas.wormgas.Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
 
     async def _wa(self, query: str):
@@ -32,7 +32,7 @@ class WolframAlphaCog(discord.ext.commands.Cog, name="Wolfram|Alpha"):
                 return "There was a problem."
 
     @discord.ext.commands.command(name="wa")
-    async def bang_wa(self, ctx: discord.ext.commands.Context, *, query: str):
+    async def bang_wa(self, ctx: discord.ext.commands.Context, *, query: str) -> None:
         """Send a query to Wolfram|Alpha"""
 
         self.bot.db.command_log_insert(
@@ -43,5 +43,5 @@ class WolframAlphaCog(discord.ext.commands.Cog, name="Wolfram|Alpha"):
             await ctx.send(await self._wa(query))
 
 
-async def setup(bot: wormgas.wormgas.Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas) -> None:
     await bot.add_cog(WolframAlphaCog(bot))

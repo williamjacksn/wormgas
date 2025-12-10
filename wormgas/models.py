@@ -22,7 +22,7 @@ class Database(fort.SQLiteDatabase):
         return self._version
 
     @version.setter
-    def version(self, version: int):
+    def version(self, version: int) -> None:
         sql = """
             insert into schema_versions (
                 schema_version, migration_applied_at
@@ -37,7 +37,7 @@ class Database(fort.SQLiteDatabase):
         self.u(sql, params)
         self._version = version
 
-    def command_log_insert(self, discord_user_id: int, command: str, message: str):
+    def command_log_insert(self, discord_user_id: int, command: str, message: str) -> None:
         sql = """
             insert into command_log (
                 occurred_at, discord_user_id, command, message
@@ -63,7 +63,7 @@ class Database(fort.SQLiteDatabase):
         """
         return self.q(sql)
 
-    def config_delete(self, key: str):
+    def config_delete(self, key: str) -> None:
         sql = """
             delete from config
             where key = :key
@@ -90,7 +90,7 @@ class Database(fort.SQLiteDatabase):
         """
         return [r["key"] for r in self.q(sql)]
 
-    def config_set(self, key: str, value: str):
+    def config_set(self, key: str, value: str) -> None:
         sql = """
             insert into config (key, value) values (:key, :value)
             on conflict (key) do update set value = excluded.value
@@ -112,7 +112,7 @@ class Database(fort.SQLiteDatabase):
         }
         return self.q_one(sql, params)
 
-    def events_insert(self, rw_event_id: int, discord_event_id: int):
+    def events_insert(self, rw_event_id: int, discord_event_id: int) -> None:
         sql = """
             insert into events (rw_event_id, discord_event_id) values (:rw_event_id, :discord_event_id)
         """
@@ -122,7 +122,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def migrate(self):
+    def migrate(self) -> None:
         self.log.info(f"Database schema version is {self.version}")
         if self.version < 1:
             self.log.info("Migrating to database schema version 1")
@@ -205,7 +205,7 @@ class Database(fort.SQLiteDatabase):
             """)
             self.version = 8
 
-    def rps_delete(self, user_id: str):
+    def rps_delete(self, user_id: str) -> None:
         sql = """
             delete from rps_stats
             where user_id = :user_id
@@ -238,7 +238,7 @@ class Database(fort.SQLiteDatabase):
             }
         return {"user_id": user_id}
 
-    def rps_set(self, params: dict):
+    def rps_set(self, params: dict) -> None:
         sql = """
             insert into rps_stats (
                 user_id, rock, paper, scissors, wins, draws, losses, reset_code
@@ -255,7 +255,7 @@ class Database(fort.SQLiteDatabase):
             params["reset_code"] = None
         self.u(sql, params)
 
-    def rw_api_keys_delete(self, discord_user_id: int):
+    def rw_api_keys_delete(self, discord_user_id: int) -> None:
         sql = """
             delete from rw_api_keys
             where discord_user_id = :discord_user_id
@@ -276,7 +276,7 @@ class Database(fort.SQLiteDatabase):
         }
         return self.q_val(sql, params)
 
-    def rw_api_keys_set(self, discord_user_id: int, rw_api_key: str):
+    def rw_api_keys_set(self, discord_user_id: int, rw_api_key: str) -> None:
         sql = """
             insert into rw_api_keys (
                 discord_user_id, rw_api_key
@@ -291,7 +291,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def topic_control_delete(self, channel_id: str):
+    def topic_control_delete(self, channel_id: str) -> None:
         sql = """
             delete from topic_control
             where channel_id = :channel_id
@@ -301,7 +301,7 @@ class Database(fort.SQLiteDatabase):
         }
         self.u(sql, params)
 
-    def topic_control_insert(self, channel_id: str):
+    def topic_control_insert(self, channel_id: str) -> None:
         sql = """
             insert into topic_control (channel_id) values (:channel_id)
         """
@@ -319,7 +319,7 @@ class Database(fort.SQLiteDatabase):
 
     def watch_words_insert(
         self, channel_id: int, discord_user_id: int, watch_text: str
-    ):
+    ) -> None:
         sql = """
             insert into watch_words (
                 channel_id, discord_user_id, watch_text
@@ -346,7 +346,7 @@ class Database(fort.SQLiteDatabase):
         }
         return self.q(sql, params)
 
-    def _table_exists(self, table_name):
+    def _table_exists(self, table_name) -> bool:
         sql = """
             select name
             from sqlite_master

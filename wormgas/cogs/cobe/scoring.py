@@ -6,10 +6,10 @@ from itertools import islice
 
 
 class Scorer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.cache = {}
 
-    def end(self):
+    def end(self) -> None:
         self.cache = {}
 
     @staticmethod
@@ -25,11 +25,11 @@ class Scorer:
 
 
 class ScorerGroup:
-    def __init__(self):
+    def __init__(self) -> None:
         self.scorers = []
         self.total_weight = 0.0
 
-    def add_scorer(self, weight, scorer):
+    def add_scorer(self, weight, scorer) -> None:
         # add a scorer with a negative weight if you want to reverse
         # its impact
         self.scorers.append((weight, scorer))
@@ -39,7 +39,7 @@ class ScorerGroup:
             total += abs(weight)
         self.total_weight = total
 
-    def end(self):
+    def end(self) -> None:
         for scorer in self.scorers:
             scorer[1].end()
 
@@ -82,7 +82,7 @@ class CobeScorer(Scorer):
 
         for edge in reply.edges:
             node_count = cache[edge.prev]
-            info += -math.log(float(edge.count) / node_count, 2)
+            info += -math.log2(float(edge.count) / node_count)
 
         # Approximate the number of cobe 1.2 contexts in this reply, so the
         # scorer will have similar results.
@@ -134,7 +134,7 @@ class IdentityScorer(Scorer):
             if edge.has_space:
                 yield None
 
-    def score(self, reply):
+    def score(self, reply) -> float:
         len_token_ids = 0
         for _ in reply.token_ids:
             len_token_ids += 1
@@ -166,7 +166,7 @@ class InformationScorer(Scorer):
                 node_count = get_node_count(node_id)
                 cache[node_id] = node_count
 
-            info += -math.log(float(edge.count) / node_count, 2)
+            info += -math.log2(float(edge.count) / node_count)
 
         return self.normalize(info)
 

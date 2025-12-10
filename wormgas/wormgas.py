@@ -10,12 +10,12 @@ log = logging.getLogger(__name__)
 
 
 class Wormgas(discord.ext.commands.Bot):
-    def __init__(self, command_prefix, **options):
+    def __init__(self, command_prefix, **options) -> None:
         super().__init__(command_prefix, **options)
         self.db = Database(os.getenv("DATABASE", "/etc/wormgas/config.db"))
         self.session = None
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         self.session = aiohttp.ClientSession(
             loop=self.loop, timeout=aiohttp.ClientTimeout(total=10)
         )
@@ -33,7 +33,7 @@ class Wormgas(discord.ext.commands.Bot):
             await self.load_extension(extension_name)
 
 
-def main():
+def main() -> None:
     log.info("Starting wormgas")
     intents = discord.Intents.default()
     intents.members = True

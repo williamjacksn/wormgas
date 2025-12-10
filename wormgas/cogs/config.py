@@ -8,11 +8,11 @@ log = logging.getLogger(__name__)
 
 
 class ConfigCog(discord.ext.commands.Cog, name="Bot configuration"):
-    def __init__(self, bot: wormgas.wormgas.Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
 
     @discord.ext.commands.command(name="command-stats")
-    async def command_stats(self, ctx: discord.ext.commands.Context):
+    async def command_stats(self, ctx: discord.ext.commands.Context) -> None:
         """Show simple statistics about how often commands are used"""
 
         self.bot.db.command_log_insert(
@@ -29,7 +29,7 @@ class ConfigCog(discord.ext.commands.Cog, name="Bot configuration"):
 
     @discord.ext.commands.command(name="set")
     @discord.ext.commands.is_owner()
-    async def _set(self, ctx: discord.ext.commands.Context, *tokens):
+    async def _set(self, ctx: discord.ext.commands.Context, *tokens) -> None:
         """Display or change configuration settings.
 
         Use "!set [<key>] [<value>]" to display or change configuration settings.
@@ -64,7 +64,7 @@ class ConfigCog(discord.ext.commands.Cog, name="Bot configuration"):
 
     @discord.ext.commands.command()
     @discord.ext.commands.is_owner()
-    async def unset(self, ctx: discord.ext.commands.Context, key: str):
+    async def unset(self, ctx: discord.ext.commands.Context, key: str) -> None:
         """Remove a configuration setting."""
 
         self.bot.db.command_log_insert(
@@ -75,5 +75,5 @@ class ConfigCog(discord.ext.commands.Cog, name="Bot configuration"):
         await ctx.author.send(f"{key} has been unset.")
 
 
-async def setup(bot: wormgas.wormgas.Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas) -> None:
     await bot.add_cog(ConfigCog(bot))

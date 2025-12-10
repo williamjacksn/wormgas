@@ -25,7 +25,7 @@ class MegaHALTokenizer:
 
         # add ending punctuation if it is missing
         if phrase[-1] not in ".!?":
-            phrase = "{}.".format(phrase)
+            phrase = f"{phrase}."
 
         words = re.findall("([A-Z']+|[0-9]+|[^A-Z'0-9]+)", phrase.upper(), re.UNICODE)
         return words
@@ -68,7 +68,7 @@ class CobeTokenizer:
     It preserves differences in case. foo, Foo, and FOO are different
     tokens."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Add hyphen to the list of possible word characters, so hyphenated
         # words become one token (e.g. hy-phen). But don't remove it from
         # the list of non-word characters, so if it's found entirely within
@@ -116,7 +116,7 @@ class CobeTokenizer:
 
 
 class CobeStemmer:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @staticmethod

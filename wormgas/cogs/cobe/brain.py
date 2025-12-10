@@ -26,7 +26,7 @@ class Brain:
     # in the tokens table
     SPACE_TOKEN_ID = -1
 
-    def __init__(self, filename):
+    def __init__(self, filename) -> None:
         """Construct a brain for the specified filename. If that file
         doesn't exist, it will be initialized with the default brain
         settings."""
@@ -37,7 +37,7 @@ class Brain:
 
         version = graph.get_info_text("version")
         if version != "2":
-            raise CobeError("cannot read a version {} brain".format(version))
+            raise CobeError(f"cannot read a version {version} brain")
 
         self.order = int(graph.get_info_text("order"))
 
@@ -60,7 +60,7 @@ class Brain:
 
         self._learning = False
 
-    def start_batch_learning(self):
+    def start_batch_learning(self) -> None:
         """Begin a series of batch learn operations. Data will not be
         committed to the database until stop_batch_learning is
         called. Learn text using the normal learn(text) method."""
@@ -69,7 +69,7 @@ class Brain:
         self.graph.cursor().execute("PRAGMA journal_mode=memory")
         self.graph.drop_reply_indexes()
 
-    def stop_batch_learning(self):
+    def stop_batch_learning(self) -> None:
         """Finish a series of batch learn operations."""
         self._learning = False
 
@@ -77,7 +77,7 @@ class Brain:
         self.graph.cursor().execute("PRAGMA journal_mode=truncate")
         self.graph.ensure_indexes()
 
-    def del_stemmer(self):
+    def del_stemmer(self) -> None:
         self.stemmer = None
 
         self.graph.delete_token_stems()
@@ -85,7 +85,7 @@ class Brain:
         self.graph.set_info_text("stemmer", None)
         self.graph.commit()
 
-    def set_stemmer(self, language):
+    def set_stemmer(self, language) -> None:
         self.stemmer = tokenizers.CobeStemmer()
 
         self.graph.delete_token_stems()
@@ -94,7 +94,7 @@ class Brain:
         self.graph.set_info_text("stemmer", language)
         self.graph.commit()
 
-    def learn(self, text):
+    def learn(self, text) -> None:
         """Learn a string of text."""
         tokens = self.tokenizer.split(text)
 
@@ -141,7 +141,7 @@ class Brain:
             yield prev[0], context[1], context[0]
             prev = context
 
-    def _learn_tokens(self, tokens):
+    def _learn_tokens(self, tokens) -> None:
         token_count = len([token for token in tokens if token != " "])
         if token_count < 3:
             return
@@ -235,7 +235,7 @@ class Brain:
 
         return text
 
-    def _conflate_stems(self, pivot_set, tokens):
+    def _conflate_stems(self, pivot_set, tokens) -> None:
         for token in tokens:
             stem_ids = self.graph.get_token_stem_id(self.stemmer.stem(token))
             if len(stem_ids) == 0:
@@ -306,7 +306,7 @@ class Brain:
             return edges, node
 
     @staticmethod
-    def init(filename, order=3, tokenizer=None):
+    def init(filename, order=3, tokenizer=None) -> None:
         """Initialize a brain. This brain's file must not already exist.
 
         Keyword arguments:
@@ -326,7 +326,7 @@ class Brain:
 class Reply:
     """Provide useful support for scoring functions"""
 
-    def __init__(self, graph, tokens, token_ids, pivot_node, edges):
+    def __init__(self, graph, tokens, token_ids, pivot_node, edges) -> None:
         self.graph = graph
         self.tokens = tokens
         self.token_ids = token_ids
@@ -350,7 +350,7 @@ class Reply:
 
 
 class Edge:
-    def __init__(self, graph, edge_id, prev, nxt, has_space, count):
+    def __init__(self, graph, edge_id, prev, nxt, has_space, count) -> None:
         self.graph = graph
 
         self.edge_id = edge_id
@@ -367,17 +367,17 @@ class Edge:
         # get the last token in the prev context
         return self.graph.get_token_by_node(self.prev)
 
-    def pretty(self):
+    def pretty(self) -> str:
         prev = "|".join(self.graph.get_node_text(self.prev))
         nxt = "|".join(self.graph.get_node_text(self.next))
 
-        return "{} -> {} ({} -> {})".format(prev, nxt, self.prev, self.next)
+        return f"{prev} -> {nxt} ({self.prev} -> {self.next})"
 
 
 class Graph:
     """A special-purpose graph class, stored in a sqlite3 database"""
 
-    def __init__(self, conn, run_migrations=True):
+    def __init__(self, conn, run_migrations=True) -> None:
         self._conn = conn
         conn.row_factory = sqlite3.Row
 
@@ -407,20 +407,20 @@ class Graph:
     def cursor(self):
         return self._conn.cursor()
 
-    def commit(self):
+    def commit(self) -> None:
         self._conn.commit()
 
     def close(self):
         return self._conn.close()
 
-    def is_initted(self):
+    def is_initted(self) -> bool | None:
         try:
             self.get_info_text("order")
             return True
         except sqlite3.OperationalError:
             return False
 
-    def set_info_text(self, attribute, text):
+    def set_info_text(self, attribute, text) -> None:
         c = self.cursor()
 
         if text is None:
@@ -460,7 +460,7 @@ class Graph:
             # Grab the first item from seq. Use an iterator so this works
             # with sets as well as lists.
             for item in seq:
-                return "({})".format(item)
+                return f"({item})"
 
         return str(tuple(seq))
 
@@ -484,7 +484,7 @@ class Graph:
 
             return token_id
 
-    def insert_stem(self, token_id, stem):
+    def insert_stem(self, token_id, stem) -> None:
         q = "INSERT INTO token_stems (token_id, stem) VALUES (?, ?)"
         self._conn.execute(q, (token_id, stem))
 
@@ -503,8 +503,7 @@ class Graph:
     def get_word_by_node(self, node_id):
         # return the last word in the node
         q = (
-            "SELECT tokens.text FROM nodes, tokens WHERE nodes.id = ? AND %s = tokens.id"
-            % self._last_token
+            f"SELECT tokens.text FROM nodes, tokens WHERE nodes.id = ? AND {self._last_token} = tokens.id"
         )
 
         row = self._conn.execute(q, (node_id,)).fetchone()
@@ -513,19 +512,14 @@ class Graph:
 
     def get_token_by_node(self, node_id):
         # return the last token in the node
-        q = (
-            "SELECT tokens.id FROM nodes, tokens WHERE nodes.id = ? AND %s = tokens.id"
-            % self._last_token
-        )
+        q = f"SELECT tokens.id FROM nodes, tokens WHERE nodes.id = ? AND {self._last_token} = tokens.id"
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row:
             return row[0]
 
     def get_word_tokens(self, token_ids):
-        q = "SELECT id FROM tokens WHERE id IN %s AND is_word = 1" % self.get_seq_expr(
-            token_ids
-        )
+        q = f"SELECT id FROM tokens WHERE id IN {self.get_seq_expr(token_ids)} AND is_word = 1"
 
         rows = self._conn.execute(q)
         if rows:
@@ -534,7 +528,7 @@ class Graph:
         return []
 
     def get_tokens(self, token_ids):
-        q = "SELECT id FROM tokens WHERE id IN %s" % self.get_seq_expr(token_ids)
+        q = f"SELECT id FROM tokens WHERE id IN {self.get_seq_expr(token_ids)}"
 
         rows = self._conn.execute(q)
         if rows:
@@ -545,22 +539,19 @@ class Graph:
     def get_node_by_tokens(self, tokens):
         c = self.cursor()
 
-        q = "SELECT id FROM nodes WHERE %s" % self._all_tokens_args
+        q = f"SELECT id FROM nodes WHERE {self._all_tokens_args}"
 
         row = c.execute(q, tokens).fetchone()
         if row:
             return int(row[0])
 
         # if not found, create the node
-        q = "INSERT INTO nodes (count, %s) VALUES (0, %s)" % (
-            self._all_tokens,
-            self._all_tokens_q,
-        )
+        q = f"INSERT INTO nodes (count, {self._all_tokens}) VALUES (0, {self._all_tokens_q})"
         c.execute(q, tokens)
         return c.lastrowid
 
     def get_node_tokens(self, node_id):
-        q = "SELECT %s FROM nodes WHERE id = ?" % self._all_tokens
+        q = f"SELECT {self._all_tokens} FROM nodes WHERE id = ?"
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         assert row is not None
@@ -591,7 +582,7 @@ class Graph:
         if row:
             return int(row[0])
 
-    def add_edge(self, prev_node, next_node, has_space):
+    def add_edge(self, prev_node, next_node, has_space) -> None:
         c = self.cursor()
 
         assert isinstance(has_space, bool)
@@ -619,11 +610,11 @@ class Graph:
         return row[0]
 
     def get_node_counts(self, node_ids):
-        q = "SELECT id, count FROM nodes WHERE id IN %s" % self.get_seq_expr(node_ids)
+        q = f"SELECT id, count FROM nodes WHERE id IN {self.get_seq_expr(node_ids)}"
 
         return self._conn.execute(q)
 
-    def walk(self, node, end_id, direction, append):
+    def walk(self, node, end_id, direction, append) -> None:
         """Perform a random walk on the graph starting at node"""
         if direction:
             q = (
@@ -659,7 +650,7 @@ class Graph:
 
             last_node = row[1]
 
-    def init(self, order, tokenizer, run_migrations=True):
+    def init(self, order, tokenizer, run_migrations=True) -> None:
         c = self.cursor()
 
         c.execute(
@@ -709,7 +700,7 @@ class Graph:
 
         self.close()
 
-    def drop_reply_indexes(self):
+    def drop_reply_indexes(self) -> None:
         self._conn.execute("DROP INDEX IF EXISTS edges_all_next")
         self._conn.execute("DROP INDEX IF EXISTS edges_all_prev")
 
@@ -717,7 +708,7 @@ class Graph:
             "CREATE INDEX IF NOT EXISTS learn_index ON edges (prev_node, next_node)"
         )
 
-    def ensure_indexes(self):
+    def ensure_indexes(self) -> None:
         c = self.cursor()
 
         # remove the temporary learning index if it exists
@@ -737,7 +728,7 @@ class Graph:
             "(prev_node, next_node, has_space, count)"
         )
 
-    def delete_token_stems(self):
+    def delete_token_stems(self) -> None:
         c = self.cursor()
 
         # drop the two stem indexes
@@ -749,7 +740,7 @@ class Graph:
 
         self.commit()
 
-    def update_token_stems(self, stemmer):
+    def update_token_stems(self, stemmer) -> None:
         # stemmer is a CobeStemmer
         c = self.cursor()
         insert_c = self.cursor()
@@ -762,17 +753,17 @@ class Graph:
         c.execute("CREATE INDEX token_stems_id on token_stems (token_id)")
         c.execute("CREATE INDEX token_stems_stem on token_stems (stem)")
 
-    def _run_migrations(self):
+    def _run_migrations(self) -> None:
         self._maybe_drop_tokens_text_index()
         self._maybe_create_node_count_triggers()
 
-    def _maybe_drop_tokens_text_index(self):
+    def _maybe_drop_tokens_text_index(self) -> None:
         # tokens_text was an index on tokens.text, deemed redundant since
         # tokens.text is declared UNIQUE, and sqlite automatically creates
         # indexes for UNIQUE columns
         self._conn.execute("DROP INDEX IF EXISTS tokens_text")
 
-    def _maybe_create_node_count_triggers(self):
+    def _maybe_create_node_count_triggers(self) -> None:
         # Create triggers on the edges table to update nodes counts.
         # In previous versions, the node counts were updated with a
         # separate query. Moving them into triggers improves

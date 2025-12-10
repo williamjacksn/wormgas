@@ -32,11 +32,11 @@ class RandCog(discord.ext.commands.Cog, name="Randomness"):
         "You may rely on it.",
     ]
 
-    def __init__(self, bot: wormgas.wormgas.Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
 
     async def _eight_ball(
-        self, user: discord.User, question: str = None
+        self, user: discord.User, question: str | None = None
     ) -> discord.Embed:
         title = f":8ball: {random.choice(self.eight_ball_responses)}"
         if question is None:
@@ -49,8 +49,8 @@ class RandCog(discord.ext.commands.Cog, name="Randomness"):
 
     @discord.ext.commands.command(name="8ball")
     async def bang_eight_ball(
-        self, ctx: discord.ext.commands.Context, *, question: str = None
-    ):
+        self, ctx: discord.ext.commands.Context, *, question: str | None = None
+    ) -> None:
         """Ask a question of the magic 8ball"""
 
         self.bot.db.command_log_insert(
@@ -67,7 +67,7 @@ class RandCog(discord.ext.commands.Cog, name="Randomness"):
         return discord.Embed(title=title, colour=discord.Colour.gold())
 
     @discord.ext.commands.command(name="flip")
-    async def bang_flip(self, ctx: discord.ext.commands.Context):
+    async def bang_flip(self, ctx: discord.ext.commands.Context) -> None:
         """Flip a coin"""
 
         self.bot.db.command_log_insert(
@@ -101,7 +101,7 @@ class RandCog(discord.ext.commands.Cog, name="Randomness"):
         return m
 
     @discord.ext.commands.command(name="roll")
-    async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = "1d6"):
+    async def bang_roll(self, ctx: discord.ext.commands.Context, die_spec: str = "1d6") -> None:
         """Roll some dice"""
 
         self.bot.db.command_log_insert(
@@ -113,5 +113,5 @@ class RandCog(discord.ext.commands.Cog, name="Randomness"):
             await ctx.send(await self._roll(dice, sides))
 
 
-async def setup(bot: wormgas.wormgas.Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas) -> None:
     await bot.add_cog(RandCog(bot))

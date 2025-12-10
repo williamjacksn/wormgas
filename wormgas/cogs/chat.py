@@ -38,7 +38,7 @@ class ChatCog(discord.ext.commands.Cog):
         "What you know, you know, what you do not know, you do not know. This is true wisdom.",
     ]
 
-    def __init__(self, bot: wormgas.wormgas.Wormgas):
+    def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
         brain_file = pathlib.Path(os.getenv("BRAIN_FILE", "/etc/wormgas/_brain.sqlite"))
         self.brain = wormgas.cogs.cobe.brain.Brain(str(brain_file))
@@ -50,7 +50,7 @@ class ChatCog(discord.ext.commands.Cog):
         channel: discord.TextChannel,
         *,
         watch_text: str,
-    ):
+    ) -> None:
         normalized_watch_text = watch_text.lower()
         self.bot.db.watch_words_insert(channel.id, ctx.author.id, normalized_watch_text)
         await ctx.author.send(
@@ -58,7 +58,7 @@ class ChatCog(discord.ext.commands.Cog):
         )
 
     @discord.ext.commands.Cog.listener("on_message")
-    async def listen_for_mentions(self, message: discord.Message):
+    async def listen_for_mentions(self, message: discord.Message) -> None:
         if not isinstance(message.channel, discord.TextChannel):
             log.debug("Ignoring message that is not in a TextChannel")
             return
@@ -85,7 +85,7 @@ class ChatCog(discord.ext.commands.Cog):
                 )
 
     @discord.ext.commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message(self, message: discord.Message) -> None:
         # Ignore messages from myself.
         if message.author == self.bot.user:
             return
@@ -137,5 +137,5 @@ class ChatCog(discord.ext.commands.Cog):
         return self.brain.reply(to_brain)
 
 
-async def setup(bot: wormgas.wormgas.Wormgas):
+async def setup(bot: wormgas.wormgas.Wormgas) -> None:
     await bot.add_cog(ChatCog(bot))
