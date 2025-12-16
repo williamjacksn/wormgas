@@ -1,13 +1,13 @@
 # Copyright (C) 2011 Peter Teichman
 # Edited 2015-02-11 for simplicity and Python 3 compatibility by William Jackson
-
 import collections
 import os
 import pprint
-import random
 import re
+import secrets
 import sqlite3
 import time
+import typing
 
 from . import scoring, tokenizers
 
@@ -26,7 +26,7 @@ class Brain:
     # in the tokens table
     SPACE_TOKEN_ID = -1
 
-    def __init__(self, filename) -> None:
+    def __init__(self, filename: str) -> None:
         """Construct a brain for the specified filename. If that file
         doesn't exist, it will be initialized with the default brain
         settings."""
@@ -85,7 +85,7 @@ class Brain:
         self.graph.set_info_text("stemmer", None)
         self.graph.commit()
 
-    def set_stemmer(self, language) -> None:
+    def set_stemmer(self, language: str) -> None:
         self.stemmer = tokenizers.CobeStemmer()
 
         self.graph.delete_token_stems()
@@ -94,13 +94,13 @@ class Brain:
         self.graph.set_info_text("stemmer", language)
         self.graph.commit()
 
-    def learn(self, text) -> None:
+    def learn(self, text: str) -> None:
         """Learn a string of text."""
         tokens = self.tokenizer.split(text)
 
         self._learn_tokens(tokens)
 
-    def _to_edges(self, tokens):
+    def _to_edges(self, tokens: list) -> typing.Iterator:
         """This is an iterator that returns the nodes of our graph:
         "This is a test" -> "None This" "This is" "is a" "a test" "test None"
 
@@ -128,7 +128,7 @@ class Brain:
                 has_space = False
 
     @staticmethod
-    def _to_graph(contexts):
+    def _to_graph(contexts: list) -> typing.Iterator:
         """This is an iterator that returns each edge of our graph
         with its two nodes"""
         prev = None
@@ -141,8 +141,8 @@ class Brain:
             yield prev[0], context[1], context[0]
             prev = context
 
-    def _learn_tokens(self, tokens) -> None:
-        token_count = len([token for token in tokens if token != " "])
+    def _learn_tokens(self, tokens: list) -> None:
+        token_count = len([token for token in tokens if token != " "])  # noqa: S105
         if token_count < 3:
             return
 
@@ -172,7 +172,7 @@ class Brain:
         if not self._learning:
             self.graph.commit()
 
-    def reply(self, text):
+    def reply(self, text: str) -> str:
         """Reply to a string of text."""
 
         tokens = self.tokenizer.split(text)
@@ -235,7 +235,7 @@ class Brain:
 
         return text
 
-    def _conflate_stems(self, pivot_set, tokens) -> None:
+    def _conflate_stems(self, pivot_set: set, tokens: list) -> None:
         for token in tokens:
             stem_ids = self.graph.get_token_stem_id(self.stemmer.stem(token))
             if len(stem_ids) == 0:
@@ -252,10 +252,10 @@ class Brain:
                     pass
 
     @staticmethod
-    def _get_reply_key(reply):
+    def _get_reply_key(reply: "Reply") -> tuple:
         return tuple([edge.edge_id for edge in reply.edges])
 
-    def _babble(self):
+    def _babble(self) -> list[int]:
         token_ids = []
         for _ in range(5):
             # Generate a few random tokens that can be used as pivots
@@ -266,7 +266,7 @@ class Brain:
 
         return token_ids
 
-    def _filter_pivots(self, pivots):
+    def _filter_pivots(self, pivots: list[int]) -> set:
         # remove pivots that might not give good results
         tokens = set(filter(None, pivots))
 
@@ -277,16 +277,18 @@ class Brain:
         return set(filtered)
 
     @staticmethod
-    def _choose_pivot(pivot_ids):
-        pivot = random.choice(tuple(pivot_ids))
+    def _choose_pivot(pivot_ids: list[int]) -> int:
+        pivot = secrets.choice(tuple(pivot_ids))
 
         if isinstance(pivot, tuple):
             # the input word was stemmed to several things
-            pivot = random.choice(pivot)
+            pivot = secrets.choice(pivot)
 
         return pivot
 
-    def _generate_reply(self, pivot_ids):
+    def _generate_reply(
+        self, pivot_ids: list[int]
+    ) -> tuple[collections.deque, int] | None:
         if len(pivot_ids) == 0:
             return
 
@@ -306,7 +308,7 @@ class Brain:
             return edges, node
 
     @staticmethod
-    def init(filename, order=3, tokenizer=None) -> None:
+    def init(filename: str, order: int = 3, tokenizer: str | None = None) -> None:
         """Initialize a brain. This brain's file must not already exist.
 
         Keyword arguments:
@@ -326,21 +328,25 @@ class Brain:
 class Reply:
     """Provide useful support for scoring functions"""
 
-    def __init__(self, graph, tokens, token_ids, pivot_node, edges) -> None:
+    def __init__(
+        self,
+        graph: "Graph",
+        tokens: list[str],
+        token_ids: list[int],
+        pivot_node: int,
+        edges: list["Edge"],
+    ) -> None:
         self.graph = graph
         self.tokens = tokens
         self.token_ids = token_ids
         self.pivot_node = pivot_node
         self.edges = edges
 
-    def to_graph(self):
-        text = []
-        for edge in self.edges:
-            text.append(edge.pretty())
-
+    def to_graph(self) -> str:
+        text = [edge.pretty() for edge in self.edges]
         return pprint.pformat(text)
 
-    def to_text(self):
+    def to_text(self) -> str:
         text = []
         for edge in self.edges:
             text.append(edge.get_prev_word())
@@ -350,7 +356,15 @@ class Reply:
 
 
 class Edge:
-    def __init__(self, graph, edge_id, prev, nxt, has_space, count) -> None:
+    def __init__(
+        self,
+        graph: "Graph",
+        edge_id: int,
+        prev: int,
+        nxt: int,
+        has_space: bool,
+        count: int,
+    ) -> None:
         self.graph = graph
 
         self.edge_id = edge_id
@@ -359,11 +373,11 @@ class Edge:
         self.has_space = has_space
         self.count = count
 
-    def get_prev_word(self):
+    def get_prev_word(self) -> str:
         # get the last word in the prev context
         return self.graph.get_word_by_node(self.prev)
 
-    def get_prev_token(self):
+    def get_prev_token(self) -> int:
         # get the last token in the prev context
         return self.graph.get_token_by_node(self.prev)
 
@@ -377,7 +391,7 @@ class Edge:
 class Graph:
     """A special-purpose graph class, stored in a sqlite3 database"""
 
-    def __init__(self, conn, run_migrations=True) -> None:
+    def __init__(self, conn: sqlite3.Connection, run_migrations: bool = True) -> None:
         self._conn = conn
         conn.row_factory = sqlite3.Row
 
@@ -387,12 +401,12 @@ class Graph:
 
             self.order = int(self.get_info_text("order"))
 
-            self._all_tokens = ",".join(["token%d_id" % i for i in range(self.order)])
+            self._all_tokens = ",".join([f"token{i:d}_id" for i in range(self.order)])
             self._all_tokens_args = " AND ".join(
-                ["token%d_id = ?" % i for i in range(self.order)]
+                [f"token{i:d}_id = ?" for i in range(self.order)]
             )
             self._all_tokens_q = ",".join(["?" for _ in range(self.order)])
-            self._last_token = "token%d_id" % (self.order - 1)
+            self._last_token = f"token{self.order - 1:d}_id"
 
             # Use a 10M cache by default. This speeds replies quite a bit.
             c = self.cursor()
@@ -404,13 +418,13 @@ class Graph:
             c.execute("PRAGMA temp_store=memory")
             c.execute("PRAGMA synchronous=OFF")
 
-    def cursor(self):
+    def cursor(self) -> sqlite3.Cursor:
         return self._conn.cursor()
 
     def commit(self) -> None:
         self._conn.commit()
 
-    def close(self):
+    def close(self) -> None:
         return self._conn.close()
 
     def is_initted(self) -> bool | None:
@@ -420,7 +434,7 @@ class Graph:
         except sqlite3.OperationalError:
             return False
 
-    def set_info_text(self, attribute, text) -> None:
+    def set_info_text(self, attribute: str, text: str) -> None:
         c = self.cursor()
 
         if text is None:
@@ -434,7 +448,12 @@ class Graph:
                 q = "INSERT INTO info (attribute, text) VALUES (?, ?)"
                 c.execute(q, (attribute, text))
 
-    def get_info_text(self, attribute, default=None, text_factory=None):
+    def get_info_text(
+        self,
+        attribute: str,
+        default: str | None = None,
+        text_factory: typing.Callable[[bytes], str] | None = None,
+    ) -> str:
         c = self.cursor()
 
         old_text_factory = self._conn.text_factory
@@ -453,7 +472,7 @@ class Graph:
         return default
 
     @staticmethod
-    def get_seq_expr(seq):
+    def get_seq_expr(seq: typing.Sequence) -> str:
         # Format the sequence seq as (item1, item2, item2) as appropriate
         # for an IN () clause in SQL
         if len(seq) == 1:
@@ -464,7 +483,12 @@ class Graph:
 
         return str(tuple(seq))
 
-    def get_token_by_text(self, text, create=False, stemmer=None):
+    def get_token_by_text(
+        self,
+        text: str,
+        create: bool = False,
+        stemmer: tokenizers.CobeStemmer | None = None,
+    ) -> int:
         c = self.cursor()
 
         q = "SELECT id FROM tokens WHERE text = ?"
@@ -484,42 +508,43 @@ class Graph:
 
             return token_id
 
-    def insert_stem(self, token_id, stem) -> None:
+    def insert_stem(self, token_id: int, stem: str) -> None:
         q = "INSERT INTO token_stems (token_id, stem) VALUES (?, ?)"
         self._conn.execute(q, (token_id, stem))
 
-    def get_token_by_id(self, token_id):
+    def get_token_by_id(self, token_id: int) -> str:
         q = "SELECT text FROM tokens WHERE id = ?"
         row = self._conn.execute(q, (token_id,)).fetchone()
         if row:
             return row[0]
 
-    def get_token_stem_id(self, stem):
+    def get_token_stem_id(self, stem: str) -> tuple[int]:
         q = "SELECT token_id FROM token_stems WHERE token_stems.stem = ?"
         rows = self._conn.execute(q, (stem,))
         if rows:
             return tuple(val[0] for val in rows)
 
-    def get_word_by_node(self, node_id):
+    def get_word_by_node(self, node_id: int) -> str:
         # return the last word in the node
-        q = (
-            f"SELECT tokens.text FROM nodes, tokens WHERE nodes.id = ? AND {self._last_token} = tokens.id"
-        )
+        q = f"""SELECT tokens.text FROM nodes, tokens
+                WHERE nodes.id = ? AND {self._last_token} = tokens.id"""  # noqa: S608
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row:
             return row[0]
 
-    def get_token_by_node(self, node_id):
+    def get_token_by_node(self, node_id: int) -> int:
         # return the last token in the node
-        q = f"SELECT tokens.id FROM nodes, tokens WHERE nodes.id = ? AND {self._last_token} = tokens.id"
+        q = f"""SELECT tokens.id FROM nodes, tokens
+                WHERE nodes.id = ? AND {self._last_token} = tokens.id"""  # noqa: S608
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row:
             return row[0]
 
-    def get_word_tokens(self, token_ids):
-        q = f"SELECT id FROM tokens WHERE id IN {self.get_seq_expr(token_ids)} AND is_word = 1"
+    def get_word_tokens(self, token_ids: set[int]) -> list[int]:
+        q = f"""SELECT id FROM tokens
+                WHERE id IN {self.get_seq_expr(token_ids)} AND is_word = 1"""  # noqa: S608
 
         rows = self._conn.execute(q)
         if rows:
@@ -527,8 +552,8 @@ class Graph:
 
         return []
 
-    def get_tokens(self, token_ids):
-        q = f"SELECT id FROM tokens WHERE id IN {self.get_seq_expr(token_ids)}"
+    def get_tokens(self, token_ids: set[int]) -> list[int]:
+        q = f"SELECT id FROM tokens WHERE id IN {self.get_seq_expr(token_ids)}"  # noqa: S608
 
         rows = self._conn.execute(q)
         if rows:
@@ -536,33 +561,35 @@ class Graph:
 
         return []
 
-    def get_node_by_tokens(self, tokens):
+    def get_node_by_tokens(self, tokens: list[int]) -> int:
         c = self.cursor()
 
-        q = f"SELECT id FROM nodes WHERE {self._all_tokens_args}"
+        q = f"SELECT id FROM nodes WHERE {self._all_tokens_args}"  # noqa: S608
 
         row = c.execute(q, tokens).fetchone()
         if row:
             return int(row[0])
 
         # if not found, create the node
-        q = f"INSERT INTO nodes (count, {self._all_tokens}) VALUES (0, {self._all_tokens_q})"
+        q = f"""INSERT INTO nodes (count, {self._all_tokens})
+                VALUES (0, {self._all_tokens_q})"""  # noqa: S608
         c.execute(q, tokens)
         return c.lastrowid
 
-    def get_node_tokens(self, node_id):
-        q = f"SELECT {self._all_tokens} FROM nodes WHERE id = ?"
+    def get_node_tokens(self, node_id: int) -> tuple:
+        q = f"SELECT {self._all_tokens} FROM nodes WHERE id = ?"  # noqa: S608
 
         row = self._conn.execute(q, (node_id,)).fetchone()
-        assert row is not None
+        if row is None:
+            raise Exception(f"Node with id {node_id} not found")
 
         return tuple(row)
 
-    def get_node_text(self, node_id):
+    def get_node_text(self, node_id: int) -> list[str]:
         tokens = self.get_node_tokens(node_id)
         return [self.get_token_by_id(token_id) for token_id in tokens]
 
-    def get_random_token(self):
+    def get_random_token(self) -> int:
         # token 1 is the end_token_id, so we want to generate a random token
         # id from 2..max(id) inclusive.
         q = "SELECT (abs(random()) % (MAX(id)-1)) + 2 FROM tokens"
@@ -570,7 +597,7 @@ class Graph:
         if row:
             return row[0]
 
-    def get_random_node_with_token(self, token_id):
+    def get_random_node_with_token(self, token_id: int) -> int:
         c = self.cursor()
 
         q = """
@@ -582,14 +609,17 @@ class Graph:
         if row:
             return int(row[0])
 
-    def add_edge(self, prev_node, next_node, has_space) -> None:
+    def add_edge(self, prev_node: int, next_node: int, has_space: bool) -> None:
         c = self.cursor()
 
-        assert isinstance(has_space, bool)
+        if not isinstance(has_space, bool):
+            raise TypeError("has_space must be bool")
 
-        update_q = "UPDATE edges SET count = count + 1 WHERE prev_node = ? AND next_node = ? AND has_space = ?"
+        update_q = """UPDATE edges SET count = count + 1
+                      WHERE prev_node = ? AND next_node = ? AND has_space = ?"""
 
-        q = "INSERT INTO edges (prev_node, next_node, has_space, count) VALUES (?, ?, ?, 1)"
+        q = """INSERT INTO edges (prev_node, next_node, has_space, count)
+               VALUES (?, ?, ?, 1)"""
 
         args = (prev_node, next_node, has_space)
 
@@ -601,20 +631,23 @@ class Graph:
         # incremented here, to register that the node has been seen an
         # additional time. This is now handled by database triggers.
 
-    def get_node_count(self, node_id):
+    def get_node_count(self, node_id: int) -> int:
         q = "SELECT count FROM nodes WHERE nodes.id = ?"
 
         row = self._conn.execute(q, (node_id,)).fetchone()
-        assert row
+        if row is None:
+            raise Exception(f"Node not found: {node_id}")
 
         return row[0]
 
-    def get_node_counts(self, node_ids):
-        q = f"SELECT id, count FROM nodes WHERE id IN {self.get_seq_expr(node_ids)}"
+    def get_node_counts(self, node_ids: list[int]) -> list[tuple]:
+        q = f"SELECT id, count FROM nodes WHERE id IN {self.get_seq_expr(node_ids)}"  # noqa: S608
 
         return self._conn.execute(q)
 
-    def walk(self, node, end_id, direction, append) -> None:
+    def walk(
+        self, node: int, end_id: int, direction: int, append: typing.Callable
+    ) -> None:
         """Perform a random walk on the graph starting at node"""
         if direction:
             q = (
@@ -650,7 +683,12 @@ class Graph:
 
             last_node = row[1]
 
-    def init(self, order, tokenizer, run_migrations=True) -> None:
+    def init(
+        self,
+        order: int,
+        tokenizer: str,
+        run_migrations: bool = True,
+    ) -> None:
         c = self.cursor()
 
         c.execute(
@@ -663,9 +701,7 @@ class Graph:
             "text TEXT UNIQUE NOT NULL, is_word INTEGER NOT NULL)"
         )
 
-        tokens = []
-        for i in range(order):
-            tokens.append("token%d_id INTEGER REFERENCES token(id)" % i)
+        tokens = [f"token{i:d}_id INTEGER REFERENCES token(id)" for i in range(order)]
 
         c.execute("CREATE TABLE token_stems (token_id INTEGER, stem TEXT NOT NULL)")
 
@@ -714,7 +750,7 @@ class Graph:
         # remove the temporary learning index if it exists
         c.execute("DROP INDEX IF EXISTS learn_index")
 
-        token_ids = ",".join(["token%d_id" % i for i in range(self.order)])
+        token_ids = ",".join([f"token{i:d}_id" for i in range(self.order)])
         sql = "CREATE UNIQUE INDEX IF NOT EXISTS nodes_token_ids on nodes ({})"
         c.execute(sql.format(token_ids))
 
@@ -740,7 +776,7 @@ class Graph:
 
         self.commit()
 
-    def update_token_stems(self, stemmer) -> None:
+    def update_token_stems(self, stemmer: tokenizers.CobeStemmer) -> None:
         # stemmer is a CobeStemmer
         c = self.cursor()
         insert_c = self.cursor()

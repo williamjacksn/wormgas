@@ -17,15 +17,15 @@ class Scorer:
         self.cache = {}
 
     @staticmethod
-    def normalize(score):
+    def normalize(score: float) -> float:
         # map high-valued scores into 0..1
         if score < 0:
             return score
 
         return 1.0 - 1.0 / (1.0 + score)
 
-    def score(self, reply):
-        return NotImplementedError
+    def score(self, reply: "Reply") -> float:
+        raise NotImplementedError
 
 
 class ScorerGroup:
@@ -33,7 +33,7 @@ class ScorerGroup:
         self.scorers = []
         self.total_weight = 0.0
 
-    def add_scorer(self, weight, scorer) -> None:
+    def add_scorer(self, weight: float, scorer: Scorer) -> None:
         # add a scorer with a negative weight if you want to reverse
         # its impact
         self.scorers.append((weight, scorer))
@@ -47,14 +47,15 @@ class ScorerGroup:
         for scorer in self.scorers:
             scorer[1].end()
 
-    def score(self, reply):
+    def score(self, reply: "Reply") -> float:
         # normalize to 0..1
         score = 0.0
         for weight, scorer in self.scorers:
             s = scorer.score(reply)
 
             # make sure score is in our accepted range
-            assert 0.0 <= score <= 1.0
+            if score < 0.0 or score > 1.0:
+                raise Exception(f"Invalid score: {score}")
 
             if weight < 0.0:
                 s = 1.0 - s
@@ -67,7 +68,7 @@ class ScorerGroup:
 class CobeScorer(Scorer):
     """Classic Cobe scorer"""
 
-    def score(self, reply):
+    def score(self, reply: "Reply") -> float:
         info = 0.0
 
         cache = self.cache
@@ -122,7 +123,7 @@ class CobeScorer(Scorer):
 class IdentityScorer(Scorer):
     """Parrot the input exactly. Best used with a negative weight."""
 
-    def token_iter(self, reply: "Reply"):
+    def token_iter(self, reply: "Reply") -> typing.Iterator:
         cache = self.cache
 
         for edge in islice(reply.edges, 1, None):
@@ -150,31 +151,3 @@ class IdentityScorer(Scorer):
                 return 0.0
 
         return 1.0
-
-
-class InformationScorer(Scorer):
-    """Score based on the information of each edge in the graph"""
-
-    def score(self, reply: "Reply") -> float:
-        info = 0.0
-
-        get_node_count = reply.graph.get_node_count
-
-        cache = self.cache
-        for edge in reply.edges:
-            node_id = edge.prev
-
-            if node_id in cache:
-                node_count = cache[node_id]
-            else:
-                node_count = get_node_count(node_id)
-                cache[node_id] = node_count
-
-            info += -math.log2(float(edge.count) / node_count)
-
-        return self.normalize(info)
-
-
-class LengthScorer(Scorer):
-    def score(self, reply: "Reply") -> float:
-        return self.normalize(len(reply.edges))

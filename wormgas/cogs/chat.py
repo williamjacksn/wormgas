@@ -1,8 +1,8 @@
 import logging
 import os
 import pathlib
-import random
 import re
+import secrets
 import time
 
 import discord.ext
@@ -14,15 +14,18 @@ log = logging.getLogger(__name__)
 
 
 class ChatCog(discord.ext.commands.Cog):
-    quotes = [
-        "Attack the evil that is within yourself, rather than attacking the evil that is in others.",
+    quotes = (
+        "Attack the evil that is within yourself, "
+        "rather than attacking the evil that is in others.",
         "Before you embark on a journey of revenge, dig two graves.",
         "Better a diamond with a flaw than a pebble without.",
         "Everything has beauty, but not everyone sees it.",
         "He who knows all the answers has not been asked all the questions.",
-        "He who learns but does not think, is lost! He who thinks but does not learn is in great danger.",
+        "He who learns but does not think, is lost! "
+        "He who thinks but does not learn is in great danger.",
         "I hear and I forget. I see and I remember. I do and I understand.",
-        "If what one has to say is not better than silence, then one should keep silent.",
+        "If what one has to say is not better than silence, "
+        "then one should keep silent.",
         "If you make a mistake and do not correct it, this is called a mistake.",
         "Ignorance is the night of the mind but a night without moon and star.",
         "Music produces a kind of pleasure which human nature cannot do without.",
@@ -30,13 +33,16 @@ class ChatCog(discord.ext.commands.Cog):
         "Our greatest glory is not in never falling, but in rising every time we fall.",
         "Respect yourself and others will respect you.",
         "Silence is a true friend who never betrays.",
-        "The hardest thing of all is to find a black cat in a dark room, especially if there is no cat.",
-        "The man who asks a question is a fool for a minute, the man who does not ask is a fool for life.",
+        "The hardest thing of all is to find a black cat in a dark room, "
+        "especially if there is no cat.",
+        "The man who asks a question is a fool for a minute, "
+        "the man who does not ask is a fool for life.",
         "The superior man is modest in his speech, but exceeds in his actions.",
         "To be wronged is nothing, unless you continue to remember it.",
         "To see what is right and not to do it, is want of courage or of principle.",
-        "What you know, you know, what you do not know, you do not know. This is true wisdom.",
-    ]
+        "What you know, you know, what you do not know, you do not know. "
+        "This is true wisdom.",
+    )
 
     def __init__(self, bot: wormgas.wormgas.Wormgas) -> None:
         self.bot = bot
@@ -54,7 +60,8 @@ class ChatCog(discord.ext.commands.Cog):
         normalized_watch_text = watch_text.lower()
         self.bot.db.watch_words_insert(channel.id, ctx.author.id, normalized_watch_text)
         await ctx.author.send(
-            f"Okay, I will ping you whenever I see a message in {channel} that contains {normalized_watch_text!r}"
+            f"Okay, I will ping you whenever I see a message in {channel} "
+            f"that contains {normalized_watch_text!r}"
         )
 
     @discord.ext.commands.Cog.listener("on_message")
@@ -81,7 +88,8 @@ class ChatCog(discord.ext.commands.Cog):
             if watch_text in message.clean_content.lower():
                 pinged_users.append(user)
                 await user.send(
-                    f"{message.author} mentioned {watch_text} in {message.channel}: {message.jump_url}"
+                    f"{message.author} mentioned {watch_text} "
+                    f"in {message.channel}: {message.jump_url}"
                 )
 
     @discord.ext.commands.Cog.listener()
@@ -122,14 +130,17 @@ class ChatCog(discord.ext.commands.Cog):
         else:
             await message.author.send(response)
             remaining = last + wait - now
-            m = f"I am cooling down. I cannot respond in {message.channel.mention} for another {remaining} seconds."
+            m = (
+                f"I am cooling down. I cannot respond in {message.channel.mention} "
+                f"for another {remaining} seconds."
+            )
             await message.author.send(m)
 
-    async def reply(self, text, learn=True):
+    async def reply(self, text: str, learn: bool = True) -> str:
         ignore = self.bot.db.config_get("chat:ignore")
         if ignore is not None and re.search(ignore, text, re.IGNORECASE):
             log.debug(f"Ignoring {text!r}")
-            return random.choice(self.quotes)
+            return secrets.choice(self.quotes)
         to_brain = text
         if learn:
             log.debug(f"Learning {to_brain!r}")
