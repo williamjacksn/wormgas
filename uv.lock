@@ -406,11 +406,11 @@ wheels = [
 
 [[package]]
 name = "notch"
-version = "2025.2"
+version = "2026.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/89/e4/b468a58c6be0c77585b51136d1bb9a978753f677e38e1e182d9ac0e42ef1/notch-2025.2.tar.gz", hash = "sha256:fedbe3d8bbaf41bf60e363b5957cf3e7734d9d5534816f04b538bbf81b0a60c0", size = 3463, upload-time = "2025-04-28T17:25:30.288Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/dc/da407d485b6498a7b0c9dd14dc8057f2106e3cbfe171fe6d9ae9048a7d76/notch-2026.0.tar.gz", hash = "sha256:d1dcbf499a18d89449830fa7cdca36278dfbf01a025eb1c1414bac8071f9192a", size = 2282, upload-time = "2026-01-07T20:39:31.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/11/ef4257cbf5315308d72cf718524f566685c503493cef40ae3926f222e650/notch-2025.2-py3-none-any.whl", hash = "sha256:b8cf6d787a78b63060f8900000e45dd0247759849188ff4bfc55f06077e33614", size = 3675, upload-time = "2025-04-28T17:25:29.212Z" },
+    { url = "https://files.pythonhosted.org/packages/62/6f/735b624eb2ff90090687d4d74a959af2220c2bce091d121a983ce88f6a28/notch-2026.0-py3-none-any.whl", hash = "sha256:1940240523a59c2a1659b948956ed3fe34c9105a860239908207d989f249cfa2", size = 2809, upload-time = "2026-01-07T20:39:29.955Z" },
 ]
 
 [[package]]
