@@ -28,6 +28,9 @@ class RainwaveChannel(enum.Enum):
     all = 5
     omni = 5
     ow = 5
+    chill = 6
+    cl = 6
+    ambi = 6
 
     @property
     def channel_id(self) -> int:
@@ -39,18 +42,18 @@ class RainwaveChannel(enum.Enum):
 
     @property
     def short_name(self) -> str | None:
-        return (None, "Game", "OCR", "Covers", "Chiptune", "All")[int(self.value)]
+        return (None, "Game", "OCR", "Covers", "Chiptune", "All", "Chill")[
+            int(self.value)
+        ]
 
     @property
     def url(self) -> str:
         return (
             "https://rainwave.cc/"
-            + ("", "game/", "ocremix/", "covers/", "chiptune/", "all/")[int(self.value)]
+            + ("", "game/", "ocremix/", "covers/", "chiptune/", "all/", "chill/")[
+                int(self.value)
+            ]
         )
-
-    @property
-    def voice_channel_name(self) -> str | None:
-        return (None, "game", "ocremix", "covers", "chiptune", "all")[int(self.value)]
 
 
 class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
@@ -397,6 +400,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             chan = RainwaveChannel.chip
         elif cmd in ["nxall", "nxomni", "nxow"]:
             chan = RainwaveChannel.all
+        elif cmd in ["nxchill", "nxcl", "nxambi"]:
+            chan = RainwaveChannel.chill
         elif cmd in ["next", "nx"]:
             if channel:
                 if channel.lower() in RainwaveChannel.__members__.keys():
@@ -473,6 +478,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 chan = RainwaveChannel.chip
             elif cmd in ["npall", "npomni", "npow"]:
                 chan = RainwaveChannel.all
+            elif cmd in ["npchill", "npcl", "npambi"]:
+                chan = RainwaveChannel.chill
             elif cmd in ["nowplaying", "np"]:
                 if channel and channel.lower() in RainwaveChannel.__members__.keys():
                     chan = RainwaveChannel[channel.lower()]
@@ -553,6 +560,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 chan = RainwaveChannel.chip
             elif cmd in ["ppall", "ppomni", "ppow"]:
                 chan = RainwaveChannel.all
+            elif cmd in ["ppchill", "ppcl", "ppambi"]:
+                chan = RainwaveChannel.chill
 
             if (
                 chan
