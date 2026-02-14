@@ -504,9 +504,10 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             m += f": {self.song_string(song)}"
 
             if ctx.guild:
-                last: int = (
-                    int(self.bot.db.config_get(f"rainwave:np:{chan.channel_id}")) or 0
+                config_last: str = (
+                    self.bot.db.config_get(f"rainwave:np:{chan.channel_id}") or "0"
                 )
+                last: int = int(config_last) or 0
                 if sched_id == last:
                     c = (
                         f"You can only use **{cmd}** in "
