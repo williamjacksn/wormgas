@@ -16,7 +16,7 @@ class RainwaveChannel(enum.Enum):
     rw = 1
     oc = 2
     ocr = 2
-    ocremix = 3
+    ocremix = 2
     cover = 3
     covers = 3
     mw = 3
