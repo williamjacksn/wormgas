@@ -308,7 +308,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 future_events.append(e_text)
         return future_events
 
-    async def ph_mention(self, channel) -> None:
+    async def ph_mention(self, channel: discord.TextChannel) -> None:
         utc = datetime.datetime.now(datetime.UTC)
 
         current_time_eu = utc.astimezone(zoneinfo.ZoneInfo("Europe/Paris"))
