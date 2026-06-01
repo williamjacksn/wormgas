@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "discord-py>=2.7.1",
-    "fort>=2025.1",
+    "fort>=2026.0",
     "notch>=2026.0",
     "stemming>=1.0.1",
     "wikipedia>=1.4.0",
@@ -14,8 +14,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.14",
-    "ty>=0.0.39",
+    "ruff>=0.15.15",
+    "ty>=0.0.41",
 ]
 
 [tool.ruff.lint]
