@@ -4,11 +4,11 @@ import fort
 
 
 class Database(fort.SQLiteDatabase):
-    _version: int = None
+    _version: int = 0
 
     @property
     def version(self) -> int:
-        if self._version is None:
+        if self._version == 0:
             if self._table_exists("schema_versions"):
                 sql = """
                     select schema_version
@@ -105,7 +105,7 @@ class Database(fort.SQLiteDatabase):
 
     def events_get(self, rw_event_id: int) -> dict | None:
         sql = """
-            select rw_event_id, discord_event_id
+            select rw_event_id, notification_sent
             from events
             where rw_event_id = :rw_event_id
         """
@@ -114,14 +114,24 @@ class Database(fort.SQLiteDatabase):
         }
         return self.q_one(sql, params)
 
-    def events_insert(self, rw_event_id: int, discord_event_id: int) -> None:
+    def events_insert(self, rw_event_id: int) -> None:
         sql = """
-            insert into events (rw_event_id, discord_event_id)
-            values (:rw_event_id, :discord_event_id)
+            insert into events (rw_event_id)
+            values (:rw_event_id)
         """
         params = {
             "rw_event_id": rw_event_id,
-            "discord_event_id": discord_event_id,
+        }
+        self.u(sql, params)
+
+    def events_update_notification_sent(self, rw_event_id: int) -> None:
+        sql = """
+            update events
+            set notification_sent = 1
+            where rw_event_id = :rw_event_id
+        """
+        params = {
+            "rw_event_id": rw_event_id,
         }
         self.u(sql, params)
 
@@ -207,6 +217,14 @@ class Database(fort.SQLiteDatabase):
                 )
             """)
             self.version = 8
+        if self.version < 9:
+            self.log.info("Migrating to database schema version 9")
+            self.u("alter table events drop column discord_event_id")
+            self.u("""
+                alter table events
+                add column notification_sent integer not null default 0
+            """)
+            self.version = 9
 
     def rps_delete(self, user_id: str) -> None:
         sql = """
