@@ -5,9 +5,9 @@ description = "Discord bot for rainwave.cc"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "discord-py>=2.5.2",
-    "fort>=2024.2",
-    "notch>=2025.2",
+    "discord-py>=2.7.1",
+    "fort>=2025.1",
+    "notch>=2026.0",
     "stemming>=1.0.1",
     "wikipedia>=1.4.0",
 ]

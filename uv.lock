@@ -610,9 +610,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "discord-py", specifier = ">=2.5.2" },
-    { name = "fort", specifier = ">=2024.2" },
-    { name = "notch", specifier = ">=2025.2" },
+    { name = "discord-py", specifier = ">=2.7.1" },
+    { name = "fort", specifier = ">=2025.1" },
+    { name = "notch", specifier = ">=2026.0" },
     { name = "stemming", specifier = ">=1.0.1" },
     { name = "wikipedia", specifier = ">=1.4.0" },
 ]
