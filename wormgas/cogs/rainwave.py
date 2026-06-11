@@ -458,7 +458,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             description=description,
         )
         album_art = song["albums"][0]["art"]
-        embed.set_thumbnail(url=f"https://rainwave.cc{album_art}_320.jpg")
+        if album_art:
+            embed.set_thumbnail(url=f"https://rainwave.cc{album_art}_320.jpg")
         embed.set_author(name=channel.long_name, url=channel.url)
         return embed
 
