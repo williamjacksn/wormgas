@@ -14,7 +14,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.20",
+    "ruff>=0.16.3",
     "ty>=0.0.56",
 ]
 
