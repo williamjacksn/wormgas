@@ -22,24 +22,17 @@ def to_bool(argument: str | None) -> bool:
 
 class RainwaveChannel(enum.Enum):
     game = 1
-    rw = 1
+    rw = game
     oc = 2
-    ocr = 2
-    ocremix = 2
+    ocr = ocremix = oc
     cover = 3
-    covers = 3
-    mw = 3
-    vw = 3
+    covers = mw = vw = cover
     bw = 4
-    ch = 4
-    chip = 4
-    chiptune = 4
+    ch = chip = chiptune = bw
     all = 5
-    omni = 5
-    ow = 5
+    omni = ow = all
     chill = 6
-    cl = 6
-    ambi = 6
+    cl = ambi = chill
 
     @property
     def channel_id(self) -> int:
@@ -79,7 +72,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         self.not_tuned_in = (
             "You are not tuned in and you did not specify a valid channel code."
         )
-        codes = [code for code in RainwaveChannel.__members__.keys()]
+        codes = [code for code in RainwaveChannel.__members__]
         chan_code_ls = "**, **".join(codes)
         self.channel_codes = f"Channel codes are **{chan_code_ls}**."
         self.check_special_events.start()
@@ -158,7 +151,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             return RainwaveChannel(user_sid)
         if hasattr(user, "voice") and user.voice:
             vc_name = user.voice.channel.name
-            if vc_name.lower() in RainwaveChannel.__members__.keys():
+            if vc_name.lower() in RainwaveChannel.__members__:
                 return RainwaveChannel[vc_name.lower()]
 
     async def get_id_for_name(self, username: str) -> int:
@@ -500,7 +493,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         return embed
 
     @discord.ext.commands.command(
-        aliases=["nx"] + [f"nx{ch}" for ch in RainwaveChannel.__members__.keys()]
+        aliases=["nx"] + [f"nx{ch}" for ch in RainwaveChannel.__members__]
     )
     async def next(
         self, ctx: discord.ext.commands.Context, channel: str | None = None
@@ -532,9 +525,8 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         elif cmd in ["nxchill", "nxcl", "nxambi"]:
             chan = RainwaveChannel.chill
         elif cmd in ["next", "nx"]:
-            if channel:
-                if channel.lower() in RainwaveChannel.__members__.keys():
-                    chan = RainwaveChannel[channel.lower()]
+            if channel and channel.lower() in RainwaveChannel.__members__:
+                chan = RainwaveChannel[channel.lower()]
             if chan is None:
                 chan = await self.get_current_channel_for_user(ctx.author)
             if chan is None:
@@ -578,7 +570,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             await ctx.send(m)
 
     @discord.ext.commands.command(
-        aliases=["np"] + [f"np{ch}" for ch in RainwaveChannel.__members__.keys()]
+        aliases=["np"] + [f"np{ch}" for ch in RainwaveChannel.__members__]
     )
     async def nowplaying(
         self, ctx: discord.ext.commands.Context, channel: str | None = None
@@ -610,7 +602,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
             elif cmd in ["npchill", "npcl", "npambi"]:
                 chan = RainwaveChannel.chill
             elif cmd in ["nowplaying", "np"]:
-                if channel and channel.lower() in RainwaveChannel.__members__.keys():
+                if channel and channel.lower() in RainwaveChannel.__members__:
                     chan = RainwaveChannel[channel.lower()]
                 if chan is None:
                     chan = await self.get_current_channel_for_user(ctx.author)
@@ -653,7 +645,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 await ctx.send(m, embed=embed)
 
     @discord.ext.commands.command(
-        aliases=["pp"] + [f"pp{ch}" for ch in RainwaveChannel.__members__.keys()]
+        aliases=["pp"] + [f"pp{ch}" for ch in RainwaveChannel.__members__]
     )
     async def prevplayed(
         self, ctx: discord.ext.commands.Context, *, args: str | None = None
@@ -698,20 +690,23 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 and chan in RainwaveChannel
                 and len(tokens) > 0
                 and tokens[0].isdigit()
+                and int(tokens[0]) in range(5)
             ):
-                if int(tokens[0]) in range(5):
-                    idx = int(tokens[0])
+                idx = int(tokens[0])
 
             if cmd in ["prevplayed", "pp"]:
                 if len(tokens) > 0:
                     if tokens[0].isdigit() and int(tokens[0]) in range(5):
                         idx = int(tokens[0])
                     else:
-                        if tokens[0].lower() in RainwaveChannel.__members__.keys():
+                        if tokens[0].lower() in RainwaveChannel.__members__:
                             chan = RainwaveChannel[tokens[0].lower()]
-                        if len(tokens) > 1:
-                            if tokens[1].isdigit() and int(tokens[1]) in range(5):
-                                idx = int(tokens[1])
+                        if (
+                            len(tokens) > 1
+                            and tokens[1].isdigit()
+                            and int(tokens[1]) in range(5)
+                        ):
+                            idx = int(tokens[1])
                 if chan is None:
                     chan = await self.get_current_channel_for_user(ctx.author)
                 if chan is None:

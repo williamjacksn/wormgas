@@ -380,6 +380,4 @@ class Database(fort.SQLiteDatabase):
             "name": table_name,
         }
         t = self.q_val(sql, params)
-        if t and t == table_name:
-            return True
-        return False
+        return bool(t and t == table_name)

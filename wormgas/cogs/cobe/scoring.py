@@ -39,8 +39,8 @@ class ScorerGroup:
         self.scorers.append((weight, scorer))
 
         total = 0.0
-        for weight, _ in self.scorers:
-            total += abs(weight)
+        for scorer_weight, _ in self.scorers:
+            total += abs(scorer_weight)
         self.total_weight = total
 
     def end(self) -> None:
@@ -55,7 +55,7 @@ class ScorerGroup:
 
             # make sure score is in our accepted range
             if score < 0.0 or score > 1.0:
-                raise Exception(f"Invalid score: {score}")
+                raise ValueError(f"Invalid score: {score}")
 
             if weight < 0.0:
                 s = 1.0 - s

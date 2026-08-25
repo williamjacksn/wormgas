@@ -581,7 +581,7 @@ class Graph:
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row is None:
-            raise Exception(f"Node with id {node_id} not found")
+            raise CobeError(f"Node with id {node_id} not found")
 
         return tuple(row)
 
@@ -636,7 +636,7 @@ class Graph:
 
         row = self._conn.execute(q, (node_id,)).fetchone()
         if row is None:
-            raise Exception(f"Node not found: {node_id}")
+            raise CobeError(f"Node not found: {node_id}")
 
         return row[0]
 
