@@ -3,7 +3,7 @@ name = "wormgas"
 version = "2025.1"
 description = "Discord bot for rainwave.cc"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "discord-py>=2.7.1",
     "fort>=2026.0",
