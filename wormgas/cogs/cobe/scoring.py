@@ -24,7 +24,7 @@ class Scorer:
 
         return 1.0 - 1.0 / (1.0 + score)
 
-    def score(self, reply: "Reply") -> float:
+    def score(self, reply: Reply) -> float:
         raise NotImplementedError
 
 
@@ -47,7 +47,7 @@ class ScorerGroup:
         for scorer in self.scorers:
             scorer[1].end()
 
-    def score(self, reply: "Reply") -> float:
+    def score(self, reply: Reply) -> float:
         # normalize to 0..1
         score = 0.0
         for weight, scorer in self.scorers:
@@ -68,7 +68,7 @@ class ScorerGroup:
 class CobeScorer(Scorer):
     """Classic Cobe scorer"""
 
-    def score(self, reply: "Reply") -> float:
+    def score(self, reply: Reply) -> float:
         info = 0.0
 
         cache = self.cache
@@ -123,7 +123,7 @@ class CobeScorer(Scorer):
 class IdentityScorer(Scorer):
     """Parrot the input exactly. Best used with a negative weight."""
 
-    def token_iter(self, reply: "Reply") -> typing.Iterator:
+    def token_iter(self, reply: Reply) -> typing.Iterator:
         cache = self.cache
 
         for edge in islice(reply.edges, 1, None):
@@ -139,7 +139,7 @@ class IdentityScorer(Scorer):
             if edge.has_space:
                 yield None
 
-    def score(self, reply: "Reply") -> float:
+    def score(self, reply: Reply) -> float:
         len_token_ids = 0
         for _ in reply.token_ids:
             len_token_ids += 1

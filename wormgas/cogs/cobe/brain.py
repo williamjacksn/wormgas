@@ -252,7 +252,7 @@ class Brain:
                     pass
 
     @staticmethod
-    def _get_reply_key(reply: "Reply") -> tuple:
+    def _get_reply_key(reply: Reply) -> tuple:
         return tuple([edge.edge_id for edge in reply.edges])
 
     def _babble(self) -> list[int]:
@@ -330,11 +330,11 @@ class Reply:
 
     def __init__(
         self,
-        graph: "Graph",
+        graph: Graph,
         tokens: list[str],
         token_ids: list[int],
         pivot_node: int,
-        edges: list["Edge"],
+        edges: list[Edge],
     ) -> None:
         self.graph = graph
         self.tokens = tokens
@@ -358,7 +358,7 @@ class Reply:
 class Edge:
     def __init__(
         self,
-        graph: "Graph",
+        graph: Graph,
         edge_id: int,
         prev: int,
         nxt: int,
