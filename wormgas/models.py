@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import fort
 
@@ -31,7 +31,7 @@ class Database(fort.SQLiteDatabase):
             )
         """
         params = {
-            "migration_applied_at": datetime.datetime.now(tz=datetime.UTC).isoformat(),
+            "migration_applied_at": dt.datetime.now(tz=dt.UTC).isoformat(),
             "schema_version": version,
         }
         self.u(sql, params)
@@ -48,7 +48,7 @@ class Database(fort.SQLiteDatabase):
             )
         """
         params = {
-            "occurred_at": datetime.datetime.now(tz=datetime.UTC).isoformat(),
+            "occurred_at": dt.datetime.now(tz=dt.UTC).isoformat(),
             "discord_user_id": discord_user_id,
             "command": command,
             "message": message,

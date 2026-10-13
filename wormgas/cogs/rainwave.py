@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import enum
 import logging
 import time
@@ -291,7 +291,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
                 e_start = p["start"]
                 log.info(f"get_future_events: {e_name} will start at {e_start}")
                 tz_toronto = zoneinfo.ZoneInfo("America/Toronto")
-                when = datetime.datetime.fromtimestamp(e_start, tz_toronto)
+                when = dt.datetime.fromtimestamp(e_start, tz_toronto)
                 month = when.strftime("%b")
                 w_time = when.strftime("%H:%M")
                 e_text = (
@@ -302,7 +302,7 @@ class RainwaveCog(discord.ext.commands.Cog, name="Rainwave"):
         return future_events
 
     async def ph_mention(self, channel: discord.TextChannel) -> None:
-        utc = datetime.datetime.now(datetime.UTC)
+        utc = dt.datetime.now(dt.UTC)
 
         current_time_eu = utc.astimezone(zoneinfo.ZoneInfo("Europe/Paris"))
         if 8 <= current_time_eu.hour < 17:

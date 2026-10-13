@@ -14,9 +14,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.16.4",
+    "ruff>=0.17.0",
     "ty>=0.0.56",
 ]
 
 [tool.ruff.lint]
-extend-select = ["ANN", "E", "F", "FURB", "I", "PERF", "Q", "RSE", "RUF", "S", "UP"]
+extend-select = ["ANN", "DTZ", "E", "F", "FURB", "I", "ICN", "PERF", "Q", "RSE", "RUF", "S", "UP"]
