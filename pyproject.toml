@@ -19,4 +19,4 @@ dev = [
 ]
 
 [tool.ruff.lint]
-extend-select = ["ANN", "DTZ", "E", "F", "FURB", "I", "ICN", "PERF", "Q", "RSE", "RUF", "S", "UP"]
+extend-select = ["ANN", "DTZ", "E", "F", "FURB", "I", "ICN", "PERF", "Q", "RSE", "RUF", "S", "UP", "W"]
